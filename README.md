@@ -37,30 +37,36 @@ A *room* is more than a theme — it sets the light (palette), the voice (typefa
 
 Cycle them with `Ctrl/⌘ + \`.
 
-## Features (v0.1 — Milestone 0)
+## Features (v0.1)
 
+- **Real `.docx` open and save** — documents round-trip through Microsoft Word and back with structure intact (headings, lists, quotes, code, links, images), verified by an automated 18-fixture round-trip suite
+- **Images** — paste or drag-drop PNG/JPEG/GIF into the page; embedded right in the document and in the exported `.docx`
 - Real rich-text editing (bold, italic, underline, strikethrough, headings, lists, quotes, links) on a ProseMirror/Tiptap core
 - Six built-in rooms with instant switching; your choice is remembered
+- **The Commander** (`Ctrl/⌘ K`) — a summonable surface for rooms, recents, views, and file actions; no persistent chrome
+- **Flow and Page views** — an endless quiet column, or a real paper sheet with margins and page-break guides (Letter/A4); printing is correctly paginated either way
 - **Focus mode** — dims everything except the paragraph you're in (`F11` or `Ctrl/⌘ + Enter`)
 - Selection toolbar that appears on demand and vanishes when you're done
-- Chrome that fades while you type
-- Live word count and reading time
-- Open / Save (currently `.html` round-trip; `.docx` lands in Milestone 2)
+- Auto-save that never asks; recent files; a quiet guard before unsaved work is replaced
+- Drag a `.docx` from your file manager onto the window to open it
+- Chrome that fades while you type; live word count and reading time
+- **Fully offline** — every font ships with the app; zero network calls, ever
 
 ## Keyboard
 
 | Shortcut | Action |
 |----------|--------|
 | `Ctrl/⌘ B` / `I` / `U` | Bold / Italic / Underline |
+| `Ctrl/⌘ K` | The Commander — rooms, recents, views, file actions |
 | `Ctrl/⌘ \` | Cycle rooms |
 | `F11` or `Ctrl/⌘ Enter` | Toggle focus mode |
-| `Ctrl/⌘ S` | Save |
-| `Ctrl/⌘ O` | Open |
-| `Esc` | Exit focus |
+| `Ctrl/⌘ S` | Save (`.docx` by default) |
+| `Ctrl/⌘ O` | Open (`.docx`, `.html`, `.txt`) |
+| `Esc` | Exit focus / close surfaces |
 
 ## Tech
 
-- **[Tauri 2](https://tauri.app)** (Rust) shell — ~10–15 MB binary, uses the system webview (not bundled Chromium)
+- **[Tauri 2](https://tauri.app)** (Rust) shell — a **~3.5 MB** binary (~1.3 MB installer), using the system webview instead of bundling Chromium
 - **[Svelte 5](https://svelte.dev)** + **[Vite](https://vite.dev)** frontend
 - **[Tiptap](https://tiptap.dev)** / ProseMirror editor core
 - Fonts are all SIL Open Font License, safe to bundle with a GPL app
