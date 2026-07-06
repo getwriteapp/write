@@ -1,0 +1,96 @@
+/* ============================================================
+   write — Page view
+   A customer-selectable alternative to Flow view: the document
+   on real paper, with margins and page-break guides. Flow view
+   stays the default (the iA lineage); Page view is for people who
+   think in printed pages. Both ship; the writer chooses.
+
+   Geometry is CSS-pixel accurate at 96dpi:
+     Letter 8.5×11in → 816×1056px, 1in margins → 864px content height
+     A4     210×297mm → 794×1123px, 1in margins → 930px content height
+   (kept in sync with PAGE_GEOM in App.svelte for break measurement)
+   ============================================================ */
+
+/* per-room desk (behind the sheet) + paper (the sheet) + its shadow.
+   Defined here so the room files stay about the writing surface. */
+[data-room="quattro"] { --desk: #EDEDEB; --paper: #FFFFFF; --paper-shadow: 0 1px 2px rgba(0,0,0,.05), 0 10px 28px rgba(0,0,0,.10); }
+[data-room="air"]     { --desk: #EDEDF3; --paper: #FFFFFF; --paper-shadow: 0 1px 2px rgba(40,30,120,.05), 0 10px 28px rgba(40,30,120,.11); }
+[data-room="dawn"]    { --desk: #EFE3E1; --paper: #FFFDFB; --paper-shadow: 0 1px 2px rgba(120,50,80,.05), 0 10px 28px rgba(120,50,80,.10); }
+[data-room="paper"]   { --desk: #E7DCC6; --paper: #FBF7EE; --paper-shadow: 0 1px 2px rgba(80,60,20,.06), 0 10px 28px rgba(80,60,20,.12); }
+[data-room="slate"]   { --desk: #141A21; --paper: #222A34; --paper-shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 32px rgba(0,0,0,.45); }
+[data-room="noir"]    { --desk: #08080A; --paper: #17171A; --paper-shadow: 0 1px 2px rgba(0,0,0,.5), 0 12px 32px rgba(0,0,0,.5); }
+
+/* page geometry */
+[data-view="page"] { --page-w: 816px; --page-mx: 96px; --page-my: 96px; }
+[data-view="page"][data-page-size="a4"] { --page-w: 794px; }
+
+/* the desk: swap the app background for a contrasting surface so the sheet reads as paper */
+[data-view="page"] main {
+  background: var(--desk);
+  align-items: flex-start;
+  padding: 7vh 24px 22vh;
+  transition: background-color 0.45s ease;
+}
+[data-view="page"] body::before { opacity: 0; } /* hide the room wash on the desk */
+
+/* the sheet — hold true page width; the desk scrolls if the window is narrower */
+[data-view="page"] main { overflow-x: auto; }
+[data-view="page"] .editor-host {
+  position: relative;
+  width: var(--page-w);
+  max-width: var(--page-w);
+  flex-shrink: 0;            /* never let the flex row squeeze the page */
+  margin: 0 auto;
+  background: var(--paper);
+  padding: var(--page-my) var(--page-mx);
+  box-shadow: var(--paper-shadow);
+  border-radius: 2px;
+  transition: width 0.3s ease, background-color 0.45s ease;
+}
+
+/* page-break guide: a soft cut across the sheet at each page boundary */
+.page-break {
+  position: absolute;
+  left: 0; right: 0;
+  height: 0;
+  pointer-events: none;
+  border-top: 1px dashed color-mix(in srgb, var(--ink) 22%, transparent);
+}
+.page-break::before,
+.page-break::after {
+  content: "";
+  position: absolute; left: 0; right: 0; height: 14px;
+}
+.page-break::before { bottom: 0; background: linear-gradient(to top, color-mix(in srgb, var(--ink) 6%, transparent), transparent); }
+.page-break::after  { top: 0;    background: linear-gradient(to bottom, color-mix(in srgb, var(--ink) 6%, transparent), transparent); }
+.page-break-label {
+  position: absolute;
+  right: 14px; top: 6px;
+  font-family: var(--mono);
+  font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* margin guides: dashed column edges showing the text measure */
+.margin-guide {
+  position: absolute;
+  top: 0; bottom: 0;
+  left: var(--page-mx); right: var(--page-mx);
+  pointer-events: none;
+  border-left: 1px dashed color-mix(in srgb, var(--ink) 12%, transparent);
+  border-right: 1px dashed color-mix(in srgb, var(--ink) 12%, transparent);
+}
+
+/* ---------- print: real pagination via @page (independent of on-screen view) ---------- */
+@media print {
+  .whisper, .veil, .bubble, .toast, .page-break, .margin-guide { display: none !important; }
+  body { background: #fff !important; }
+  body::before { display: none !important; }
+  main { display: block !important; padding: 0 !important; background: #fff !important; }
+  .editor-host {
+    width: auto !important; max-width: none !important;
+    padding: 0 !important; margin: 0 !important;
+    background: #fff !important; box-shadow: none !important;
+  }
+  .ProseMirror { color: #000 !important; font-size: 12pt; }
+}

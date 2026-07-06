@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>write — Design Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;0,7..72,600;0,7..72,700;1,7..72,400;1,7..72,500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,400&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* ============ THEME TOKENS ============ */
+  /* Defaults = Light theme, Amber accent. JS overrides via data-attrs. */
+  :root {
+    --accent: #B85C38;
+    --accent-soft: rgba(184, 92, 56, 0.12);
+
+    /* light theme */
+    --app-bg: #EDEAE3;
+    --page-bg: #FFFFFF;
+    --ink: #1A1A18;
+    --ink-soft: #57544E;
+    --ink-faint: #908C84;
+    --chrome-bg: #F6F4EF;
+    --chrome-border: #E2DED5;
+    --hover: #ECE8E0;
+    --page-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 12px 40px rgba(0,0,0,0.08);
+    --sel: rgba(184, 92, 56, 0.18);
+  }
+
+  [data-theme="dark"] {
+    --app-bg: #161618;
+    --page-bg: #1F1F22;
+    --ink: #E9E7E1;
+    --ink-soft: #A8A59E;
+    --ink-faint: #6E6B65;
+    --chrome-bg: #1A1A1C;
+    --chrome-border: #2C2C2F;
+    --hover: #2A2A2E;
+    --page-shadow: 0 1px 2px rgba(0,0,0,0.4), 0 16px 48px rgba(0,0,0,0.35);
+    --sel: rgba(224, 139, 92, 0.28);
+  }
+
+  [data-theme="sepia"] {
+    --app-bg: #E4DAC6;
+    --page-bg: #F6EFE0;
+    --ink: #3A3120;
+    --ink-soft: #6B5F47;
+    --ink-faint: #998C6E;
+    --chrome-bg: #EFE6D2;
+    --chrome-border: #D8CBB0;
+    --hover: #E6DAC0;
+    --page-shadow: 0 1px 2px rgba(80,60,20,0.06), 0 12px 40px rgba(80,60,20,0.12);
+    --sel: rgba(184, 92, 56, 0.18);
+  }
+
+  /* accent palettes */
+  [data-accent="amber"]  { --accent: #B85C38; --accent-soft: rgba(184,92,56,0.12);  --sel: rgba(184,92,56,0.18); }
+  [data-accent="ink"]    { --accent: #2B2B2B; --accent-soft: rgba(43,43,43,0.10);    --sel: rgba(43,43,43,0.14); }
+  [data-accent="sage"]   { --accent: #5F7A5A; --accent-soft: rgba(95,122,90,0.14);   --sel: rgba(95,122,90,0.20); }
+  [data-accent="indigo"] { --accent: #4B5C9B; --accent-soft: rgba(75,92,155,0.14);   --sel: rgba(75,92,155,0.20); }
+  [data-accent="plum"]   { --accent: #7D4F6D; --accent-soft: rgba(125,79,109,0.14);  --sel: rgba(125,79,109,0.20); }
+  [data-theme="dark"][data-accent="amber"]  { --accent: #E08B5C; }
+  [data-theme="dark"][data-accent="sage"]   { --accent: #8DAA86; }
+  [data-theme="dark"][data-accent="indigo"] { --accent: #8B9BD8; }
+  [data-theme="dark"][data-accent="plum"]   { --accent: #BC8AAB; }
+  [data-theme="dark"][data-accent="ink"]    { --accent: #C9C9C9; }
+
+  /* body font choice */
+  [data-body="literata"] .doc { font-family: 'Literata', Georgia, serif; }
+  [data-body="source"]   .doc { font-family: 'Source Serif 4', Georgia, serif; }
+  [data-body="lora"]     .doc { font-family: 'Lora', Georgia, serif; }
+  [data-body="garamond"] .doc { font-family: 'EB Garamond', Georgia, serif; font-size: 1.08em; }
+
+  /* ui font choice */
+  [data-ui="inter"] { --ui-font: 'Inter', -apple-system, system-ui, sans-serif; }
+  [data-ui="plex"]  { --ui-font: 'IBM Plex Sans', -apple-system, system-ui, sans-serif; }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+
+  body {
+    font-family: var(--ui-font, 'Inter', sans-serif);
+    background: var(--app-bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    transition: background 0.3s ease, color 0.3s ease;
+    overflow: hidden;
+  }
+
+  /* ============ CONTROL BAR (the lab controls, not part of the app) ============ */
+  .lab-bar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+    padding: 10px 18px;
+    background: color-mix(in srgb, var(--chrome-bg) 88%, transparent);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--chrome-border);
+    font-size: 12px;
+  }
+  .lab-bar .lab-logo {
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+  .lab-bar .lab-logo .tag {
+    font-weight: 400;
+    color: var(--ink-faint);
+    margin-left: 8px;
+    font-size: 11px;
+  }
+  .lab-group { display: flex; align-items: center; gap: 6px; }
+  .lab-group > label {
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 10px;
+    font-weight: 600;
+    margin-right: 2px;
+  }
+  .chip {
+    border: 1px solid var(--chrome-border);
+    background: transparent;
+    color: var(--ink-soft);
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 500;
+    transition: all 0.15s ease;
+  }
+  .chip:hover { background: var(--hover); color: var(--ink); }
+  .chip.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  [data-theme="sepia"] .chip.active, [data-accent="ink"] .chip.active { color: #fff; }
+  .swatch {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    border: 2px solid var(--chrome-border);
+    cursor: pointer;
+    padding: 0;
+    transition: transform 0.12s ease, border-color 0.12s ease;
+  }
+  .swatch:hover { transform: scale(1.12); }
+  .swatch.active { border-color: var(--ink); transform: scale(1.12); }
+  .sw-amber  { background: #B85C38; }
+  .sw-ink    { background: #2B2B2B; }
+  .sw-sage   { background: #5F7A5A; }
+  .sw-indigo { background: #4B5C9B; }
+  .sw-plum   { background: #7D4F6D; }
+
+  /* ============ APP WINDOW ============ */
+  .app {
+    position: absolute;
+    top: 52px; left: 0; right: 0; bottom: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Title bar */
+  .titlebar {
+    height: 40px;
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    background: var(--chrome-bg);
+    border-bottom: 1px solid var(--chrome-border);
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .traffic { display: flex; gap: 7px; }
+  .traffic span { width: 12px; height: 12px; border-radius: 50%; }
+  .traffic .r { background: #ED6A5E; }
+  .traffic .y { background: #F4BF4F; }
+  .traffic .g { background: #61C554; }
+  .titlebar .doc-title {
+    font-size: 13px;
+    color: var(--ink-soft);
+    font-weight: 500;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .titlebar .doc-title .dot-saved {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent);
+    opacity: 0.6;
+  }
+  .titlebar .win-actions { display: flex; gap: 4px; color: var(--ink-faint); }
+
+  /* Body row = sidebar + editor */
+  .body-row { flex: 1; display: flex; min-height: 0; }
+
+  /* Sidebar */
+  .sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    background: var(--chrome-bg);
+    border-right: 1px solid var(--chrome-border);
+    display: flex;
+    flex-direction: column;
+    transition: margin-left 0.28s cubic-bezier(.4,0,.2,1);
+    overflow-y: auto;
+  }
+  .sidebar-section { padding: 16px 14px 8px; }
+  .sidebar-section h4 {
+    margin: 0 0 8px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-faint);
+    font-weight: 600;
+  }
+  .doc-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 9px;
+    border-radius: 7px;
+    cursor: pointer;
+    margin-bottom: 1px;
+  }
+  .doc-item:hover { background: var(--hover); }
+  .doc-item.active { background: var(--accent-soft); }
+  .doc-item.active .di-title { color: var(--accent); font-weight: 600; }
+  .di-icon {
+    width: 26px; height: 32px;
+    border-radius: 3px;
+    background: var(--page-bg);
+    border: 1px solid var(--chrome-border);
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .di-icon::before, .di-icon::after {
+    content: ""; position: absolute; left: 4px; right: 6px; height: 2px;
+    background: var(--ink-faint); opacity: 0.4; border-radius: 1px;
+  }
+  .di-icon::before { top: 7px; }
+  .di-icon::after  { top: 12px; right: 12px; }
+  .di-meta { min-width: 0; }
+  .di-title { font-size: 13px; color: var(--ink); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .di-sub { font-size: 11px; color: var(--ink-faint); }
+
+  .outline-item {
+    padding: 5px 9px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    border-radius: 6px;
+    border-left: 2px solid transparent;
+  }
+  .outline-item:hover { background: var(--hover); }
+  .outline-item.h2 { padding-left: 22px; font-size: 12px; color: var(--ink-faint); }
+  .outline-item.current { border-left-color: var(--accent); color: var(--accent); font-weight: 600; }
+
+  /* Toolbar */
+  .toolbar {
+    height: 46px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 0 12px;
+    background: var(--page-bg);
+    border-bottom: 1px solid var(--chrome-border);
+    flex-shrink: 0;
+  }
+  .tb-btn {
+    border: none; background: transparent; color: var(--ink-soft);
+    height: 30px; min-width: 30px; padding: 0 8px;
+    border-radius: 6px; cursor: pointer;
+    font: inherit; font-size: 13px; font-weight: 500;
+    display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  }
+  .tb-btn:hover { background: var(--hover); color: var(--ink); }
+  .tb-btn.on { background: var(--accent-soft); color: var(--accent); }
+  .tb-btn svg { width: 17px; height: 17px; }
+  .tb-sep { width: 1px; height: 20px; background: var(--chrome-border); margin: 0 6px; }
+  .tb-style {
+    font-weight: 600; font-size: 13px; padding: 0 12px;
+    color: var(--ink);
+  }
+  .tb-spacer { flex: 1; }
+
+  /* Editor scroll area */
+  .editor-scroll {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--app-bg);
+    transition: background 0.3s ease;
+    position: relative;
+  }
+
+  /* Page (page view) */
+  .page {
+    background: var(--page-bg);
+    max-width: 760px;
+    margin: 44px auto 80px;
+    padding: 72px 84px;
+    box-shadow: var(--page-shadow);
+    border-radius: 2px;
+    min-height: 760px;
+    transition: background 0.3s ease, max-width 0.3s ease, padding 0.3s ease, box-shadow 0.3s ease;
+  }
+  /* Flow view tweaks */
+  [data-view="flow"] .page {
+    max-width: 680px;
+    box-shadow: none;
+    background: transparent;
+    padding: 44px 24px;
+    min-height: auto;
+    margin-top: 24px;
+  }
+
+  /* The document content */
+  .doc {
+    color: var(--ink);
+    line-height: 1.7;
+    font-size: 18px;
+  }
+  .doc ::selection { background: var(--sel); }
+  .doc h1 {
+    font-size: 2.05em; line-height: 1.18; font-weight: 700;
+    margin: 0 0 0.1em; letter-spacing: -0.012em;
+  }
+  .doc .byline {
+    color: var(--ink-faint); font-size: 0.82em; margin: 0 0 1.8em;
+    font-style: italic;
+  }
+  .doc h2 {
+    font-size: 1.4em; font-weight: 600; margin: 1.8em 0 0.5em;
+    letter-spacing: -0.008em;
+  }
+  .doc p { margin: 0 0 1.15em; }
+  .doc p.drop::first-letter {
+    /* optional flourish, off by default */
+  }
+  .doc strong { font-weight: 700; }
+  .doc em { font-style: italic; }
+  .doc a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-soft); }
+  .doc blockquote {
+    margin: 1.4em 0; padding: 0.2em 0 0.2em 1.2em;
+    border-left: 3px solid var(--accent);
+    color: var(--ink-soft); font-style: italic;
+  }
+  .doc ul { margin: 0 0 1.15em; padding-left: 1.3em; }
+  .doc li { margin: 0.3em 0; }
+  .caret {
+    display: inline-block; width: 2px; height: 1.1em;
+    background: var(--accent); vertical-align: text-bottom;
+    margin-left: 1px; animation: blink 1.1s step-end infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* Status bar */
+  .statusbar {
+    height: 30px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 0 16px;
+    background: var(--chrome-bg);
+    border-top: 1px solid var(--chrome-border);
+    font-size: 12px;
+    color: var(--ink-faint);
+  }
+  .statusbar .s-saved { display: flex; align-items: center; gap: 6px; color: var(--ink-soft); }
+  .statusbar .s-saved svg { width: 13px; height: 13px; color: var(--accent); }
+  .statusbar .sp { flex: 1; }
+  .statusbar .s-item { display: flex; align-items: center; gap: 5px; }
+  .statusbar .s-zoom { cursor: pointer; }
+  .statusbar .s-zoom:hover { color: var(--ink); }
+
+  /* ============ FOCUS MODE ============ */
+  body[data-focus="on"] .lab-bar,
+  body[data-focus="on"] .titlebar,
+  body[data-focus="on"] .sidebar,
+  body[data-focus="on"] .toolbar,
+  body[data-focus="on"] .statusbar { display: none; }
+  body[data-focus="on"] .app { top: 0; }
+  body[data-focus="on"] .editor-scroll {
+    background: var(--app-bg);
+  }
+  body[data-focus="on"] .page { margin-top: 8vh; }
+  .focus-exit {
+    display: none;
+    position: fixed; top: 18px; right: 20px; z-index: 200;
+    background: var(--chrome-bg); border: 1px solid var(--chrome-border);
+    color: var(--ink-soft); padding: 6px 12px; border-radius: 8px;
+    font-size: 12px; cursor: pointer; font-family: var(--ui-font);
+    opacity: 0; transition: opacity 0.2s ease;
+  }
+  body[data-focus="on"] .focus-exit { display: block; }
+  body[data-focus="on"]:hover .focus-exit { opacity: 1; }
+
+  /* command palette mock */
+  .palette-overlay {
+    display: none;
+    position: fixed; inset: 0; z-index: 300;
+    background: rgba(0,0,0,0.32);
+    backdrop-filter: blur(2px);
+    align-items: flex-start; justify-content: center;
+  }
+  .palette-overlay.show { display: flex; }
+  .palette {
+    margin-top: 14vh; width: 540px; max-width: 90vw;
+    background: var(--page-bg); border: 1px solid var(--chrome-border);
+    border-radius: 14px; box-shadow: 0 24px 80px rgba(0,0,0,0.3);
+    overflow: hidden;
+  }
+  .palette input {
+    width: 100%; border: none; outline: none; background: transparent;
+    padding: 18px 20px; font: inherit; font-size: 16px; color: var(--ink);
+    border-bottom: 1px solid var(--chrome-border);
+  }
+  .palette input::placeholder { color: var(--ink-faint); }
+  .palette .p-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 20px; font-size: 14px; color: var(--ink-soft); cursor: pointer;
+  }
+  .palette .p-item:first-of-type, .palette .p-item:hover { background: var(--accent-soft); color: var(--accent); }
+  .palette .p-item .p-key {
+    margin-left: auto; font-size: 11px; color: var(--ink-faint);
+    border: 1px solid var(--chrome-border); padding: 1px 6px; border-radius: 4px;
+  }
+
+  .hint {
+    position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+    z-index: 50; font-size: 11.5px; color: var(--ink-faint);
+    background: color-mix(in srgb, var(--chrome-bg) 90%, transparent);
+    border: 1px solid var(--chrome-border);
+    padding: 6px 14px; border-radius: 20px; backdrop-filter: blur(8px);
+  }
+  .hint b { color: var(--ink-soft); }
+  body[data-focus="on"] .hint { display: none; }
+
+  /* scrollbar polish */
+  .editor-scroll::-webkit-scrollbar, .sidebar::-webkit-scrollbar { width: 10px; }
+  .editor-scroll::-webkit-scrollbar-thumb, .sidebar::-webkit-scrollbar-thumb {
+    background: var(--chrome-border); border-radius: 6px; border: 3px solid transparent; background-clip: content-box;
+  }
+</style>
+</head>
+<body data-theme="light" data-accent="amber" data-body="literata" data-ui="inter" data-view="page" data-focus="off">
+
+<!-- ===== LAB CONTROL BAR (not part of the app — your control panel) ===== -->
+<div class="lab-bar">
+  <span class="lab-logo">write <span class="tag">design lab</span></span>
+
+  <div class="lab-group">
+    <label>Theme</label>
+    <button class="chip active" data-set="theme" data-val="light">Light</button>
+    <button class="chip" data-set="theme" data-val="dark">Dark</button>
+    <button class="chip" data-set="theme" data-val="sepia">Sepia</button>
+  </div>
+
+  <div class="lab-group">
+    <label>Accent</label>
+    <button class="swatch sw-amber active" data-set="accent" data-val="amber" title="Amber"></button>
+    <button class="swatch sw-ink" data-set="accent" data-val="ink" title="Ink"></button>
+    <button class="swatch sw-sage" data-set="accent" data-val="sage" title="Sage"></button>
+    <button class="swatch sw-indigo" data-set="accent" data-val="indigo" title="Indigo"></button>
+    <button class="swatch sw-plum" data-set="accent" data-val="plum" title="Plum"></button>
+  </div>
+
+  <div class="lab-group">
+    <label>Body</label>
+    <button class="chip active" data-set="body" data-val="literata">Literata</button>
+    <button class="chip" data-set="body" data-val="source">Source</button>
+    <button class="chip" data-set="body" data-val="lora">Lora</button>
+    <button class="chip" data-set="body" data-val="garamond">Garamond</button>
+  </div>
+
+  <div class="lab-group">
+    <label>UI</label>
+    <button class="chip active" data-set="ui" data-val="inter">Inter</button>
+    <button class="chip" data-set="ui" data-val="plex">Plex</button>
+  </div>
+
+  <div class="lab-group">
+    <label>View</label>
+    <button class="chip active" data-set="view" data-val="page">Page</button>
+    <button class="chip" data-set="view" data-val="flow">Flow</button>
+  </div>
+
+  <div class="lab-group">
+    <button class="chip" id="focusBtn">⤢ Focus mode</button>
+  </div>
+</div>
+
+<button class="focus-exit" id="focusExit">Esc — exit focus</button>
+
+<!-- ===== THE APP ===== -->
+<div class="app">
+
+  <!-- title bar -->
+  <div class="titlebar">
+    <div class="traffic"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+    <div class="doc-title"><span class="dot-saved"></span> On Quiet Software — Draft</div>
+    <div class="win-actions">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg>
+    </div>
+  </div>
+
+  <div class="body-row">
+    <!-- sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-section">
+        <h4>Recent</h4>
+        <div class="doc-item active">
+          <div class="di-icon"></div>
+          <div class="di-meta"><div class="di-title">On Quiet Software</div><div class="di-sub">Edited just now</div></div>
+        </div>
+        <div class="doc-item">
+          <div class="di-icon"></div>
+          <div class="di-meta"><div class="di-title">Letter to the editor</div><div class="di-sub">Yesterday</div></div>
+        </div>
+        <div class="doc-item">
+          <div class="di-icon"></div>
+          <div class="di-meta"><div class="di-title">Résumé — 2026</div><div class="di-sub">3 days ago</div></div>
+        </div>
+        <div class="doc-item">
+          <div class="di-icon"></div>
+          <div class="di-meta"><div class="di-title">Short story draft</div><div class="di-sub">Last week</div></div>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <h4>Outline</h4>
+        <div class="outline-item current">On Quiet Software</div>
+        <div class="outline-item h2">The case for less</div>
+        <div class="outline-item h2">What gets in the way</div>
+        <div class="outline-item h2">A different bargain</div>
+      </div>
+      <div class="sidebar-section">
+        <h4>Templates</h4>
+        <div class="outline-item">＋ Blank document</div>
+        <div class="outline-item">＋ Letter</div>
+        <div class="outline-item">＋ Résumé</div>
+        <div class="outline-item">＋ Report</div>
+      </div>
+    </aside>
+
+    <!-- editor column -->
+    <div style="flex:1; display:flex; flex-direction:column; min-width:0;">
+      <!-- toolbar -->
+      <div class="toolbar">
+        <button class="tb-btn tb-style">Heading 1 ▾</button>
+        <div class="tb-sep"></div>
+        <button class="tb-btn on" title="Bold"><b>B</b></button>
+        <button class="tb-btn" title="Italic"><i>I</i></button>
+        <button class="tb-btn" title="Underline" style="text-decoration:underline">U</button>
+        <button class="tb-btn" title="Strikethrough" style="text-decoration:line-through">S</button>
+        <div class="tb-sep"></div>
+        <button class="tb-btn" title="Bulleted list">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/><path d="M9 6h11M9 12h11M9 18h11"/></svg>
+        </button>
+        <button class="tb-btn" title="Numbered list">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6h11M9 12h11M9 18h11M4 6h1v4M4 16h2v-1H4v-1h2"/></svg>
+        </button>
+        <button class="tb-btn" title="Quote">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 17h3l2-4V7H5v6h2zM14 17h3l2-4V7h-6v6h2z"/></svg>
+        </button>
+        <div class="tb-sep"></div>
+        <button class="tb-btn" title="Link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
+        </button>
+        <button class="tb-btn" title="Image">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+        </button>
+        <div class="tb-spacer"></div>
+        <button class="tb-btn" id="paletteBtn" title="Command palette (Ctrl+K)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+        </button>
+      </div>
+
+      <!-- editor -->
+      <div class="editor-scroll">
+        <div class="page">
+          <article class="doc">
+            <h1>On Quiet Software</h1>
+            <p class="byline">A short essay, written in <span style="color:var(--accent); border-bottom:1px solid var(--accent-soft)">write</span></p>
+
+            <p>Most tools shout. They greet you with ribbons of buttons, panels that fold out into more panels, a dozen ways to do a thing you only need to do one way. They mistake capability for usefulness, and in doing so they put a small wall between you and the page.</p>
+
+            <h2>The case for less</h2>
+            <p>A word processor has exactly one job: to get out of the way so that you can write. Everything else — the formatting, the exports, the page margins — is in service of that single act. When the software is <strong>quiet</strong>, the writing gets <em>loud</em>. That is the whole bargain.</p>
+
+            <blockquote>The best interface is the one you forget you are using.</blockquote>
+
+            <h2>What gets in the way</h2>
+            <p>Three things, usually:</p>
+            <ul>
+              <li>Chrome that never hides, even when you are mid-sentence.</li>
+              <li>Typography chosen by an engineer, not a reader.</li>
+              <li>A blank page that feels like a form to fill out, not a sheet of paper.</li>
+            </ul>
+            <p>Fix those three and you have already beaten most of the field. You can read more about the <a href="#">design principles</a> elsewhere, but it really does come down to restraint.</p>
+
+            <h2>A different bargain</h2>
+            <p>So here is the offer: a word processor that opens in half a second, that looks like something you would want to read, that saves your work without ever asking, and that disappears the moment you start to type.<span class="caret"></span></p>
+          </article>
+        </div>
+      </div>
+
+      <!-- status bar -->
+      <div class="statusbar">
+        <span class="s-saved">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+          Saved
+        </span>
+        <span class="s-item">312 words · 2 min read</span>
+        <span class="sp"></span>
+        <span class="s-item">Page 1 of 1</span>
+        <span class="s-item s-zoom">100%</span>
+        <span class="s-item">EN</span>
+        <span class="s-item">GPL v3</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- command palette mock -->
+<div class="palette-overlay" id="paletteOverlay">
+  <div class="palette">
+    <input placeholder="Type a command…  (Insert table, Toggle focus, Export PDF)" id="paletteInput" />
+    <div class="p-item">🔍 Toggle focus mode <span class="p-key">F11</span></div>
+    <div class="p-item">¶ Insert table</div>
+    <div class="p-item">🌙 Switch to dark theme</div>
+    <div class="p-item">⬇ Export as PDF</div>
+    <div class="p-item">↔ Switch to flow view</div>
+  </div>
+</div>
+
+<div class="hint">Try the controls up top — switch <b>theme</b>, <b>accent</b>, <b>fonts</b>, <b>view</b>. Press <b>Ctrl/⌘ K</b> for the command palette, or <b>F11</b> for focus mode.</div>
+
+<script>
+  const body = document.body;
+
+  // chip + swatch handlers
+  document.querySelectorAll('[data-set]').forEach(el => {
+    el.addEventListener('click', () => {
+      const key = el.dataset.set;
+      const val = el.dataset.val;
+      body.setAttribute('data-' + key, val);
+      // toggle active state within the same group
+      const group = el.closest('.lab-group');
+      group.querySelectorAll('[data-set="' + key + '"]').forEach(s => s.classList.remove('active'));
+      el.classList.add('active');
+    });
+  });
+
+  // focus mode
+  const focusBtn = document.getElementById('focusBtn');
+  const focusExit = document.getElementById('focusExit');
+  function setFocus(on){ body.setAttribute('data-focus', on ? 'on' : 'off'); }
+  focusBtn.addEventListener('click', () => setFocus(body.getAttribute('data-focus') !== 'on'));
+  focusExit.addEventListener('click', () => setFocus(false));
+
+  // command palette
+  const overlay = document.getElementById('paletteOverlay');
+  const pInput = document.getElementById('paletteInput');
+  function openPalette(){ overlay.classList.add('show'); setTimeout(()=>pInput.focus(), 30); }
+  function closePalette(){ overlay.classList.remove('show'); pInput.value=''; }
+  document.getElementById('paletteBtn').addEventListener('click', openPalette);
+  overlay.addEventListener('click', e => { if(e.target === overlay) closePalette(); });
+
+  // keyboard
+  document.addEventListener('keydown', e => {
+    if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k'){ e.preventDefault(); openPalette(); }
+    if(e.key === 'F11'){ e.preventDefault(); setFocus(body.getAttribute('data-focus') !== 'on'); }
+    if(e.key === 'Escape'){ closePalette(); setFocus(false); }
+  });
+</script>
+</body>
+</html>

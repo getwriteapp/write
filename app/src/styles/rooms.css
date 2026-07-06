@@ -1,0 +1,139 @@
+/* ============================================================
+   write — Rooms
+   A room is more than a theme: it sets the light (palette),
+   the voice (typeface), and the temperature of the work.
+   Rooms are ordered light → dark.
+   ============================================================ */
+
+:root {
+  --ui-font: 'Geist Variable', -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'Geist Mono Variable', ui-monospace, 'Cascadia Mono', monospace;
+}
+
+/* ---------- Quattro — the iA homage. White silence, one blue cursor. ---------- */
+:root, [data-room="quattro"] {
+  --bg: #FFFFFF;
+  --ink: #1B1B1B;
+  --soft: #8F8F8C;
+  --faint: #C8C8C5;
+  --caret: #0D99FF;
+  --sel: rgba(13, 153, 255, 0.16);
+  --accent: #0D99FF;
+  --hairline: #ECECEA;
+  --card: rgba(255, 255, 255, 0.92);
+  --card-shadow: 0 2px 6px rgba(0,0,0,0.05), 0 12px 36px rgba(0,0,0,0.09);
+  --body-font: 'iA Writer Quattro S', 'IBM Plex Sans', -apple-system, sans-serif;
+  --body-size: 19px;
+  --body-leading: 1.72;
+  --measure: 33em;
+  --h1-size: 1.38em; --h1-weight: 700; --h1-track: 0;
+  --wash: none;
+}
+
+/* ---------- Air — fresh light. Gradient washes, glass, indigo. ---------- */
+[data-room="air"] {
+  --bg: #FAFAFC;
+  --ink: #17171C;
+  --soft: #7B7988;
+  --faint: #C2C0CE;
+  --caret: #6E62E5;
+  --sel: rgba(110, 98, 229, 0.15);
+  --accent: #6E62E5;
+  --hairline: #E9E8F1;
+  --card: rgba(255, 255, 255, 0.78);
+  --card-shadow: 0 2px 8px rgba(40, 30, 120, 0.06), 0 16px 48px rgba(40, 30, 120, 0.10);
+  --body-font: 'Geist Variable', -apple-system, sans-serif;
+  --body-size: 18.5px;
+  --body-leading: 1.78;
+  --measure: 36em;
+  --h1-size: 2.25em; --h1-weight: 650; --h1-track: -0.035em;
+  --wash:
+    radial-gradient(900px 460px at 38% -8%, rgba(110, 98, 229, 0.09), transparent 64%),
+    radial-gradient(700px 420px at 88% -4%, rgba(233, 106, 141, 0.07), transparent 60%);
+}
+
+/* ---------- Dawn — blush morning light, rose caret, quiet serif. ---------- */
+[data-room="dawn"] {
+  --bg: #FBF6F4;
+  --ink: #262022;
+  --soft: #8B7B80;
+  --faint: #CDBCC2;
+  --caret: #C0577E;
+  --sel: rgba(192, 87, 126, 0.15);
+  --accent: #C0577E;
+  --hairline: #EFE2E4;
+  --card: rgba(255, 252, 251, 0.85);
+  --card-shadow: 0 2px 8px rgba(120, 50, 80, 0.05), 0 14px 44px rgba(120, 50, 80, 0.09);
+  --body-font: 'Source Serif 4 Variable', Georgia, serif;
+  --body-size: 19px;
+  --body-leading: 1.75;
+  --measure: 35em;
+  --h1-size: 2.0em; --h1-weight: 600; --h1-track: -0.02em;
+  --wash:
+    radial-gradient(820px 440px at 30% -6%, rgba(233, 106, 141, 0.07), transparent 62%),
+    radial-gradient(680px 400px at 90% -2%, rgba(255, 180, 84, 0.06), transparent 58%);
+}
+
+/* ---------- Paper — cream and ink, forest accent, a printed book. ---------- */
+[data-room="paper"] {
+  --bg: #F5EFE2;
+  --ink: #3B3226;
+  --soft: #85765C;
+  --faint: #C9BC9F;
+  --caret: #587350;
+  --sel: rgba(88, 115, 80, 0.18);
+  --accent: #587350;
+  --hairline: #E5DBC5;
+  --card: rgba(250, 246, 237, 0.9);
+  --card-shadow: 0 2px 6px rgba(80, 60, 20, 0.06), 0 12px 40px rgba(80, 60, 20, 0.10);
+  --body-font: 'Literata Variable', Georgia, serif;
+  --body-size: 18.5px;
+  --body-leading: 1.72;
+  --measure: 34em;
+  --h1-size: 1.9em; --h1-weight: 650; --h1-track: -0.015em;
+  --wash: none;
+}
+
+/* ---------- Slate — cool dark, sea-glass caret, engineer's evening. ---------- */
+[data-room="slate"] {
+  --bg: #1C222B;
+  --ink: #E2E6EA;
+  --soft: #8A94A0;
+  --faint: #414C59;
+  --caret: #7BC4B4;
+  --sel: rgba(123, 196, 180, 0.22);
+  --accent: #7BC4B4;
+  --hairline: #2A323D;
+  --card: rgba(30, 37, 46, 0.88);
+  --card-shadow: 0 2px 8px rgba(0,0,0,0.45), 0 18px 52px rgba(0,0,0,0.38);
+  --body-font: 'Geist Variable', -apple-system, sans-serif;
+  --body-size: 18.5px;
+  --body-leading: 1.75;
+  --measure: 36em;
+  --h1-size: 2.05em; --h1-weight: 550; --h1-track: -0.02em;
+  --wash:
+    radial-gradient(820px 440px at 45% -8%, rgba(123, 196, 180, 0.05), transparent 60%),
+    radial-gradient(640px 400px at 92% 6%, rgba(111, 178, 216, 0.05), transparent 56%);
+}
+
+/* ---------- Noir — midnight serif, amber caret, writing at 1 a.m. ---------- */
+[data-room="noir"] {
+  --bg: #0D0D0F;
+  --ink: #ECEAE5;
+  --soft: #8B8990;
+  --faint: #46444B;
+  --caret: #FFB454;
+  --sel: rgba(255, 180, 84, 0.24);
+  --accent: #FFB454;
+  --hairline: #232327;
+  --card: rgba(26, 26, 30, 0.88);
+  --card-shadow: 0 2px 8px rgba(0,0,0,0.5), 0 18px 56px rgba(0,0,0,0.45);
+  --body-font: 'Newsreader Variable', Georgia, serif;
+  --body-size: 19.5px;
+  --body-leading: 1.78;
+  --measure: 34em;
+  --h1-size: 2.05em; --h1-weight: 500; --h1-track: -0.012em;
+  --wash:
+    radial-gradient(800px 420px at 50% -10%, rgba(255, 180, 84, 0.05), transparent 62%),
+    radial-gradient(640px 400px at 92% 8%, rgba(124, 140, 255, 0.05), transparent 58%);
+}
