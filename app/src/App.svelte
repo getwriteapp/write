@@ -18,14 +18,17 @@
   let commanderOpen = $state(false)
   let recents = $state([])
 
-  // view: flow (default, the iA lineage) vs page (paper + margins + breaks)
+  // view: flow (default, the iA lineage) vs page (paper + margins + real discrete sheets)
   let view = $state(localStorage.getItem('write:view') || 'flow')
   let pageSize = $state(localStorage.getItem('write:pageSize') || 'letter')
   let guides = $state(localStorage.getItem('write:guides') !== '0')
-  let breaks = $state([])
+  // one rect per physical page: {top, height, n} — the on-screen home of Tier-4
+  let pageRects = $state([])
   // CSS-pixel geometry at 96dpi; kept in sync with pages.css
   const PAGE_GEOM = { letter: { my: 96, contentH: 864 }, a4: { my: 96, contentH: 930 } }
+  const PAGE_GAP = 44 // desk showing through between discrete sheets
   let pageStyleEl
+  let pageGapStyleEl
 
   // a brief whispered toast (e.g. room name on Ctrl+\)
   let toast = $state('')
@@ -96,16 +99,54 @@
   function queueMeasure() {
     requestAnimationFrame(() => requestAnimationFrame(measurePages))
   }
+
+  /* Tier-4: discrete floating pages. ProseMirror keeps one continuous
+     document — we never split its DOM — so the "pages" are an illusion made
+     of two parts kept in sync:
+       1. paper rects (pageRects, below) drawn behind the text at fixed,
+          nominal page-height intervals with a real gap between them;
+       2. a margin-top pushed onto the block that starts each new page, via
+          an injected `:nth-child` stylesheet rule — the same technique
+          the focus-dimming feature uses, because ProseMirror strips foreign
+          classes/attrs on its own nodes but leaves an external <style> alone.
+     Breaks snap to the nearest block boundary (never mid-paragraph) — a
+     paragraph that would straddle a page in Word stays whole here instead.
+     Documented as the known Tier-4 gap; true reflow needs a real pagination
+     engine, a further increment. */
   function measurePages() {
-    if (view !== 'page' || !host) { breaks = []; return }
+    if (view !== 'page' || !host) { pageRects = []; if (pageGapStyleEl) pageGapStyleEl.textContent = ''; return }
     const pm = host.querySelector('.ProseMirror')
-    if (!pm) { breaks = []; return }
+    if (!pm) { pageRects = []; if (pageGapStyleEl) pageGapStyleEl.textContent = ''; return }
     const g = PAGE_GEOM[pageSize] || PAGE_GEOM.letter
-    const contentOnly = pm.scrollHeight - 2 * g.my // strip top+bottom padding (the margins)
-    const pages = Math.max(1, Math.ceil(contentOnly / g.contentH))
-    const arr = []
-    for (let k = 1; k < pages; k++) arr.push({ y: g.my + k * g.contentH, n: k })
-    breaks = arr
+    const pageH = g.my * 2 + g.contentH
+
+    // pass 1: natural (ungapped) measurement — clear any prior injected
+    // margins first, since they'd otherwise inflate this very measurement
+    if (!pageGapStyleEl) { pageGapStyleEl = document.createElement('style'); document.head.appendChild(pageGapStyleEl) }
+    pageGapStyleEl.textContent = ''
+    const contentOnly = pm.scrollHeight - 2 * g.my
+    const nominalPages = Math.max(1, Math.ceil(contentOnly / g.contentH))
+
+    const children = [...pm.children]
+    let searchFrom = 0
+    let cumMargin = 0
+    const rules = []
+    for (let k = 1; k < nominalPages; k++) {
+      const naturalTargetY = g.my + k * g.contentH
+      const idx = children.findIndex((el, i) => i >= searchFrom && el.offsetTop >= naturalTargetY)
+      if (idx === -1) break // content runs out before this nominal page — stop, don't fabricate a break
+      searchFrom = idx + 1
+      const desiredY = k * (pageH + PAGE_GAP) + g.my
+      const margin = Math.max(0, desiredY - children[idx].offsetTop - cumMargin)
+      rules.push(`.ProseMirror>*:nth-child(${idx + 1}){margin-top:${margin}px}`)
+      cumMargin += margin
+    }
+    // scoped to screen only: these margins are a visual illusion for the
+    // editor surface, not something print's own @page pagination should see
+    pageGapStyleEl.textContent = rules.length ? `@media screen{${rules.join('')}}` : ''
+
+    const pages = rules.length + 1
+    pageRects = Array.from({ length: pages }, (_, i) => ({ top: i * (pageH + PAGE_GAP), height: pageH, n: i }))
   }
 
   // ---- focus dimming: light only the block the cursor is in ----
@@ -390,6 +431,12 @@
     if (last?.name) docName = last.name
     recount()
     queueMeasure()
+    // custom web fonts can finish loading a moment after mount and shift
+    // text metrics — remeasure once they're actually ready. Calls
+    // measurePages() directly (not via queueMeasure/rAF): reading
+    // offsetTop/scrollHeight forces a synchronous layout regardless of
+    // paint timing, and rAF itself can be throttled in a backgrounded tab.
+    document.fonts?.ready?.then(() => measurePages())
     window.addEventListener('keydown', onKey)
     window.addEventListener('scroll', updateBubble, { passive: true })
     window.addEventListener('resize', onResize)
@@ -429,10 +476,10 @@
 <main>
   <div class="editor-host" bind:this={host}>
     {#if view === 'page'}
-      {#if guides}<div class="margin-guide"></div>{/if}
-      {#each breaks as b}
-        <div class="page-break" style="top:{b.y}px">
-          <span class="page-break-label">Page {b.n + 1}</span>
+      {#each pageRects as r}
+        <div class="page-sheet" style="top:{r.top}px; height:{r.height}px">
+          {#if guides}<div class="margin-guide"></div>{/if}
+          <span class="page-num">{r.n + 1}</span>
         </div>
       {/each}
     {/if}
