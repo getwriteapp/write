@@ -6,11 +6,15 @@
    guessing from appearance. Anything styled here must have a matching rule
    in import.js — the two files are a pair.
 
-   Schema covered (the full editor schema as of Milestone 2b):
+   Schema covered (the full editor schema as of Wave 1):
      blocks: paragraph, heading 1–3, bulletList, orderedList (nested),
              blockquote, codeBlock, horizontalRule, image (data-URL png/jpeg/gif)
+     block attrs: textAlign, lineHeight, indent (0.5in steps)
      inline: text, hardBreak
-     marks:  bold, italic, underline, strike, code, link */
+     marks:  bold, italic, underline, strike, code, link, highlight,
+             textStyle (color, fontFamily, fontSize)
+   NOTE (Wave 1 → Wave 2): the visual attrs/marks are EXPORT-side only until
+   importer v2 lands — mammoth strips them on the way back in. */
 
 import {
   AlignmentType,
@@ -168,6 +172,16 @@ function imageRunFor(node) {
 
 /* ---- inline content: text runs, marks, links, hard breaks ---- */
 
+const cleanHex = (c) => {
+  // CSS color → docx hex; accepts #rrggbb / rgb(r,g,b); anything else is dropped
+  if (!c) return null
+  const hex = /^#?([0-9a-f]{6})$/i.exec(c.trim())
+  if (hex) return hex[1].toUpperCase()
+  const rgb = /^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/i.exec(c.trim())
+  if (rgb) return rgb.slice(1, 4).map((n) => (+n).toString(16).padStart(2, '0')).join('').toUpperCase()
+  return null
+}
+
 function markProps(marks = []) {
   const p = {}
   for (const m of marks) {
@@ -176,7 +190,30 @@ function markProps(marks = []) {
     if (m.type === 'underline') p.underline = {}
     if (m.type === 'strike') p.strike = true
     if (m.type === 'code') p.style = 'CodeChar'
+    if (m.type === 'highlight') {
+      const fill = cleanHex(m.attrs?.color) || 'FFF176'
+      p.shading = { fill } // run shading takes any hex (Word's named highlights don't)
+    }
+    if (m.type === 'textStyle') {
+      const color = cleanHex(m.attrs?.color)
+      if (color) p.color = color
+      if (m.attrs?.fontFamily) p.font = String(m.attrs.fontFamily).split(',')[0].replace(/["']/g, '').trim()
+      const pt = parseFloat(m.attrs?.fontSize)
+      if (pt) p.size = Math.round(pt * 2) // half-points
+    }
   }
+  return p
+}
+
+/* paragraph/heading visual attributes → docx paragraph properties */
+const ALIGN = { left: AlignmentType.LEFT, center: AlignmentType.CENTER, right: AlignmentType.RIGHT, justify: AlignmentType.JUSTIFIED }
+function paraProps(node) {
+  const a = node.attrs || {}
+  const p = {}
+  if (a.textAlign && a.textAlign !== 'left' && ALIGN[a.textAlign]) p.alignment = ALIGN[a.textAlign]
+  const lh = parseFloat(a.lineHeight)
+  if (lh) p.spacing = { line: Math.round(lh * 240) } // 240 twips = single spacing
+  if (a.indent) p.indent = { left: 720 * a.indent } // one step = 0.5in = 720 twips
   return p
 }
 
@@ -227,6 +264,7 @@ function walkBlock(node, ctx, out) {
         children: inlineToChildren(node.content),
         ...(ctx.quote ? { style: 'Quote' } : {}),
         ...(ctx.list ? listOpts(ctx) : {}),
+        ...paraProps(node),
       }))
       break
     }
@@ -234,6 +272,7 @@ function walkBlock(node, ctx, out) {
       out.push(new Paragraph({
         children: inlineToChildren(node.content),
         heading: HEADING[node.attrs?.level] || HeadingLevel.HEADING_3,
+        ...paraProps(node),
       }))
       break
     }

@@ -272,6 +272,95 @@ body.typing .whisper { opacity: 0.05; }
   color: var(--ink);
 }
 
+/* ============ the Bar: summonable formatting strip (Ctrl+/) ============ */
+.bar {
+  position: fixed;
+  top: 50px; left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 94vw;
+  padding: 6px 10px;
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+  backdrop-filter: blur(14px);
+  transition: opacity 0.4s ease;
+}
+body.typing .bar { opacity: 0.05; }
+body.typing .bar:hover { opacity: 1; }
+body[data-focus="on"] .bar { display: none; }
+
+.bar-select {
+  font: inherit;
+  font-size: 12px;
+  color: var(--soft);
+  background: transparent;
+  border: 1px solid var(--hairline);
+  border-radius: 7px;
+  padding: 3px 4px;
+  max-width: 118px;
+  cursor: pointer;
+}
+.bar-select:hover { color: var(--ink); }
+.bar-select option { color: #1a1a1a; background: #fff; }
+.bar-size { max-width: 62px; }
+.bar-lh { max-width: 84px; }
+
+.bar-sep { width: 1px; height: 18px; background: var(--hairline); }
+
+.bar-swatches { display: inline-flex; align-items: center; gap: 4px; }
+.swatch {
+  width: 16px; height: 16px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+  border-radius: 50%;
+  background: var(--sw);
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.swatch:hover { transform: scale(1.18); }
+.swatch.on { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 65%, transparent); }
+.swatch-hl { border-radius: 4px; }
+.swatch-none {
+  background: transparent;
+  color: var(--soft);
+  font-size: 10px;
+  line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+
+.bar-seg { display: inline-flex; }
+.bar-seg button {
+  border: 1px solid var(--hairline);
+  background: transparent;
+  color: var(--soft);
+  font-size: 11px;
+  width: 26px; height: 24px;
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.bar-seg button:first-child { border-radius: 7px 0 0 7px; }
+.bar-seg button:last-child { border-radius: 0 7px 7px 0; }
+.bar-seg button + button { border-left: none; }
+.bar-seg button.on { color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, transparent); }
+.bar-seg button:disabled { opacity: 0.35; cursor: default; }
+
+.bar-clear {
+  border: 1px solid var(--hairline);
+  background: transparent;
+  color: var(--soft);
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.bar-clear:hover { color: var(--ink); }
+
 /* discard guard: a small, quiet confirm card on the commander's veil */
 .confirm-card {
   width: 400px;
@@ -383,6 +472,11 @@ main {
   background: color-mix(in srgb, var(--ink) 6%, transparent);
   padding: 0.1em 0.35em;
   border-radius: 4px;
+}
+.ProseMirror mark {
+  color: inherit; /* browsers force black on <mark>; keep the room's ink */
+  border-radius: 3px;
+  padding: 0.04em 0.12em;
 }
 .ProseMirror img {
   display: block;

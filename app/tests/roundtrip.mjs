@@ -18,6 +18,8 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { deflateSync } from 'node:zlib'
 
+import { unzipSync, strFromU8 } from 'fflate'
+
 import { generateJSON } from '@tiptap/html'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
@@ -26,13 +28,14 @@ import Image from '@tiptap/extension-image'
 
 import { exportDocx } from '../src/lib/docx/export.js'
 import { importDocx } from '../src/lib/docx/import.js'
-import { WELCOME } from '../src/lib/editor.js'
+import { WELCOME, FORMATTING_EXTENSIONS } from '../src/lib/editor.js'
 
 const EXT = [
   StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
   Underline,
   Link.configure({ openOnClick: false }),
   Image.configure({ allowBase64: true }),
+  ...FORMATTING_EXTENSIONS,
 ]
 
 /* Build a real PNG from spec (signature + IHDR + IDAT + IEND with CRCs) so
@@ -244,6 +247,48 @@ for (const f of fixtures) {
     fail++
     failures.push({ name: f.name, expected, actual, importedHtml, messages })
     console.log(`  FAIL  ${f.name}`)
+  }
+}
+
+/* ---------- Wave-1 formatting: EXPORT-side assertions ----------
+   These visual props don't round-trip yet (mammoth strips them — importer v2
+   is the planned fix), so until then we assert directly against the OOXML the
+   exporter produces: unzip the .docx, check document.xml carries the props. */
+
+const fmtFixture = `
+  <p style="text-align:center">centered</p>
+  <p style="text-align:justify">justified</p>
+  <p style="line-height: 2">double spaced</p>
+  <p data-indent="2" style="margin-left: 96px">indented two steps</p>
+  <h2 style="text-align:right">right heading</h2>
+  <p><span style="color:#b91c1c">red text</span> and
+     <mark data-color="#fef08a" style="background-color:#fef08a">highlighted</mark> and
+     <span style="font-family: Georgia">georgia text</span> and
+     <span style="font-size: 18pt">big text</span></p>`
+
+const fmtBytes = await exportDocx(generateJSON(fmtFixture, EXT))
+writeFileSync(join(OUT, 'wave1-formatting.docx'), fmtBytes)
+const documentXml = strFromU8(unzipSync(fmtBytes)['word/document.xml'])
+
+const exportChecks = [
+  ['alignment: center', '<w:jc w:val="center"/>'],
+  ['alignment: justify', '<w:jc w:val="both"/>'],
+  ['alignment: right (heading)', '<w:jc w:val="right"/>'],
+  ['line spacing: double (480 twips)', 'w:line="480"'],
+  ['indent: two steps (1440 twips)', 'w:left="1440"'],
+  ['text color', '<w:color w:val="B91C1C"/>'],
+  ['highlight (run shading)', 'w:fill="FEF08A"'],
+  ['font family', 'w:ascii="Georgia"'],
+  ['font size: 18pt (36 half-points)', '<w:sz w:val="36"/>'],
+]
+for (const [name, needle] of exportChecks) {
+  if (documentXml.includes(needle)) {
+    pass++
+    console.log(`  PASS  export-prop: ${name}`)
+  } else {
+    fail++
+    failures.push({ name: `export-prop: ${name}`, expected: needle, actual: '(not found in document.xml)', importedHtml: '' })
+    console.log(`  FAIL  export-prop: ${name}`)
   }
 }
 

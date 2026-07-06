@@ -82,7 +82,7 @@
 
 /* ---------- print: real pagination via @page (independent of on-screen view) ---------- */
 @media print {
-  .whisper, .veil, .bubble, .toast, .page-sheet, .margin-guide { display: none !important; }
+  .whisper, .veil, .bubble, .toast, .bar, .page-sheet, .margin-guide { display: none !important; }
   body { background: #fff !important; }
   body::before { display: none !important; }
   main { display: block !important; padding: 0 !important; background: #fff !important; }

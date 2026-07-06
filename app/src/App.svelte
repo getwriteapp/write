@@ -214,6 +214,68 @@
     refreshActive()
   }
 
+  // ---- the Bar: summonable formatting strip (Ctrl+/, or via the Commander) ----
+  // The Q10 hybrid made real: quiet by default, chrome when asked for.
+  let barOpen = $state(localStorage.getItem('write:bar') === '1')
+  let barState = $state({ font: '', size: '', color: '', highlight: '', align: 'left', lineHeight: '', indent: 0 })
+
+  // every family here ships with the app (fully offline holds)
+  const BAR_FONTS = [
+    { label: 'Room default', value: '' },
+    { label: 'Quattro', value: "'iA Writer Quattro S', monospace" },
+    { label: 'Literata', value: "'Literata Variable', serif" },
+    { label: 'Source Serif', value: "'Source Serif 4 Variable', serif" },
+    { label: 'Newsreader', value: "'Newsreader Variable', serif" },
+    { label: 'Geist', value: "'Geist Variable', sans-serif" },
+    { label: 'Plex Sans', value: "'IBM Plex Sans', sans-serif" },
+    { label: 'Geist Mono', value: "'Geist Mono Variable', monospace" },
+  ]
+  const BAR_SIZES = ['10pt', '11pt', '12pt', '14pt', '16pt', '18pt', '24pt', '32pt']
+  const BAR_COLORS = ['#B91C1C', '#B45309', '#15803D', '#1D4ED8', '#7E22CE', '#6B7280']
+  const BAR_HIGHLIGHTS = ['#FEF08A', '#BBF7D0', '#BFDBFE', '#FBCFE8', '#FED7AA']
+  const BAR_LINE_HEIGHTS = [['1', '1.0'], ['1.15', '1.15'], ['1.5', '1.5'], ['2', '2.0']]
+
+  function toggleBar(force) {
+    barOpen = force ?? !barOpen
+    localStorage.setItem('write:bar', barOpen ? '1' : '0')
+    if (barOpen) refreshBar()
+  }
+  function refreshBar() {
+    if (!editor || !barOpen) return
+    const ts = editor.getAttributes('textStyle')
+    const para = editor.isActive('heading') ? editor.getAttributes('heading') : editor.getAttributes('paragraph')
+    barState = {
+      font: ts.fontFamily || '',
+      size: ts.fontSize || '',
+      color: ts.color || '',
+      highlight: editor.getAttributes('highlight')?.color || '',
+      align: para.textAlign || 'left',
+      lineHeight: para.lineHeight ? String(para.lineHeight) : '',
+      indent: para.indent || 0,
+    }
+  }
+  const barCmd = {
+    font: (v) => (v ? editor.chain().focus().setFontFamily(v).run() : editor.chain().focus().unsetFontFamily().run()),
+    size: (v) => (v ? editor.chain().focus().setFontSize(v).run() : editor.chain().focus().unsetFontSize().run()),
+    color: (v) => (v ? editor.chain().focus().setColor(v).run() : editor.chain().focus().unsetColor().run()),
+    highlight: (v) => (v ? editor.chain().focus().setHighlight({ color: v }).run() : editor.chain().focus().unsetHighlight().run()),
+    align: (v) => editor.chain().focus().setTextAlign(v).run(),
+    lineHeight: (v) => (v ? editor.chain().focus().setLineHeight(v).run() : editor.chain().focus().unsetLineHeight().run()),
+    indent: () => editor.chain().focus().indent().run(),
+    outdent: () => editor.chain().focus().outdent().run(),
+    clear: () => {
+      editor.chain().focus()
+        .unsetColor().unsetFontFamily().unsetFontSize().unsetHighlight()
+        .setTextAlign('left').unsetLineHeight().run()
+      editor.commands.updateAttributes('paragraph', { indent: 0 })
+      editor.commands.updateAttributes('heading', { indent: 0 })
+    },
+  }
+  function barRun(name, v) {
+    barCmd[name](v)
+    requestAnimationFrame(() => { refreshBar(); queueMeasure() })
+  }
+
   // ---- commands ----
   const cmd = {
     bold:   () => editor.chain().focus().toggleBold().run(),
@@ -421,6 +483,7 @@
     }
     if (e.key === 'F11') { e.preventDefault(); setFocus(!focus) }
     if (mod && e.key.toLowerCase() === 'k') { e.preventDefault(); toggleCommander() }
+    if (mod && e.key === '/') { e.preventDefault(); toggleBar() }
     if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); saveDoc() }
     if (mod && e.key.toLowerCase() === 'o') { e.preventDefault(); openDoc() }
     if (mod && e.key === 'Enter') { e.preventDefault(); setFocus(!focus) }
@@ -469,7 +532,7 @@
 
   function onResize() { updateBubble(); measurePages() }
 
-  function onSelectionChange() { updateBubble(); litParagraph() }
+  function onSelectionChange() { updateBubble(); litParagraph(); refreshBar() }
   function clearTyping() { if (typing) { typing = false; document.body.classList.remove('typing') } }
 
   onDestroy(() => {
@@ -515,6 +578,50 @@
   <button class:on={active.block === 'quote'} onmousedown={(e) => run('quote', e)} title="Quote">❝</button>
   <button class:on={active.block === 'ul'} onmousedown={(e) => run('ul', e)} title="Bulleted list">•≡</button>
 </div>
+
+<!-- the Bar: summonable formatting strip (Ctrl+/) -->
+{#if barOpen}
+  <div class="bar" role="toolbar" aria-label="Formatting">
+    <select class="bar-select" value={barState.font} onchange={(e) => barRun('font', e.target.value)} title="Typeface">
+      {#each BAR_FONTS as f}<option value={f.value}>{f.label}</option>{/each}
+    </select>
+    <select class="bar-select bar-size" value={barState.size} onchange={(e) => barRun('size', e.target.value)} title="Size">
+      <option value="">Size</option>
+      {#each BAR_SIZES as s}<option value={s}>{s.replace('pt', '')}</option>{/each}
+    </select>
+    <span class="bar-sep"></span>
+    <span class="bar-swatches" title="Text color">
+      <button class="swatch swatch-none" class:on={!barState.color} onclick={() => barRun('color', '')} title="Default ink">A</button>
+      {#each BAR_COLORS as c}
+        <button class="swatch" class:on={barState.color.toUpperCase() === c} style="--sw:{c}" onclick={() => barRun('color', c)} title={c}></button>
+      {/each}
+    </span>
+    <span class="bar-sep"></span>
+    <span class="bar-swatches" title="Highlight">
+      <button class="swatch swatch-none" class:on={!barState.highlight} onclick={() => barRun('highlight', '')} title="No highlight">×</button>
+      {#each BAR_HIGHLIGHTS as c}
+        <button class="swatch swatch-hl" class:on={barState.highlight.toUpperCase() === c} style="--sw:{c}" onclick={() => barRun('highlight', c)} title={c}></button>
+      {/each}
+    </span>
+    <span class="bar-sep"></span>
+    <span class="seg bar-seg" title="Alignment">
+      <button class:on={barState.align === 'left'} onclick={() => barRun('align', 'left')} title="Align left">⯇</button>
+      <button class:on={barState.align === 'center'} onclick={() => barRun('align', 'center')} title="Center">⯀</button>
+      <button class:on={barState.align === 'right'} onclick={() => barRun('align', 'right')} title="Align right">⯈</button>
+      <button class:on={barState.align === 'justify'} onclick={() => barRun('align', 'justify')} title="Justify">☰</button>
+    </span>
+    <select class="bar-select bar-lh" value={barState.lineHeight} onchange={(e) => barRun('lineHeight', e.target.value)} title="Line spacing">
+      <option value="">Spacing</option>
+      {#each BAR_LINE_HEIGHTS as [v, label]}<option value={v}>{label}</option>{/each}
+    </select>
+    <span class="seg bar-seg" title="Indent">
+      <button onclick={() => barRun('outdent')} disabled={!barState.indent} title="Decrease indent">⇤</button>
+      <button onclick={() => barRun('indent')} title="Increase indent">⇥</button>
+    </span>
+    <span class="bar-sep"></span>
+    <button class="bar-clear" onclick={() => barRun('clear')} title="Clear formatting">Aa ×</button>
+  </div>
+{/if}
 
 <!-- toast whisper (room name on cycle) -->
 {#if toast}
@@ -582,6 +689,7 @@
           <button class:on={view === 'flow'} onclick={() => applyView('flow')}>Flow</button>
           <button class:on={view === 'page'} onclick={() => applyView('page')}>Page</button>
         </div>
+        <button class="seg-ghost" class:on={barOpen} onclick={() => toggleBar()} title="Formatting bar (Ctrl+/)">Format</button>
         {#if view === 'page'}
           <div class="seg">
             <button class:on={pageSize === 'letter'} onclick={() => applyPageSize('letter')}>Letter</button>

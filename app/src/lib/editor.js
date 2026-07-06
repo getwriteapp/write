@@ -1,9 +1,85 @@
-import { Editor } from '@tiptap/core'
+import { Editor, Extension } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
 import Image from '@tiptap/extension-image'
+import TextStyle from '@tiptap/extension-text-style'
+import Color from '@tiptap/extension-color'
+import Highlight from '@tiptap/extension-highlight'
+import FontFamily from '@tiptap/extension-font-family'
+import TextAlign from '@tiptap/extension-text-align'
+
+/* ---- Wave 1 formatting: font size + paragraph format extensions ----
+   Tiptap ships no font-size extension; this stores it as a `textStyle`
+   mark attribute (same mechanism Color and FontFamily use), in pt so the
+   .docx export maps 1:1 to Word's half-point units. */
+export const FontSize = Extension.create({
+  name: 'fontSize',
+  addGlobalAttributes() {
+    return [{
+      types: ['textStyle'],
+      attributes: {
+        fontSize: {
+          default: null,
+          parseHTML: (el) => el.style.fontSize || null,
+          renderHTML: (attrs) => (attrs.fontSize ? { style: `font-size: ${attrs.fontSize}` } : {}),
+        },
+      },
+    }]
+  },
+  addCommands() {
+    return {
+      setFontSize: (size) => ({ chain }) => chain().setMark('textStyle', { fontSize: size }).run(),
+      unsetFontSize: () => ({ chain }) =>
+        chain().setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run(),
+    }
+  },
+})
+
+/* Line spacing + left indent as paragraph/heading attributes.
+   Indent steps mirror Word: one step = 0.5in = 48px at 96dpi = 720 twips. */
+export const INDENT_STEP_PX = 48
+export const MAX_INDENT = 8
+export const ParagraphFormat = Extension.create({
+  name: 'paragraphFormat',
+  addGlobalAttributes() {
+    return [{
+      types: ['paragraph', 'heading'],
+      attributes: {
+        lineHeight: {
+          default: null,
+          parseHTML: (el) => el.style.lineHeight || null,
+          renderHTML: (attrs) => (attrs.lineHeight ? { style: `line-height: ${attrs.lineHeight}` } : {}),
+        },
+        indent: {
+          default: 0,
+          parseHTML: (el) => parseInt(el.getAttribute('data-indent'), 10) || 0,
+          renderHTML: (attrs) =>
+            attrs.indent
+              ? { 'data-indent': attrs.indent, style: `margin-left: ${attrs.indent * INDENT_STEP_PX}px` }
+              : {},
+        },
+      },
+    }]
+  },
+  addCommands() {
+    const setAttr = (name, value) => ({ commands }) =>
+      ['paragraph', 'heading'].every((type) => commands.updateAttributes(type, { [name]: value }))
+    return {
+      setLineHeight: (v) => setAttr('lineHeight', v),
+      unsetLineHeight: () => setAttr('lineHeight', null),
+      indent: () => ({ state, commands }) => {
+        const cur = state.selection.$from.parent.attrs.indent || 0
+        return setAttr('indent', Math.min(cur + 1, MAX_INDENT))({ commands })
+      },
+      outdent: () => ({ state, commands }) => {
+        const cur = state.selection.$from.parent.attrs.indent || 0
+        return setAttr('indent', Math.max(cur - 1, 0))({ commands })
+      },
+    }
+  },
+})
 
 /* Image formats we accept: the set that round-trips into .docx (see
    docx/export.js). Everything is stored as a data URL so documents stay
@@ -63,6 +139,18 @@ export const WELCOME = `
 <p>This page is editable. Click anywhere and type. The app should already be gone from your attention by the time you finish this sentence.</p>
 `
 
+/* The Wave-1 formatting set, shared with the round-trip test harness so the
+   tests always parse with the exact schema the app edits with. */
+export const FORMATTING_EXTENSIONS = [
+  TextStyle,
+  Color,
+  Highlight.configure({ multicolor: true }),
+  FontFamily,
+  FontSize,
+  TextAlign.configure({ types: ['heading', 'paragraph'] }),
+  ParagraphFormat,
+]
+
 export function createEditor(element, { onUpdate, onSelection, content = WELCOME } = {}) {
   let instance // assigned below; editorProps handlers only run after construction
   instance = new Editor({
@@ -75,6 +163,7 @@ export function createEditor(element, { onUpdate, onSelection, content = WELCOME
       Link.configure({ openOnClick: false, autolink: true }),
       Placeholder.configure({ placeholder: 'Begin…' }),
       Image.configure({ allowBase64: true }),
+      ...FORMATTING_EXTENSIONS,
     ],
     content,
     autofocus: 'end',
