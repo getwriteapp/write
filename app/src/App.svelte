@@ -100,6 +100,18 @@
     requestAnimationFrame(() => requestAnimationFrame(measurePages))
   }
 
+  // tracks the page count across measurements so we can tell "you just grew
+  // onto a new page" (while typing) apart from "the doc/view just loaded" —
+  // only the former should auto-follow the cursor down to the new sheet
+  let lastMeasuredPages = null
+  function followCaretToNewPage() {
+    const sel = window.getSelection()
+    const pm = host?.querySelector('.ProseMirror')
+    if (!sel?.focusNode || !pm?.contains(sel.focusNode)) return
+    const el = sel.focusNode.nodeType === 1 ? sel.focusNode : sel.focusNode.parentElement
+    el?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }
+
   /* Tier-4: discrete floating pages. ProseMirror keeps one continuous
      document — we never split its DOM — so the "pages" are an illusion made
      of two parts kept in sync:
@@ -114,9 +126,9 @@
      Documented as the known Tier-4 gap; true reflow needs a real pagination
      engine, a further increment. */
   function measurePages() {
-    if (view !== 'page' || !host) { pageRects = []; if (pageGapStyleEl) pageGapStyleEl.textContent = ''; return }
+    if (view !== 'page' || !host) { pageRects = []; lastMeasuredPages = null; if (pageGapStyleEl) pageGapStyleEl.textContent = ''; return }
     const pm = host.querySelector('.ProseMirror')
-    if (!pm) { pageRects = []; if (pageGapStyleEl) pageGapStyleEl.textContent = ''; return }
+    if (!pm) { pageRects = []; lastMeasuredPages = null; if (pageGapStyleEl) pageGapStyleEl.textContent = ''; return }
     const g = PAGE_GEOM[pageSize] || PAGE_GEOM.letter
     const pageH = g.my * 2 + g.contentH
 
@@ -147,6 +159,10 @@
 
     const pages = rules.length + 1
     pageRects = Array.from({ length: pages }, (_, i) => ({ top: i * (pageH + PAGE_GAP), height: pageH, n: i }))
+    // grew onto a new page (typing past the bottom, not a doc/view load) —
+    // follow the cursor down so the writer lands at the top of the new sheet
+    if (lastMeasuredPages !== null && pages > lastMeasuredPages) followCaretToNewPage()
+    lastMeasuredPages = pages
   }
 
   // ---- focus dimming: light only the block the cursor is in ----
