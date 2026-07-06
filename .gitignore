@@ -12,3 +12,6 @@ app/tests/out/
 # local tooling & logs
 .claude/
 *.log
+
+# personal test documents at the repo root
+/*.docx
