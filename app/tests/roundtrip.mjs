@@ -28,7 +28,7 @@ import Image from '@tiptap/extension-image'
 
 import { exportDocx } from '../src/lib/docx/export.js'
 import { importDocx } from '../src/lib/docx/import.js'
-import { WELCOME, FORMATTING_EXTENSIONS } from '../src/lib/editor.js'
+import { WELCOME, FORMATTING_EXTENSIONS, WAVE3_EXTENSIONS } from '../src/lib/editor.js'
 
 const EXT = [
   StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
@@ -36,6 +36,7 @@ const EXT = [
   Link.configure({ openOnClick: false }),
   Image.configure({ allowBase64: true }),
   ...FORMATTING_EXTENSIONS,
+  ...WAVE3_EXTENSIONS,
 ]
 
 /* Build a real PNG from spec (signature + IHDR + IDAT + IEND with CRCs) so
@@ -174,6 +175,12 @@ const fixtures = [
     name: 'fmt-in-structures',
     html: '<ul><li><p><span style="color: #15803d">green bullet</span></p></li><li><p style="text-align: center">centered item</p></li></ul><blockquote><p><span style="font-size: 16pt">a big quote</span></p></blockquote>',
   },
+  /* ---- Wave 3: manual page breaks (the shape our OWN exporter produces —
+     a pageBreak as its own top-level block, never embedded in running text) ---- */
+  {
+    name: 'page-break-alone',
+    html: '<p>Before the break.</p><div data-type="pageBreak"></div><p>After the break.</p>',
+  },
   {
     name: 'welcome-document',
     html: WELCOME,
@@ -273,10 +280,12 @@ for (const f of fixtures) {
   }
 }
 
-/* ---------- Wave-1 formatting: EXPORT-side assertions ----------
-   These visual props don't round-trip yet (mammoth strips them — importer v2
-   is the planned fix), so until then we assert directly against the OOXML the
-   exporter produces: unzip the .docx, check document.xml carries the props. */
+/* ---------- Wave-1 formatting: direct OOXML assertions ----------
+   These also round-trip end-to-end via the fmt-* fixtures above; this section
+   additionally unzips the .docx and asserts against the raw document.xml, so
+   a future regression that "round-trips wrong in a way that cancels out" (or
+   the reverse — an importer that quietly compensates for an exporter bug)
+   can't hide from the test suite. */
 
 const fmtFixture = `
   <p style="text-align:center">centered</p>
@@ -312,6 +321,52 @@ for (const [name, needle] of exportChecks) {
     fail++
     failures.push({ name: `export-prop: ${name}`, expected: needle, actual: '(not found in document.xml)', importedHtml: '' })
     console.log(`  FAIL  export-prop: ${name}`)
+  }
+}
+
+/* ---------- Wave 3: page settings (size, orientation, margin) ---------- */
+
+const pageSettingsCases = [
+  { pageSize: 'letter', orientation: 'portrait', margin: 'normal' },
+  { pageSize: 'letter', orientation: 'landscape', margin: 'wide' },
+  { pageSize: 'a4', orientation: 'portrait', margin: 'narrow' },
+]
+for (const settings of pageSettingsCases) {
+  const bytes = await exportDocx(generateJSON('<p>Page settings test.</p>', EXT), settings)
+  const back = await importDocx(bytes)
+  const name = `page-settings: ${settings.pageSize}/${settings.orientation}/${settings.margin}`
+  const ok = back.pageSettings && Object.entries(settings).every(([k, v]) => back.pageSettings[k] === v)
+  if (ok) { pass++; console.log(`  PASS  ${name}`) }
+  else {
+    fail++
+    failures.push({ name, expected: settings, actual: back.pageSettings, importedHtml: '' })
+    console.log(`  FAIL  ${name}`)
+  }
+}
+
+/* ---------- Wave 3: manual page break embedded MID-paragraph ----------
+   Our own exporter always emits a page break as its own top-level block —
+   see the page-break-alone fixture above — but a real Word document can
+   embed one inside a single paragraph's run sequence (Ctrl+Enter mid-
+   sentence). Building that shape requires the docx library directly: our
+   own JSON schema has no way to *produce* this input, only import.js's
+   splitting logic needs to *consume* it. */
+
+{
+  const { Document: Doc2, Packer: Packer2, Paragraph: Para2, TextRun: Run2, PageBreak: Brk2 } = await import('docx')
+  const doc = new Doc2({
+    sections: [{ children: [
+      new Para2({ children: [new Run2('Text before'), new Brk2(), new Run2('text after, one paragraph originally.')] }),
+    ] }],
+  })
+  const bytes = new Uint8Array(await Packer2.toBuffer(doc))
+  const back = await importDocx(bytes)
+  const hasSplit = /Text before<\/p><div data-type="pageBreak"><\/div><p[^>]*>text after/.test(back.html)
+  if (hasSplit) { pass++; console.log('  PASS  page-break: mid-paragraph split (foreign doc)') }
+  else {
+    fail++
+    failures.push({ name: 'page-break: mid-paragraph split (foreign doc)', expected: '<p>Text before</p><div data-type="pageBreak"></div><p>text after...', actual: back.html, importedHtml: back.html })
+    console.log('  FAIL  page-break: mid-paragraph split (foreign doc)')
   }
 }
 

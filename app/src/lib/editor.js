@@ -1,4 +1,4 @@
-import { Editor, Extension } from '@tiptap/core'
+import { Editor, Extension, Node } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
@@ -9,6 +9,8 @@ import Color from '@tiptap/extension-color'
 import Highlight from '@tiptap/extension-highlight'
 import FontFamily from '@tiptap/extension-font-family'
 import TextAlign from '@tiptap/extension-text-align'
+import { Plugin, PluginKey } from '@tiptap/pm/state'
+import { DecorationSet } from '@tiptap/pm/view'
 
 /* ---- Wave 1 formatting: font size + paragraph format extensions ----
    Tiptap ships no font-size extension; this stores it as a `textStyle`
@@ -81,6 +83,72 @@ export const ParagraphFormat = Extension.create({
   },
 })
 
+/* ---- Wave 3: manual page breaks ----
+   A void block node. In Flow view it shows a labeled dashed marker (there's
+   no physical page to imply a break otherwise); in Page view it renders as
+   near-zero height — the sheet gap itself already shows the transition, and
+   Page-view pagination (measurePages in App.svelte) treats this node as a
+   mandatory break regardless of how much content has accumulated. Exports
+   to a real Word manual page break (`docx`'s PageBreak → <w:br w:type="page"/>);
+   import.js reads that back into this same node. */
+export const PageBreak = Node.create({
+  name: 'pageBreak',
+  group: 'block',
+  atom: true,
+  selectable: true,
+  parseHTML() {
+    return [{ tag: 'div[data-type="pageBreak"]' }]
+  },
+  renderHTML() {
+    return ['div', { 'data-type': 'pageBreak' }]
+  },
+  addCommands() {
+    return {
+      insertPageBreak: () => ({ chain }) => chain().insertContent({ type: this.name }).run(),
+    }
+  },
+})
+
+/* ---- Wave 3: Find & Replace ----
+   A ProseMirror plugin that owns nothing but a DecorationSet — the actual
+   search/replace logic lives in App.svelte (plain functions over
+   editor.state/editor.view), which pushes a fresh decoration set in via
+   transaction meta whenever matches change. Kept this thin so the "what
+   counts as a match" policy stays in one place, in application code. */
+export const findReplaceKey = new PluginKey('findReplace')
+export const FindReplace = Extension.create({
+  name: 'findReplace',
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: findReplaceKey,
+        state: {
+          init: () => DecorationSet.empty,
+          apply(tr, old) {
+            const next = tr.getMeta(findReplaceKey)
+            return next !== undefined ? next : old.map(tr.mapping, tr.doc)
+          },
+        },
+        props: {
+          decorations(state) { return findReplaceKey.getState(state) },
+        },
+      }),
+    ]
+  },
+})
+
+/* ---- Wave 3: paste as plain text (Ctrl+Shift+V) ----
+   Paste events carry no modifier-key info, so App.svelte's keydown handler
+   calls markPastePlain() on Ctrl+Shift+V (without preventDefault, so the
+   browser's native paste still fires the 'paste' event a moment later);
+   the flag is consumed by handlePaste below, then cleared. A short auto-clear
+   guards against the flag surviving if paste never fires for some reason. */
+let pastePlainNext = false
+export function markPastePlain() {
+  pastePlainNext = true
+  setTimeout(() => { pastePlainNext = false }, 500)
+}
+
 /* Image formats we accept: the set that round-trips into .docx (see
    docx/export.js). Everything is stored as a data URL so documents stay
    self-contained and fully offline. */
@@ -151,6 +219,9 @@ export const FORMATTING_EXTENSIONS = [
   ParagraphFormat,
 ]
 
+/* The Wave-3 document-furniture set: shared with the test harness too. */
+export const WAVE3_EXTENSIONS = [PageBreak, FindReplace]
+
 export function createEditor(element, { onUpdate, onSelection, content = WELCOME } = {}) {
   let instance // assigned below; editorProps handlers only run after construction
   instance = new Editor({
@@ -164,6 +235,7 @@ export function createEditor(element, { onUpdate, onSelection, content = WELCOME
       Placeholder.configure({ placeholder: 'Begin…' }),
       Image.configure({ allowBase64: true }),
       ...FORMATTING_EXTENSIONS,
+      ...WAVE3_EXTENSIONS,
     ],
     content,
     autofocus: 'end',
@@ -173,6 +245,16 @@ export function createEditor(element, { onUpdate, onSelection, content = WELCOME
       /* image files pasted or dropped into the page become data-URL image
          nodes; .docx drops are handled at the window level (App.svelte) */
       handlePaste: (view, event) => {
+        if (pastePlainNext) {
+          pastePlainNext = false
+          const text = event.clipboardData?.getData('text/plain')
+          if (!text) return false
+          event.preventDefault()
+          const nodes = text.replace(/\r\n/g, '\n').split('\n')
+            .map((line) => ({ type: 'paragraph', content: line ? [{ type: 'text', text: line }] : [] }))
+          instance.chain().focus().insertContent(nodes).run()
+          return true
+        }
         const files = event.clipboardData?.files
         if (!files?.length) return false
         return insertImageFiles(instance, files) > 0

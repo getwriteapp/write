@@ -19,7 +19,10 @@
      formatting + our own named styles; full basedOn-chain resolution is
      out of scope)
    - explicit black text (000000/auto) is treated as "default ink" so
-     foreign docs stay readable in dark rooms */
+     foreign docs stay readable in dark rooms
+   - page size/orientation/margin (Wave 3) snap to our three discrete
+     presets (narrow/normal/wide) — an unusual custom margin in a foreign
+     doc imports as whichever preset is numerically closest */
 
 import { unzipSync, strFromU8 } from 'fflate'
 import { XMLParser } from 'fast-xml-parser'
@@ -70,6 +73,23 @@ const HIGHLIGHT_HEX = {
 }
 
 const IMAGE_MIME = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif' }
+
+/* Wave 3: recognize our own page dimensions (and Word's, close enough) to
+   report back a pageSize/orientation/margin the app's discrete presets can
+   represent. Foreign documents snap to the closest preset — our UI only
+   offers three margin widths, not arbitrary values. */
+const PAGE_SIZE_TWIPS_APPROX = { letter: 12240, a4: 11906 } // long-edge-agnostic: compare the SMALLER dimension
+const MARGIN_TWIPS_APPROX = { narrow: 720, normal: 1440, wide: 2160 }
+
+function closestKey(table, value) {
+  let best = null
+  let bestDist = Infinity
+  for (const [key, v] of Object.entries(table)) {
+    const d = Math.abs(v - value)
+    if (d < bestDist) { bestDist = d; best = key }
+  }
+  return best
+}
 
 function u8ToBase64(bytes) {
   if (typeof Buffer !== 'undefined') return Buffer.from(bytes).toString('base64')
@@ -297,7 +317,7 @@ function collectSegments(nodes, ctx, out, href = null) {
           const text = textOf(child)
           if (text) out.segs.push({ type: 'text', text, props, href })
         } else if (ct === 'w:br') {
-          if (attr(child, 'w:type') !== 'page') out.segs.push({ type: 'br', props: {}, href })
+          out.segs.push({ type: attr(child, 'w:type') === 'page' ? 'pagebreak' : 'br', props: {}, href })
         } else if (ct === 'w:tab') {
           out.segs.push({ type: 'text', text: ' ', props, href })
         } else if (ct === 'w:drawing') {
@@ -364,6 +384,7 @@ function segsToHtml(segs) {
 
 function segHtml(s) {
   if (s.type === 'br') return '<br>'
+  if (s.type === 'pagebreak') return ''
   if (!s.text) return ''
   let t = esc(s.text)
   const p = s.props
@@ -381,7 +402,11 @@ function segHtml(s) {
   return t
 }
 
-/* ---------- paragraphs → classified items ---------- */
+/* ---------- paragraphs → classified items ----------
+   Returns an ARRAY of items (usually one) — a paragraph containing a manual
+   page break splits into: [...before, {kind:'pagebreak'}, ...after], so a
+   break embedded mid-paragraph (rare, but real) still becomes a real break
+   rather than being silently dropped. */
 
 function classifyParagraph(pNode, ctx) {
   const kids = kidsOf(pNode)
@@ -391,18 +416,46 @@ function classifyParagraph(pNode, ctx) {
   const styleNode = find(pPrKids, 'w:pStyle')
   const role = styleNode ? ctx.styles.roles[attr(styleNode, 'w:val')] : null
 
-  if (role?.block === 'hr') return { kind: 'hr' }
+  if (role?.block === 'hr') return [{ kind: 'hr' }]
 
   const out = { segs: [], imgs: [] }
   collectSegments(kids, ctx, out)
 
   if (role?.block === 'code') {
-    return { kind: 'code', codeText: out.segs.filter((s) => s.type === 'text').map((s) => s.text).join('') }
+    // a manual break inside a code block is vanishingly rare; keep the text whole
+    return [{ kind: 'code', codeText: out.segs.filter((s) => s.type === 'text').map((s) => s.text).join('') }]
   }
 
   const numPr = find(pPrKids, 'w:numPr')
   const isList = !!numPr
   const attrStr = paraAttrs(pPr, ctx, { isList })
+
+  // split the plain-paragraph case on manual page breaks — the common,
+  // supported shape (our own exporter always emits a break alone in its own
+  // paragraph; foreign docs may embed it mid-paragraph, handled the same way)
+  if (!isList && role?.block !== 'heading' && role?.block !== 'quote') {
+    const parts = [[]]
+    for (const s of out.segs) {
+      if (s.type === 'pagebreak') parts.push([])
+      else parts[parts.length - 1].push(s)
+    }
+    if (parts.length > 1) {
+      const items = []
+      parts.forEach((segs, i) => {
+        if (i > 0) items.push({ kind: 'pagebreak' })
+        const hasText = segs.some((s) => s.type === 'text' && s.text.trim())
+        const isLast = i === parts.length - 1
+        // only the paragraph's own images belong on the last part (they were
+        // collected once for the whole node); an empty non-last part with no
+        // text is just the break's own paragraph — skip its empty <p> shell
+        if (hasText || (isLast && (out.imgs.length || segs.length))) {
+          items.push({ kind: 'block', html: `<p${attrStr}>${segsToHtml(segs)}</p>` + (isLast ? out.imgs.join('') : '') })
+        }
+      })
+      return items
+    }
+  }
+
   const inline = segsToHtml(out.segs)
 
   if (isList) {
@@ -410,26 +463,26 @@ function classifyParagraph(pNode, ctx) {
     const numIdNode = find(kidsOf(numPr), 'w:numId')
     const level = Math.max(0, Math.min(8, parseInt(ilvlNode ? attr(ilvlNode, 'w:val') : '0', 10) || 0))
     const numId = numIdNode ? attr(numIdNode, 'w:val') : '0'
-    return {
+    return [{
       kind: 'list', level, numId,
       listKind: ctx.numKind(numId, level),
       inner: `<p${attrStr}>${inline}</p>` + out.imgs.join(''),
-    }
+    }]
   }
 
   if (role?.block === 'heading') {
     const tag = `h${role.level}`
-    return { kind: 'block', html: `<${tag}${attrStr}>${inline}</${tag}>` + out.imgs.join('') }
+    return [{ kind: 'block', html: `<${tag}${attrStr}>${inline}</${tag}>` + out.imgs.join('') }]
   }
   if (role?.block === 'quote') {
-    return { kind: 'quote', inner: `<p${attrStr}>${inline}</p>` }
+    return [{ kind: 'quote', inner: `<p${attrStr}>${inline}</p>` }]
   }
 
   // image-only paragraph → bare block image(s), no empty <p> shell
   if (out.imgs.length && !out.segs.some((s) => s.type === 'text' && s.text.trim())) {
-    return { kind: 'block', html: out.imgs.join('') }
+    return [{ kind: 'block', html: out.imgs.join('') }]
   }
-  return { kind: 'block', html: `<p${attrStr}>${inline}</p>` + out.imgs.join('') }
+  return [{ kind: 'block', html: `<p${attrStr}>${inline}</p>` + out.imgs.join('') }]
 }
 
 /* ---------- consecutive-item grouping (quotes, code, lists) ---------- */
@@ -482,12 +535,42 @@ function groupItems(items) {
     } else if (it.kind === 'hr') {
       out.push('<hr>')
       i++
+    } else if (it.kind === 'pagebreak') {
+      out.push('<div data-type="pageBreak"></div>')
+      i++
     } else {
       out.push(it.html)
       i++
     }
   }
   return out.join('')
+}
+
+/* w:sectPr → { pageSize, orientation, margin } — snapped to our discrete
+   presets (the app doesn't offer arbitrary values, so "closest" is honest
+   fidelity, not a bug). Returns null if the section isn't found. */
+function readPageSettings(body) {
+  const sectPr = find(kidsOf(body), 'w:sectPr')
+  if (!sectPr) return null
+  const kids = kidsOf(sectPr)
+  const pgSz = find(kids, 'w:pgSz')
+  const pgMar = find(kids, 'w:pgMar')
+
+  let pageSize = 'letter'
+  let orientation = 'portrait'
+  if (pgSz) {
+    orientation = attr(pgSz, 'w:orient') === 'landscape' ? 'landscape' : 'portrait'
+    const w = parseInt(attr(pgSz, 'w:w'), 10) || 0
+    const h = parseInt(attr(pgSz, 'w:h'), 10) || 0
+    const shortEdge = Math.min(w, h) || PAGE_SIZE_TWIPS_APPROX.letter
+    pageSize = closestKey(PAGE_SIZE_TWIPS_APPROX, shortEdge) || 'letter'
+  }
+  let margin = 'normal'
+  if (pgMar) {
+    const top = parseInt(attr(pgMar, 'w:top'), 10)
+    if (top) margin = closestKey(MARGIN_TWIPS_APPROX, top) || 'normal'
+  }
+  return { pageSize, orientation, margin }
 }
 
 /* ---------- entry point ---------- */
@@ -515,13 +598,14 @@ export async function importDocx(bytes) {
   const processChildren = (nodes) => {
     for (const node of nodes) {
       const tag = tagOf(node)
-      if (tag === 'w:p') items.push(classifyParagraph(node, ctx))
+      if (tag === 'w:p') items.push(...classifyParagraph(node, ctx))
       else if (tag === 'w:tbl') ctx.note('table dropped (not yet supported)')
       else if (tag === 'w:sdt') {
         const content = find(kidsOf(node), 'w:sdtContent')
         if (content) processChildren(kidsOf(content))
       }
-      // w:sectPr and friends: page geometry — read in Wave 3, ignored here
+      // w:sectPr itself (the section-properties element, not a content
+      // node) is read separately below via readPageSettings
     }
   }
   processChildren(kidsOf(body))
@@ -530,5 +614,5 @@ export async function importDocx(bytes) {
     messages.push(n > 1 ? `${msg} ×${n}` : msg)
   }
 
-  return { html: groupItems(items), messages }
+  return { html: groupItems(items), messages, pageSettings: readPageSettings(body) }
 }

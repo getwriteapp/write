@@ -6,13 +6,15 @@
    guessing from appearance. Anything styled here must have a matching rule
    in import.js — the two files are a pair.
 
-   Schema covered (the full editor schema as of Wave 1):
+   Schema covered (the full editor schema as of Wave 3):
      blocks: paragraph, heading 1–3, bulletList, orderedList (nested),
-             blockquote, codeBlock, horizontalRule, image (data-URL png/jpeg/gif)
+             blockquote, codeBlock, horizontalRule, image (data-URL png/jpeg/gif),
+             pageBreak
      block attrs: textAlign, lineHeight, indent (0.5in steps)
      inline: text, hardBreak
      marks:  bold, italic, underline, strike, code, link, highlight,
              textStyle (color, fontFamily, fontSize)
+     document: page size (Letter/A4), orientation, margin preset
    As of Wave 2 (importer v2), everything above round-trips: import.js reads
    back every property this file writes. Keep the two files paired. */
 
@@ -24,12 +26,40 @@ import {
   HeadingLevel,
   ImageRun,
   LevelFormat,
+  PageBreak,
+  PageOrientation,
   Packer,
   Paragraph,
   TextRun,
 } from 'docx'
 
 import { cssToWordFont } from './fonts.js'
+
+/* ---- Wave 3: page settings (size, orientation, margins) ----
+   Physical page dimensions in twips (1in = 1440 twips), portrait orientation.
+   Landscape swaps width/height rather than relying on the docx package to
+   do it implicitly, so the written XML is unambiguous either way. */
+export const PAGE_SIZE_TWIPS = {
+  letter: { w: 12240, h: 15840 }, // 8.5 × 11 in
+  a4: { w: 11906, h: 16838 },      // 210 × 297 mm
+}
+/* Margin presets: one value, all four sides (a deliberate simplification —
+   Word's own "Normal/Narrow/Wide" quick picks are symmetric too). */
+export const MARGIN_TWIPS = { narrow: 720, normal: 1440, wide: 2160 } // 0.5in/1in/1.5in
+
+export function pageSettingsToDocxPage(settings = {}) {
+  const size = PAGE_SIZE_TWIPS[settings.pageSize] || PAGE_SIZE_TWIPS.letter
+  const landscape = settings.orientation === 'landscape'
+  const margin = MARGIN_TWIPS[settings.margin] || MARGIN_TWIPS.normal
+  return {
+    size: {
+      width: landscape ? size.h : size.w,
+      height: landscape ? size.w : size.h,
+      orientation: landscape ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT,
+    },
+    margin: { top: margin, bottom: margin, left: margin, right: margin },
+  }
+}
 
 const HEADING = { 1: HeadingLevel.HEADING_1, 2: HeadingLevel.HEADING_2, 3: HeadingLevel.HEADING_3 }
 const MONO = 'Consolas'
@@ -305,6 +335,10 @@ function walkBlock(node, ctx, out) {
       out.push(new Paragraph({ style: 'HorizontalRule' }))
       break
     }
+    case 'pageBreak': {
+      out.push(new Paragraph({ children: [new PageBreak()] }))
+      break
+    }
     case 'image': {
       const run = imageRunFor(node)
       if (run) out.push(new Paragraph({ children: [run] }))
@@ -359,7 +393,7 @@ function walkList(listNode, ctx, out) {
 
 /* ---- entry points ---- */
 
-export function tiptapToDocument(json) {
+export function tiptapToDocument(json, pageSettings) {
   let olInstances = 0
   const ctx = { nextOlInstance: () => olInstances++ }
   const children = []
@@ -369,13 +403,15 @@ export function tiptapToDocument(json) {
   return new Document({
     numbering: { config: [{ reference: 'write-ol', levels: OL_LEVELS }] },
     styles: STYLES,
-    sections: [{ children }],
+    sections: [{ properties: { page: pageSettingsToDocxPage(pageSettings) }, children }],
   })
 }
 
-/* Returns .docx bytes as Uint8Array, in both the browser and Node. */
-export async function exportDocx(json) {
-  const doc = tiptapToDocument(json)
+/* Returns .docx bytes as Uint8Array, in both the browser and Node.
+   pageSettings: { pageSize: 'letter'|'a4', orientation: 'portrait'|'landscape',
+                   margin: 'narrow'|'normal'|'wide' } — all optional, default Letter/portrait/normal. */
+export async function exportDocx(json, pageSettings) {
+  const doc = tiptapToDocument(json, pageSettings)
   if (typeof Blob !== 'undefined' && typeof window !== 'undefined') {
     const blob = await Packer.toBlob(doc)
     return new Uint8Array(await blob.arrayBuffer())

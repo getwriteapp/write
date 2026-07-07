@@ -9,8 +9,8 @@
    The docx modules are imported dynamically so the editor bundle stays lean.
 
    Contract with App.svelte:
-     save(name, { html, json }) → { name, path? } | null
-     open() → { name, html, messages? } | null                */
+     save(name, { html, json, pageSettings }) → { name, path? } | null
+     open() → { name, html, messages?, pageSettings? } | null  */
 
 /* Tauri v2 detection: `window.__TAURI__` only exists when `withGlobalTauri`
    is enabled (off by default), so check `__TAURI_INTERNALS__` — the IPC bridge
@@ -23,9 +23,9 @@ const inTauri = typeof window !== 'undefined' &&
 const ext = (path) => (path.match(/\.([^.\\/]+)$/)?.[1] || '').toLowerCase()
 const baseName = (path) => path.split(/[\\/]/).pop().replace(/\.[^.]+$/, '')
 
-async function toDocxBytes(json) {
+async function toDocxBytes(json, pageSettings) {
   const { exportDocx } = await import('./docx/export.js')
-  return exportDocx(json)
+  return exportDocx(json, pageSettings)
 }
 
 async function fromDocxBytes(bytes) {
@@ -35,7 +35,7 @@ async function fromDocxBytes(bytes) {
 
 /* ---- Tauri (native dialogs, real paths) ---- */
 
-async function tauriSave(name, { html, json }) {
+async function tauriSave(name, { html, json, pageSettings }) {
   const { save } = await import('@tauri-apps/plugin-dialog')
   const path = await save({
     defaultPath: `${name}.docx`,
@@ -48,7 +48,7 @@ async function tauriSave(name, { html, json }) {
 
   if (ext(path) === 'docx') {
     const { writeFile } = await import('@tauri-apps/plugin-fs')
-    await writeFile(path, await toDocxBytes(json))
+    await writeFile(path, await toDocxBytes(json, pageSettings))
   } else {
     const { writeTextFile } = await import('@tauri-apps/plugin-fs')
     await writeTextFile(path, html)
@@ -72,8 +72,8 @@ async function tauriOpen() {
 async function tauriOpenPath(path) {
   if (ext(path) === 'docx') {
     const { readFile } = await import('@tauri-apps/plugin-fs')
-    const { html, messages } = await fromDocxBytes(await readFile(path))
-    return { name: baseName(path), html, messages }
+    const { html, messages, pageSettings } = await fromDocxBytes(await readFile(path))
+    return { name: baseName(path), html, messages, pageSettings }
   }
   const { readTextFile } = await import('@tauri-apps/plugin-fs')
   return { name: baseName(path), html: await readTextFile(path) }
@@ -81,8 +81,8 @@ async function tauriOpenPath(path) {
 
 /* ---- browser fallback (dev preview) ---- */
 
-async function webSave(name, { json }) {
-  const bytes = await toDocxBytes(json)
+async function webSave(name, { json, pageSettings }) {
+  const bytes = await toDocxBytes(json, pageSettings)
   const blob = new Blob([bytes], {
     type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   })
@@ -114,8 +114,8 @@ function webOpenFile(file) {
     const reader = new FileReader()
     if (ext(file.name) === 'docx') {
       reader.onload = async () => {
-        const { html, messages } = await fromDocxBytes(new Uint8Array(reader.result))
-        resolve({ name, html, messages })
+        const { html, messages, pageSettings } = await fromDocxBytes(new Uint8Array(reader.result))
+        resolve({ name, html, messages, pageSettings })
       }
       reader.readAsArrayBuffer(file)
     } else {
