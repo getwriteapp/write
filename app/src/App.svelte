@@ -145,8 +145,19 @@
     const rules = []
     for (let k = 1; k < nominalPages; k++) {
       const naturalTargetY = g.my + k * g.contentH
-      const idx = children.findIndex((el, i) => i >= searchFrom && el.offsetTop >= naturalTargetY)
+      let idx = children.findIndex((el, i) => i >= searchFrom && el.offsetTop >= naturalTargetY)
       if (idx === -1) break // content runs out before this nominal page — stop, don't fabricate a break
+      // round to the NEARER block boundary rather than always rounding up —
+      // always-round-up leaves dead space at the bottom of the ending page
+      // equal to however far the next block's start overshoots the ideal
+      // fill point; picking whichever adjacent boundary is closer roughly
+      // halves that typical slop (a lone large paragraph straddling the
+      // target is still never split — the documented Tier-4 limitation)
+      if (idx > searchFrom) {
+        const overshoot = children[idx].offsetTop - naturalTargetY
+        const undershoot = naturalTargetY - children[idx - 1].offsetTop
+        if (undershoot < overshoot) idx -= 1
+      }
       searchFrom = idx + 1
       const desiredY = k * (pageH + PAGE_GAP) + g.my
       const margin = Math.max(0, desiredY - children[idx].offsetTop - cumMargin)
