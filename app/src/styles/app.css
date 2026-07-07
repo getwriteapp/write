@@ -251,6 +251,21 @@ body.typing .whisper { opacity: 0.05; }
 }
 .seg-ghost.on { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
 
+.zoom-seg { align-items: center; gap: 2px; padding: 2px 2px 2px 8px; }
+.zoom-seg button {
+  width: 20px; height: 20px;
+  padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.zoom-seg button:disabled { opacity: 0.35; cursor: default; }
+.zoom-pct {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--soft);
+  min-width: 3em;
+  text-align: center;
+}
+
 .cmd-actions {
   display: flex; gap: 8px; flex-wrap: wrap;
   margin-top: 16px; padding-top: 14px;
@@ -489,6 +504,95 @@ main {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* manual page-break node (Flow view): there's no physical page here to imply
+   a break, so it needs its own labeled marker. Page view collapses this to
+   nothing — see pages.css — because the sheet gap already shows the break. */
+.ProseMirror div[data-type="pageBreak"] {
+  position: relative;
+  height: 1px;
+  margin: 2.2em 0;
+  border-top: 1px dashed color-mix(in srgb, var(--ink) 22%, transparent);
+}
+.ProseMirror div[data-type="pageBreak"]::after {
+  content: "Page Break";
+  position: absolute;
+  top: 0; left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--bg);
+  padding: 0 8px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.ProseMirror div[data-type="pageBreak"].ProseMirror-selectednode {
+  border-top-color: var(--accent);
+}
+.ProseMirror div[data-type="pageBreak"].ProseMirror-selectednode::after {
+  color: var(--accent);
+}
+
+/* find-match decorations painted by the findReplace ProseMirror plugin */
+.ProseMirror .find-match {
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+  border-radius: 2px;
+}
+.ProseMirror .find-match.find-active {
+  background: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+/* ---------- .find-bar: summonable Find & Replace (Ctrl+F), mirrors .bar ---------- */
+.find-bar {
+  position: fixed;
+  top: 50px; left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 94vw;
+  padding: 6px 10px;
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+  backdrop-filter: blur(14px);
+}
+.find-input, .replace-input {
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--hairline);
+  border-radius: 7px;
+  padding: 5px 8px;
+  width: 160px;
+}
+.find-input::placeholder, .replace-input::placeholder { color: var(--faint); }
+.find-count {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--faint);
+  min-width: 3.5em;
+  text-align: center;
+}
+.find-bar button {
+  border: 1px solid var(--hairline);
+  background: transparent;
+  color: var(--soft);
+  font: inherit; font-size: 12px; font-weight: 500;
+  width: 26px; height: 26px;
+  border-radius: 7px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: color 0.14s ease, border-color 0.14s ease;
+}
+.find-bar button:hover { color: var(--ink); }
+.find-bar button:disabled { opacity: 0.35; cursor: default; }
+.find-bar .find-wide { width: auto; padding: 0 10px; }
+.find-bar .find-close { color: var(--faint); }
 
 /* placeholder on the empty page */
 .ProseMirror p.is-editor-empty:first-child::before {

@@ -20,9 +20,16 @@
 [data-room="slate"]   { --desk: #141A21; --paper: #222A34; --paper-shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 32px rgba(0,0,0,.45); }
 [data-room="noir"]    { --desk: #08080A; --paper: #17171A; --paper-shadow: 0 1px 2px rgba(0,0,0,.5), 0 12px 32px rgba(0,0,0,.5); }
 
-/* page geometry */
+/* page geometry: width is the physical page's short edge in portrait, long
+   edge in landscape (height is derived per-page from geom() in App.svelte,
+   since it also depends on margin — only width is a pure CSS var). Margins
+   are symmetric (mx = my) and driven by the narrow/normal/wide preset. */
 [data-view="page"] { --page-w: 816px; --page-mx: 96px; --page-my: 96px; }
 [data-view="page"][data-page-size="a4"] { --page-w: 794px; }
+[data-view="page"][data-orientation="landscape"] { --page-w: 1056px; }
+[data-view="page"][data-orientation="landscape"][data-page-size="a4"] { --page-w: 1123px; }
+[data-view="page"][data-margin="narrow"] { --page-mx: 48px; --page-my: 48px; }
+[data-view="page"][data-margin="wide"] { --page-mx: 144px; --page-my: 144px; }
 
 /* the desk: swap the app background for a contrasting surface so the sheet reads as paper */
 [data-view="page"] main {
@@ -80,12 +87,25 @@
   border-right: 1px dashed color-mix(in srgb, var(--ink) 12%, transparent);
 }
 
+/* manual page-break node (editor.js's PageBreak): in Page view the sheet gap
+   itself already shows the transition, so the node collapses to nothing —
+   only its mandatory-break effect on measurePages remains. See app.css for
+   its Flow-view marker (a labeled dashed rule). */
+[data-view="page"] .ProseMirror div[data-type="pageBreak"] {
+  height: 0; margin: 0; border: none;
+}
+[data-view="page"] .ProseMirror div[data-type="pageBreak"]::after { content: none; }
+
 /* ---------- print: real pagination via @page (independent of on-screen view) ---------- */
 @media print {
-  .whisper, .veil, .bubble, .toast, .bar, .page-sheet, .margin-guide { display: none !important; }
+  .whisper, .veil, .bubble, .toast, .bar, .find-bar, .page-sheet, .margin-guide { display: none !important; }
   body { background: #fff !important; }
   body::before { display: none !important; }
   main { display: block !important; padding: 0 !important; background: #fff !important; }
+  .ProseMirror div[data-type="pageBreak"] {
+    height: 0; margin: 0; border: none; break-after: page;
+  }
+  .ProseMirror div[data-type="pageBreak"]::after { content: none; }
   .editor-host {
     width: auto !important; max-width: none !important;
     padding: 0 !important; margin: 0 !important;
