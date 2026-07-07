@@ -13,8 +13,8 @@
      inline: text, hardBreak
      marks:  bold, italic, underline, strike, code, link, highlight,
              textStyle (color, fontFamily, fontSize)
-   NOTE (Wave 1 → Wave 2): the visual attrs/marks are EXPORT-side only until
-   importer v2 lands — mammoth strips them on the way back in. */
+   As of Wave 2 (importer v2), everything above round-trips: import.js reads
+   back every property this file writes. Keep the two files paired. */
 
 import {
   AlignmentType,
@@ -28,6 +28,8 @@ import {
   Paragraph,
   TextRun,
 } from 'docx'
+
+import { cssToWordFont } from './fonts.js'
 
 const HEADING = { 1: HeadingLevel.HEADING_1, 2: HeadingLevel.HEADING_2, 3: HeadingLevel.HEADING_3 }
 const MONO = 'Consolas'
@@ -197,7 +199,8 @@ function markProps(marks = []) {
     if (m.type === 'textStyle') {
       const color = cleanHex(m.attrs?.color)
       if (color) p.color = color
-      if (m.attrs?.fontFamily) p.font = String(m.attrs.fontFamily).split(',')[0].replace(/["']/g, '').trim()
+      const font = cssToWordFont(m.attrs?.fontFamily)
+      if (font) p.font = font
       const pt = parseFloat(m.attrs?.fontSize)
       if (pt) p.size = Math.round(pt * 2) // half-points
     }

@@ -153,6 +153,27 @@ const fixtures = [
     name: 'image-adjacent-images',
     html: `<img src="${PNG_SMALL}"><img src="${PNG_WIDE}"><p>Two in a row above.</p>`,
   },
+  /* ---- Wave-1 formatting: FULL round-trip (importer v2) ---- */
+  {
+    name: 'fmt-alignment',
+    html: '<p style="text-align: center">centered</p><p style="text-align: justify">justified text long enough to matter</p><h2 style="text-align: right">right heading</h2><p>plain after</p>',
+  },
+  {
+    name: 'fmt-spacing-indent',
+    html: '<p style="line-height: 2">double spaced</p><p data-indent="2">indented two steps</p><p style="line-height: 1.5" data-indent="1">both at once</p>',
+  },
+  {
+    name: 'fmt-textstyle',
+    html: `<p><span style="color: #b91c1c">red text</span> plain <mark data-color="#fef08a">sunny</mark> <span style="font-size: 18pt">big</span> <span style="font-family: 'Literata Variable', serif">literata</span> <span style="font-family: Georgia">georgia</span>.</p>`,
+  },
+  {
+    name: 'fmt-combined-marks',
+    html: '<p><strong><span style="color: #1d4ed8">bold blue</span></strong> and <a href="https://example.com/"><span style="font-size: 14pt">a sized link</span></a> and <em><mark data-color="#bbf7d0">green italic</mark></em>.</p>',
+  },
+  {
+    name: 'fmt-in-structures',
+    html: '<ul><li><p><span style="color: #15803d">green bullet</span></p></li><li><p style="text-align: center">centered item</p></li></ul><blockquote><p><span style="font-size: 16pt">a big quote</span></p></blockquote>',
+  },
   {
     name: 'welcome-document',
     html: WELCOME,
@@ -162,6 +183,7 @@ const fixtures = [
 /* ---------- canonicalization ---------- */
 
 const LINK_ATTR_KEEP = new Set(['href'])
+const HEADING_ATTR_KEEP = new Set(['level', 'textAlign', 'lineHeight', 'indent'])
 
 function canon(node) {
   if (Array.isArray(node)) {
@@ -173,7 +195,7 @@ function canon(node) {
     const attrs = {}
     for (const [k, v] of Object.entries(node.attrs)) {
       if (v === null || v === undefined) continue
-      if (node.type === 'heading' && k !== 'level') continue
+      if (node.type === 'heading' && !HEADING_ATTR_KEEP.has(k)) continue
       if (node.type === 'codeBlock') continue // language: null noise
       if (node.type === 'image' && k !== 'src') continue // alt/title don't survive .docx (documented)
       attrs[k] = v
@@ -190,7 +212,8 @@ function canon(node) {
           for (const [k, v] of Object.entries(m.attrs)) {
             if (v === null || v === undefined) continue
             if (m.type === 'link' && !LINK_ATTR_KEEP.has(k)) continue
-            attrs[k] = v
+            // hex colors round-trip through Word uppercased — compare case-blind
+            attrs[k] = k === 'color' ? String(v).toLowerCase() : v
           }
           if (Object.keys(attrs).length) mm.attrs = attrs
         }
