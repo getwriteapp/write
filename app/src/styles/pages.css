@@ -39,6 +39,7 @@
   transition: background-color 0.45s ease;
 }
 [data-view="page"] body::before { opacity: 0; } /* hide the room wash on the desk */
+[data-view="page"] { --floor: var(--desk); } /* the bottom-fade matches the desk, not the page */
 
 /* the document column — holds true page width; the ProseMirror text flows
    through it continuously (never split by JS — a page break is a margin
@@ -68,24 +69,26 @@
   border-radius: 2px;
   transition: background-color 0.45s ease;
 }
-.page-num {
+/* Wave 4: header/footer text + page numbers — opt-in preview bands living
+   in the page's own top/bottom margin (never inside the writable content
+   area). Stacked vertically rather than sharing one line with the page
+   number, so any combination of independently-chosen alignments (e.g. a
+   left header + a right-aligned page number) can never overlap. */
+.page-band {
   position: absolute;
-  right: 16px; bottom: 12px;
-  font-family: var(--mono);
-  font-size: 10px; letter-spacing: 0.08em;
-  color: var(--faint);
-}
-
-/* margin guides: dashed column edges showing the text measure, confined to
-   the page they belong to (not drawn through the gap) */
-.margin-guide {
-  position: absolute;
-  top: 0; bottom: 0;
   left: var(--page-mx); right: var(--page-mx);
+  display: flex; flex-direction: column; gap: 4px;
+  font-family: var(--mono);
+  font-size: 10px; letter-spacing: 0.06em;
+  color: var(--faint);
   pointer-events: none;
-  border-left: 1px dashed color-mix(in srgb, var(--ink) 12%, transparent);
-  border-right: 1px dashed color-mix(in srgb, var(--ink) 12%, transparent);
 }
+.page-band-header { top: 28px; }
+.page-band-footer { bottom: 28px; }
+.pb-line { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pb-line[data-align="left"] { text-align: left; }
+.pb-line[data-align="center"] { text-align: center; }
+.pb-line[data-align="right"] { text-align: right; }
 
 /* manual page-break node (editor.js's PageBreak): in Page view the sheet gap
    itself already shows the transition, so the node collapses to nothing —
@@ -98,7 +101,7 @@
 
 /* ---------- print: real pagination via @page (independent of on-screen view) ---------- */
 @media print {
-  .whisper, .veil, .bubble, .toast, .bar, .find-bar, .page-sheet, .margin-guide { display: none !important; }
+  .whisper, .veil, .bubble, .toast, .bar-zone, .find-bar, .table-bar, .page-sheet, .bottom-fade { display: none !important; }
   body { background: #fff !important; }
   body::before { display: none !important; }
   main { display: block !important; padding: 0 !important; background: #fff !important; }

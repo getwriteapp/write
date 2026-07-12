@@ -28,7 +28,7 @@ import Image from '@tiptap/extension-image'
 
 import { exportDocx } from '../src/lib/docx/export.js'
 import { importDocx } from '../src/lib/docx/import.js'
-import { WELCOME, FORMATTING_EXTENSIONS, WAVE3_EXTENSIONS } from '../src/lib/editor.js'
+import { WELCOME, FORMATTING_EXTENSIONS, WAVE3_EXTENSIONS, TABLE_EXTENSIONS, WAVE6_EXTENSIONS } from '../src/lib/editor.js'
 
 const EXT = [
   StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
@@ -37,6 +37,8 @@ const EXT = [
   Image.configure({ allowBase64: true }),
   ...FORMATTING_EXTENSIONS,
   ...WAVE3_EXTENSIONS,
+  ...TABLE_EXTENSIONS,
+  ...WAVE6_EXTENSIONS,
 ]
 
 /* Build a real PNG from spec (signature + IHDR + IDAT + IEND with CRCs) so
@@ -180,6 +182,40 @@ const fixtures = [
   {
     name: 'page-break-alone',
     html: '<p>Before the break.</p><div data-type="pageBreak"></div><p>After the break.</p>',
+  },
+  /* ---- Wave 5: tables ---- */
+  {
+    name: 'table-basic',
+    html: '<p>Before.</p><table><tbody><tr><td><p>a1</p></td><td><p>b1</p></td></tr><tr><td><p>a2</p></td><td><p>b2</p></td></tr></tbody></table><p>After.</p>',
+  },
+  {
+    name: 'table-header-row',
+    html: '<table><tbody><tr><th><p>Name</p></th><th><p>Amount</p></th></tr><tr><td><p>Ink</p></td><td><p>12</p></td></tr><tr><td><p>Paper</p></td><td><p>7</p></td></tr></tbody></table>',
+  },
+  {
+    name: 'table-cell-formatting',
+    html: '<table><tbody><tr><td><p style="text-align: center"><strong>bold centered</strong></p></td><td><p><span style="color: #b91c1c">red</span> and <mark data-color="#fef08a">marked</mark></p></td></tr><tr><td><ul><li><p>one</p></li><li><p>two</p></li></ul></td><td><p>plain</p><p>two paragraphs</p></td></tr></tbody></table>',
+  },
+  {
+    name: 'table-merged-cells',
+    html: '<table><tbody><tr><td colspan="2"><p>spans two columns</p></td><td><p>c1</p></td></tr><tr><td rowspan="2"><p>spans two rows</p></td><td><p>b2</p></td><td><p>c2</p></td></tr><tr><td><p>b3</p></td><td><p>c3</p></td></tr></tbody></table>',
+  },
+  {
+    name: 'table-column-widths',
+    html: '<table><tbody><tr><td data-colwidth="120"><p>narrow</p></td><td data-colwidth="360"><p>wide</p></td></tr><tr><td data-colwidth="120"><p>n2</p></td><td data-colwidth="360"><p>w2</p></td></tr></tbody></table>',
+  },
+  /* ---- Wave 6: table of contents ---- */
+  {
+    name: 'toc-basic',
+    html: `<h1>Title</h1><div data-type="tableOfContents" data-entries='[{"level":1,"text":"Title"},{"level":2,"text":"Section"}]'></div><h2>Section</h2><p>Body.</p>`,
+  },
+  {
+    name: 'toc-three-levels',
+    html: `<div data-type="tableOfContents" data-entries='[{"level":1,"text":"One"},{"level":2,"text":"Two"},{"level":3,"text":"Three"}]'></div><h1>One</h1><h2>Two</h2><h3>Three</h3>`,
+  },
+  {
+    name: 'toc-empty',
+    html: `<div data-type="tableOfContents" data-entries='[]'></div><p>No headings yet.</p>`,
   },
   {
     name: 'welcome-document',
@@ -344,6 +380,41 @@ for (const settings of pageSettingsCases) {
   }
 }
 
+/* ---------- Wave 4: header, footer, page numbers ---------- */
+
+const headerFooterCases = [
+  {
+    name: 'header + footer text, no page numbers',
+    settings: { header: { text: 'Chapter One', align: 'left' }, footer: { text: 'Confidential', align: 'right' } },
+  },
+  {
+    name: 'page numbers in footer, no custom text',
+    settings: { pageNumbers: { enabled: true, place: 'footer', align: 'center' } },
+  },
+  {
+    name: 'page numbers in header, alongside header text',
+    settings: { header: { text: 'Draft', align: 'center' }, pageNumbers: { enabled: true, place: 'header', align: 'right' } },
+  },
+  {
+    name: 'none set — defaults',
+    settings: {},
+  },
+]
+const defaultHF = { header: { text: '', align: 'center' }, footer: { text: '', align: 'center' }, pageNumbers: { enabled: false, place: 'footer', align: 'center' } }
+for (const { name, settings } of headerFooterCases) {
+  const expected = { ...defaultHF, ...settings }
+  const bytes = await exportDocx(generateJSON('<p>Header/footer test.</p>', EXT), settings)
+  const back = await importDocx(bytes)
+  const actual = { header: back.pageSettings.header, footer: back.pageSettings.footer, pageNumbers: back.pageSettings.pageNumbers }
+  const ok = JSON.stringify(actual) === JSON.stringify(expected)
+  if (ok) { pass++; console.log(`  PASS  header/footer: ${name}`) }
+  else {
+    fail++
+    failures.push({ name: `header/footer: ${name}`, expected, actual, importedHtml: '' })
+    console.log(`  FAIL  header/footer: ${name}`)
+  }
+}
+
 /* ---------- Wave 3: manual page break embedded MID-paragraph ----------
    Our own exporter always emits a page break as its own top-level block —
    see the page-break-alone fixture above — but a real Word document can
@@ -367,6 +438,144 @@ for (const settings of pageSettingsCases) {
     fail++
     failures.push({ name: 'page-break: mid-paragraph split (foreign doc)', expected: '<p>Text before</p><div data-type="pageBreak"></div><p>text after...', actual: back.html, importedHtml: back.html })
     console.log('  FAIL  page-break: mid-paragraph split (foreign doc)')
+  }
+}
+
+/* ---------- Wave 5: tables — raw OOXML assertions ----------
+   Same rationale as the Wave-1 block above: the table fixtures round-trip
+   end-to-end, and this additionally pins the raw XML shape so a
+   compensating exporter/importer bug pair can't hide. */
+
+{
+  const tblFixture = `
+    <table><tbody>
+      <tr><th><p>H1</p></th><th><p>H2</p></th><th><p>H3</p></th></tr>
+      <tr><td colspan="2"><p>wide</p></td><td rowspan="2"><p>tall</p></td></tr>
+      <tr><td><p>a</p></td><td><p>b</p></td></tr>
+    </tbody></table>`
+  const tblBytes = await exportDocx(generateJSON(tblFixture, EXT))
+  writeFileSync(join(OUT, 'wave5-table.docx'), tblBytes)
+  const xml = strFromU8(unzipSync(tblBytes)['word/document.xml'])
+  const tableChecks = [
+    ['table present', '<w:tbl>'],
+    ['column grid', '<w:tblGrid>'],
+    ['header row repeats on pages', '<w:tblHeader/>'],
+    ['header cell shading', 'w:fill="F2F2F0"'],
+    ['colspan (gridSpan 2)', '<w:gridSpan w:val="2"/>'],
+    ['rowspan start (vMerge restart)', '<w:vMerge w:val="restart"/>'],
+    ['rowspan continuation (vMerge)', '<w:vMerge w:val="continue"/>'],
+  ]
+  for (const [name, needle] of tableChecks) {
+    if (xml.includes(needle)) {
+      pass++
+      console.log(`  PASS  table-xml: ${name}`)
+    } else {
+      fail++
+      failures.push({ name: `table-xml: ${name}`, expected: needle, actual: '(not found in document.xml)', importedHtml: '' })
+      console.log(`  FAIL  table-xml: ${name}`)
+    }
+  }
+}
+
+/* ---------- Wave 5: a FOREIGN table shape (built with the docx lib
+   directly) — non-uniform column widths must come back as data-colwidth,
+   and Word's vMerge pair must fold into a single rowspan cell. */
+
+{
+  const { Document: D, Packer: P, Paragraph: Pa, Table: T, TableRow: Tr, TableCell: Tc, WidthType: W, VerticalMergeType: VM } = await import('docx')
+  const doc = new D({
+    sections: [{ children: [
+      new T({
+        columnWidths: [1800, 5400],
+        width: { size: 7200, type: W.DXA },
+        rows: [
+          new Tr({ children: [
+            new Tc({ children: [new Pa('narrow tall')], verticalMerge: VM.RESTART }),
+            new Tc({ children: [new Pa('wide 1')] }),
+          ] }),
+          new Tr({ children: [
+            new Tc({ children: [], verticalMerge: VM.CONTINUE }),
+            new Tc({ children: [new Pa('wide 2')] }),
+          ] }),
+        ],
+      }),
+    ] }],
+  })
+  const bytes = new Uint8Array(await P.toBuffer(doc))
+  const back = await importDocx(bytes)
+  const wantWidths = back.html.includes('data-colwidth="120"') && back.html.includes('data-colwidth="360"')
+  const wantMerge = back.html.includes('rowspan="2"')
+  const singleTall = (back.html.match(/narrow tall/g) || []).length === 1
+  if (wantWidths && wantMerge && singleTall) {
+    pass++
+    console.log('  PASS  table: foreign widths + vMerge fold (foreign doc)')
+  } else {
+    fail++
+    failures.push({ name: 'table: foreign widths + vMerge fold', expected: 'data-colwidth 120/360, rowspan=2, one "narrow tall" cell', actual: back.html, importedHtml: back.html })
+    console.log('  FAIL  table: foreign widths + vMerge fold (foreign doc)')
+  }
+}
+
+/* ---------- Wave 6: table of contents — raw OOXML assertions ---------- */
+
+{
+  const tocJson = generateJSON(
+    `<div data-type="tableOfContents" data-entries='[{"level":1,"text":"Intro"},{"level":2,"text":"Details"}]'></div><h1>Intro</h1><h2>Details</h2>`,
+    EXT,
+  )
+  const tocBytes = await exportDocx(tocJson)
+  writeFileSync(join(OUT, 'wave6-toc.docx'), tocBytes)
+  const xml = strFromU8(unzipSync(tocBytes)['word/document.xml'])
+  const tocChecks = [
+    ['TOC field present', 'TOC \\h \\o'],
+    ['sdt wrapper', '<w:sdt>'],
+    ['level-1 cached style', '<w:pStyle w:val="TOC1"/>'],
+    ['level-2 cached style', '<w:pStyle w:val="TOC2"/>'],
+    ['cached entry text', '<w:t xml:space="default">Intro</w:t>'],
+    ['field marked dirty (so Word offers Update Field)', 'w:dirty="true"'],
+  ]
+  for (const [name, needle] of tocChecks) {
+    if (xml.includes(needle)) {
+      pass++
+      console.log(`  PASS  toc-xml: ${name}`)
+    } else {
+      fail++
+      failures.push({ name: `toc-xml: ${name}`, expected: needle, actual: '(not found in document.xml)', importedHtml: '' })
+      console.log(`  FAIL  toc-xml: ${name}`)
+    }
+  }
+}
+
+/* A FOREIGN Word TOC field (built with the docx lib directly, real cached
+   page numbers included) — proves detection works off the locale-independent
+   instrText field code (not our own alias string), and that a foreign cached
+   page number is stripped rather than shown stale. */
+{
+  const { Document: D2, Packer: P2, Paragraph: Pa2, HeadingLevel: HL2, TableOfContents: T2, TextRun: TR2 } = await import('docx')
+  const doc = new D2({
+    sections: [{ children: [
+      new T2('Sommaire', { // a non-English alias — detection must not depend on it
+        hyperlink: true,
+        headingStyleRange: '1-2',
+        cachedEntries: [
+          { level: 1, title: 'Chapitre Un', page: 1 },
+          { level: 2, title: 'Section A', page: 2 },
+        ],
+      }),
+      new Pa2({ heading: HL2.HEADING_1, children: [new TR2('Chapitre Un')] }),
+      new Pa2({ heading: HL2.HEADING_2, children: [new TR2('Section A')] }),
+    ] }],
+  })
+  const bytes = new Uint8Array(await P2.toBuffer(doc))
+  const back = await importDocx(bytes)
+  const m = back.html.match(/data-entries="([^"]*)"/)
+  const entries = m ? JSON.parse(m[1].replace(/&quot;/g, '"')) : null
+  const ok = entries && JSON.stringify(entries) === JSON.stringify([{ level: 1, text: 'Chapitre Un' }, { level: 2, text: 'Section A' }])
+  if (ok) { pass++; console.log('  PASS  toc: foreign field (non-English alias, page numbers stripped)') }
+  else {
+    fail++
+    failures.push({ name: 'toc: foreign field', expected: [{ level: 1, text: 'Chapitre Un' }, { level: 2, text: 'Section A' }], actual: entries, importedHtml: back.html })
+    console.log('  FAIL  toc: foreign field (non-English alias, page numbers stripped)')
   }
 }
 

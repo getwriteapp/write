@@ -9,11 +9,19 @@
 
    Pipeline: unzip (fflate) → parse XML (fast-xml-parser, order-preserving)
    → resolve styles.xml (block roles + doc defaults), numbering.xml
-   (bullet vs ordered per level), rels (hyperlinks, images) → walk
-   document.xml body → emit editor-schema HTML.
+   (bullet vs ordered per level), rels (hyperlinks, images, header/footer
+   parts) → walk document.xml body → emit editor-schema HTML. The default
+   header1.xml/footer1.xml parts (Wave 4) are read separately, outside the
+   body walk — see readHeaderFooterSettings.
 
    Known, accepted losses (documented in PROJECT.md §fidelity):
-   - tables: outside the editor schema — dropped, reported in messages
+   - tables (Wave 5): structure, header rows, merged cells, and column
+     widths round-trip; per-cell shading/borders from foreign docs are
+     dropped (the app styles tables itself)
+   - table of contents (Wave 6): entries (heading text + level) round-trip;
+     real page numbers do not — our own exporter never caches one (we have
+     no print-time layout at export), and a foreign doc's cached page
+     number is stripped on import rather than shown stale
    - images in formats browsers can't show (EMF/WMF/TIFF) — dropped
    - style-inherited run formatting from foreign docs (we read direct
      formatting + our own named styles; full basedOn-chain resolution is
@@ -22,7 +30,11 @@
      foreign docs stay readable in dark rooms
    - page size/orientation/margin (Wave 3) snap to our three discrete
      presets (narrow/normal/wide) — an unusual custom margin in a foreign
-     doc imports as whichever preset is numerically closest */
+     doc imports as whichever preset is numerically closest
+   - headers/footers (Wave 4): only the "default" header/footer (not
+     first-page or even-page variants) is read; only the first plain-text
+     paragraph and first PAGE field per part are kept — a foreign doc with
+     multiple header/footer paragraphs collapses to the app's one-line model */
 
 import { unzipSync, strFromU8 } from 'fflate'
 import { XMLParser } from 'fast-xml-parser'
@@ -546,6 +558,129 @@ function groupItems(items) {
   return out.join('')
 }
 
+/* ---------- Wave 5: tables ----------
+   w:tbl → <table>. The mirror of export.js's tableFor: header rows come
+   back from w:tblHeader (not from shading — that's just Word cosmetics),
+   colspan from w:gridSpan, rowspan from w:vMerge (a 'restart' cell swallows
+   the 'continue' cells below it at the same grid column), and column widths
+   from w:tblGrid. Widths are surfaced to the editor (data-colwidth, px)
+   only when the grid is genuinely non-uniform — an equal-split table stays
+   width-agnostic, exactly the state our exporter writes it from, so the
+   default case round-trips cleanly. Cell content reuses the same paragraph
+   machinery as the document body (classifyParagraph/groupItems), so
+   formatting, lists, images — and nested tables — work inside cells. */
+
+function cellItems(tcNode, ctx) {
+  const items = []
+  for (const n of kidsOf(tcNode)) {
+    const tag = tagOf(n)
+    if (tag === 'w:p') items.push(...classifyParagraph(n, ctx))
+    else if (tag === 'w:tbl') items.push({ kind: 'block', html: readTable(n, ctx) })
+    else if (tag === 'w:sdt') {
+      const content = find(kidsOf(n), 'w:sdtContent')
+      if (content) {
+        for (const c of kidsOf(content)) {
+          if (tagOf(c) === 'w:p') items.push(...classifyParagraph(c, ctx))
+        }
+      }
+    }
+  }
+  return items
+}
+
+function readTable(tblNode, ctx) {
+  const tblKids = kidsOf(tblNode)
+  const gridNode = find(tblKids, 'w:tblGrid')
+  const gridTwips = gridNode
+    ? findAll(kidsOf(gridNode), 'w:gridCol').map((c) => parseInt(attr(c, 'w:w'), 10) || 0)
+    : []
+  const nonUniform = gridTwips.length > 1 && Math.max(...gridTwips) - Math.min(...gridTwips) > 30
+  const colPx = gridTwips.map((w) => Math.round(w / 15)) // 15 twips per px at 96dpi
+
+  const rows = []   // { header, cells: [{ colspan, rowspan, col, items }] }
+  const openAt = {} // grid column index → the cell still spanning down (vMerge)
+  for (const tr of findAll(tblKids, 'w:tr')) {
+    const trKids = kidsOf(tr)
+    const trPr = find(trKids, 'w:trPr')
+    const header = trPr ? boolProp(kidsOf(trPr), 'w:tblHeader') : false
+    const cells = []
+    let at = 0
+    for (const tc of findAll(trKids, 'w:tc')) {
+      const tcPr = find(kidsOf(tc), 'w:tcPr')
+      const tcPrKids = tcPr ? kidsOf(tcPr) : []
+      const gs = find(tcPrKids, 'w:gridSpan')
+      const colspan = Math.max(1, parseInt(gs ? attr(gs, 'w:val') : '1', 10) || 1)
+      const vm = find(tcPrKids, 'w:vMerge')
+      const vmVal = vm ? attr(vm, 'w:val') || 'continue' : null
+      if (vmVal === 'continue' && openAt[at]) {
+        openAt[at].rowspan++ // swallowed by the restart cell above
+        at += colspan
+        continue
+      }
+      const cell = { colspan, rowspan: 1, col: at, items: cellItems(tc, ctx) }
+      if (vmVal === 'restart') openAt[at] = cell
+      else delete openAt[at]
+      cells.push(cell)
+      at += colspan
+    }
+    rows.push({ header, cells })
+  }
+
+  let html = '<table><tbody>'
+  for (const row of rows) {
+    html += '<tr>'
+    for (const c of row.cells) {
+      const tag = row.header ? 'th' : 'td'
+      let a = ''
+      if (c.colspan > 1) a += ` colspan="${c.colspan}"`
+      if (c.rowspan > 1) a += ` rowspan="${c.rowspan}"`
+      if (nonUniform && colPx.length >= c.col + c.colspan) {
+        a += ` data-colwidth="${colPx.slice(c.col, c.col + c.colspan).join(',')}"`
+      }
+      html += `<${tag}${a}>${groupItems(c.items) || '<p></p>'}</${tag}>`
+    }
+    html += '</tr>'
+  }
+  return html + '</tbody></table>'
+}
+
+/* ---------- Wave 6: table of contents ----------
+   A w:sdt is a TOC field (ours or a foreign Word doc's) if any w:instrText
+   inside it starts with the field code "TOC" — that keyword is locale-
+   independent (field codes are always English, regardless of Word's UI
+   language), the same trick header/footer's PAGE-field detection uses.
+   Entries are read back from the cached TOC1-9 paragraphs Word (and our own
+   exporter) always writes alongside the field: collectSegments already
+   knows how to separate real text (w:t) from field-code plumbing
+   (w:instrText, w:fldChar), so it does the clean extraction for free. A
+   trailing " <digits>" is a foreign doc's real cached page number — we
+   don't keep page numbers (our own exporter never writes one), so it's
+   stripped; the rare heading that itself ends in "<space><digits>" would
+   lose that suffix here too, an accepted, documented approximation. */
+
+function isTocSdt(sdtContentNode) {
+  for (const n of walkNodes(kidsOf(sdtContentNode))) {
+    if (tagOf(n) === 'w:instrText' && textOf(n).trim().toUpperCase().startsWith('TOC')) return true
+  }
+  return false
+}
+
+function readTocEntries(sdtContentNode, ctx) {
+  const entries = []
+  for (const p of findAll(kidsOf(sdtContentNode), 'w:p')) {
+    const pPr = find(kidsOf(p), 'w:pPr')
+    const styleNode = pPr ? find(kidsOf(pPr), 'w:pStyle') : null
+    const m = styleNode ? /^toc([1-9])$/i.exec(attr(styleNode, 'w:val') || '') : null
+    if (!m) continue
+    const out = { segs: [], imgs: [] }
+    collectSegments(kidsOf(p), ctx, out)
+    let text = out.segs.filter((s) => s.type === 'text').map((s) => s.text).join('')
+    text = text.replace(/\s+\d+\s*$/, '').trim()
+    if (text) entries.push({ level: Math.min(3, +m[1]), text })
+  }
+  return entries
+}
+
 /* w:sectPr → { pageSize, orientation, margin } — snapped to our discrete
    presets (the app doesn't offer arbitrary values, so "closest" is honest
    fidelity, not a bug). Returns null if the section isn't found. */
@@ -571,6 +706,81 @@ function readPageSettings(body) {
     if (top) margin = closestKey(MARGIN_TWIPS_APPROX, top) || 'normal'
   }
   return { pageSize, orientation, margin }
+}
+
+/* ---- Wave 4: header, footer, page numbers ----
+   Headers/footers live in their own package parts (word/header1.xml,
+   word/footer1.xml, ...), referenced from w:sectPr by rId, resolved through
+   document.xml.rels — the same rels map loadRels() already builds for
+   hyperlinks/images. Mirrors export.js's hfTextParagraph/pageNumberParagraph:
+   a plain-text paragraph (custom header/footer text) and/or a paragraph
+   whose run is a live PAGE field (our own page-number feature). */
+
+const HF_ALIGN = { left: 'left', center: 'center', right: 'right', end: 'right', both: 'left', distribute: 'left' }
+
+function headerFooterRefs(sectPr) {
+  const kids = kidsOf(sectPr)
+  const hdr = findAll(kids, 'w:headerReference').find((n) => attr(n, 'w:type') === 'default')
+  const ftr = findAll(kids, 'w:footerReference').find((n) => attr(n, 'w:type') === 'default')
+  return { headerRid: hdr ? attr(hdr, 'r:id') : null, footerRid: ftr ? attr(ftr, 'r:id') : null }
+}
+
+function partPathFromRel(rel) {
+  if (!rel?.target) return null
+  const t = rel.target.replace(/^\//, '')
+  return t.startsWith('word/') ? t : `word/${t}`
+}
+
+/* A header/footer paragraph → { text, align, hasPageField }. Plain text
+   comes only from w:t nodes (never w:instrText, which carries field codes
+   like "PAGE" or "NUMPAGES" — text that must NOT be treated as content). */
+function paragraphPlainInfo(pNode) {
+  const kids = kidsOf(pNode)
+  const pPr = find(kids, 'w:pPr')
+  const jc = pPr ? find(kidsOf(pPr), 'w:jc') : null
+  const align = jc ? (HF_ALIGN[attr(jc, 'w:val')] || 'left') : 'left'
+  let text = ''
+  let hasPageField = false
+  for (const n of walkNodes(kids)) {
+    const t = tagOf(n)
+    if (t === 'w:t') text += textOf(n)
+    else if (t === 'w:instrText' && textOf(n).trim().toUpperCase().startsWith('PAGE')) hasPageField = true
+  }
+  return { text: text.trim(), align, hasPageField }
+}
+
+function readHeaderOrFooterPart(zip, path) {
+  const doc = parsePart(zip, path)
+  if (!doc) return []
+  const root = find(doc, 'w:hdr') || find(doc, 'w:ftr')
+  if (!root) return []
+  return findAll(kidsOf(root), 'w:p').map(paragraphPlainInfo)
+}
+
+/* Returns { header, footer, pageNumbers } — always populated (empty/disabled
+   defaults when the document has none), so App.svelte can assign it directly. */
+function readHeaderFooterSettings(zip, body, rels) {
+  const result = {
+    header: { text: '', align: 'center' },
+    footer: { text: '', align: 'center' },
+    pageNumbers: { enabled: false, place: 'footer', align: 'center' },
+  }
+  const sectPr = find(kidsOf(body), 'w:sectPr')
+  if (!sectPr) return result
+  const { headerRid, footerRid } = headerFooterRefs(sectPr)
+
+  const scan = (rid, place, slot) => {
+    if (!rid) return
+    const path = partPathFromRel(rels[rid])
+    if (!path) return
+    for (const p of readHeaderOrFooterPart(zip, path)) {
+      if (p.hasPageField) result.pageNumbers = { enabled: true, place, align: p.align }
+      else if (p.text && !result[slot].text) result[slot] = { text: p.text, align: p.align }
+    }
+  }
+  scan(headerRid, 'header', 'header')
+  scan(footerRid, 'footer', 'footer')
+  return result
 }
 
 /* ---------- entry point ---------- */
@@ -599,10 +809,15 @@ export async function importDocx(bytes) {
     for (const node of nodes) {
       const tag = tagOf(node)
       if (tag === 'w:p') items.push(...classifyParagraph(node, ctx))
-      else if (tag === 'w:tbl') ctx.note('table dropped (not yet supported)')
+      else if (tag === 'w:tbl') items.push({ kind: 'block', html: readTable(node, ctx) })
       else if (tag === 'w:sdt') {
         const content = find(kidsOf(node), 'w:sdtContent')
-        if (content) processChildren(kidsOf(content))
+        if (content && isTocSdt(content)) {
+          const entries = readTocEntries(content, ctx)
+          items.push({ kind: 'block', html: `<div data-type="tableOfContents" data-entries="${escAttr(JSON.stringify(entries))}"></div>` })
+        } else if (content) {
+          processChildren(kidsOf(content))
+        }
       }
       // w:sectPr itself (the section-properties element, not a content
       // node) is read separately below via readPageSettings
@@ -614,5 +829,6 @@ export async function importDocx(bytes) {
     messages.push(n > 1 ? `${msg} ×${n}` : msg)
   }
 
-  return { html: groupItems(items), messages, pageSettings: readPageSettings(body) }
+  const pageSettings = { ...readPageSettings(body), ...readHeaderFooterSettings(zip, body, ctx.rels) }
+  return { html: groupItems(items), messages, pageSettings }
 }

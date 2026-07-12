@@ -6,15 +6,17 @@
    guessing from appearance. Anything styled here must have a matching rule
    in import.js — the two files are a pair.
 
-   Schema covered (the full editor schema as of Wave 3):
+   Schema covered (the full editor schema as of Wave 4):
      blocks: paragraph, heading 1–3, bulletList, orderedList (nested),
              blockquote, codeBlock, horizontalRule, image (data-URL png/jpeg/gif),
-             pageBreak
+             pageBreak, table (header rows, colspan/rowspan, column widths),
+             tableOfContents (a real Word TOC field, pre-populated)
      block attrs: textAlign, lineHeight, indent (0.5in steps)
      inline: text, hardBreak
      marks:  bold, italic, underline, strike, code, link, highlight,
              textStyle (color, fontFamily, fontSize)
-     document: page size (Letter/A4), orientation, margin preset
+     document: page size (Letter/A4), orientation, margin preset,
+               header/footer text, page numbers
    As of Wave 2 (importer v2), everything above round-trips: import.js reads
    back every property this file writes. Keep the two files paired. */
 
@@ -23,14 +25,23 @@ import {
   BorderStyle,
   Document,
   ExternalHyperlink,
+  Footer,
   HeadingLevel,
+  Header,
   ImageRun,
   LevelFormat,
   PageBreak,
+  PageNumber,
   PageOrientation,
   Packer,
   Paragraph,
+  Table,
+  TableCell,
+  TableLayoutType,
+  TableOfContents,
+  TableRow,
   TextRun,
+  WidthType,
 } from 'docx'
 
 import { cssToWordFont } from './fonts.js'
@@ -59,6 +70,41 @@ export function pageSettingsToDocxPage(settings = {}) {
     },
     margin: { top: margin, bottom: margin, left: margin, right: margin },
   }
+}
+
+/* ---- Wave 4: header, footer, page numbers ----
+   Both header.text/footer.text (plain single-line text) and pageNumbers
+   (a live PAGE field, placed in either the header or the footer) are
+   optional and independent — either can appear alone. When both target the
+   same band (header.text + pageNumbers in the header), the custom text
+   comes first so it reads as the primary line and the number as a second,
+   quieter line — see the matching stacked layout in App.svelte/pages.css. */
+const HF_ALIGN = { left: AlignmentType.LEFT, center: AlignmentType.CENTER, right: AlignmentType.RIGHT }
+
+function hfTextParagraph(text, align) {
+  return new Paragraph({ alignment: HF_ALIGN[align] || AlignmentType.CENTER, children: [new TextRun({ text })] })
+}
+function pageNumberParagraph(align) {
+  return new Paragraph({
+    alignment: HF_ALIGN[align] || AlignmentType.CENTER,
+    children: [new TextRun({ children: [PageNumber.CURRENT] })],
+  })
+}
+function buildHeaders(settings = {}) {
+  const paras = []
+  if (settings.header?.text) paras.push(hfTextParagraph(settings.header.text, settings.header.align))
+  if (settings.pageNumbers?.enabled && settings.pageNumbers.place === 'header') {
+    paras.push(pageNumberParagraph(settings.pageNumbers.align))
+  }
+  return paras.length ? { default: new Header({ children: paras }) } : undefined
+}
+function buildFooters(settings = {}) {
+  const paras = []
+  if (settings.footer?.text) paras.push(hfTextParagraph(settings.footer.text, settings.footer.align))
+  if (settings.pageNumbers?.enabled && settings.pageNumbers.place === 'footer') {
+    paras.push(pageNumberParagraph(settings.pageNumbers.align))
+  }
+  return paras.length ? { default: new Footer({ children: paras }) } : undefined
 }
 
 const HEADING = { 1: HeadingLevel.HEADING_1, 2: HeadingLevel.HEADING_2, 3: HeadingLevel.HEADING_3 }
@@ -339,6 +385,15 @@ function walkBlock(node, ctx, out) {
       out.push(new Paragraph({ children: [new PageBreak()] }))
       break
     }
+    case 'table': {
+      const table = tableFor(node, ctx)
+      if (table) out.push(table)
+      break
+    }
+    case 'tableOfContents': {
+      out.push(tocFor(node))
+      break
+    }
     case 'image': {
       const run = imageRunFor(node)
       if (run) out.push(new Paragraph({ children: [run] }))
@@ -358,6 +413,98 @@ function walkBlock(node, ctx, out) {
       }
     }
   }
+}
+
+/* ---- Wave 5: tables ----
+   Tiptap table JSON → docx Table. Column widths: the editor stores per-cell
+   `colwidth` arrays in px (one entry per spanned grid column) only after a
+   user drags a column edge; unset means "share the page evenly". Word wants
+   an explicit w:tblGrid either way, so unset columns get an equal split of
+   the usable text column (page width minus margins). px → twips is ×15
+   (96 px/in vs 1440 twips/in). Fixed layout so Word honors the widths
+   instead of re-flowing them. Header rows (all-tableHeader-cell rows)
+   become repeat-on-every-page rows (w:tblHeader) with a quiet shading —
+   import.js keys header-ness off the tblHeader flag, not the shading. */
+
+const PX_TO_TWIPS = 15
+const HEADER_FILL = 'F2F2F0'
+
+function tableColumnPlan(node, usableTwips) {
+  // grid width = max total colspan across rows (rows can differ mid-edit)
+  let cols = 0
+  for (const row of node.content || []) {
+    let n = 0
+    for (const cell of row.content || []) n += cell.attrs?.colspan || 1
+    cols = Math.max(cols, n)
+  }
+  if (!cols) return null
+  // per-column px widths from the first row that fully specifies them
+  const widths = new Array(cols).fill(null)
+  for (const row of node.content || []) {
+    let at = 0
+    for (const cell of row.content || []) {
+      const span = cell.attrs?.colwidth ? cell.attrs.colwidth.length : cell.attrs?.colspan || 1
+      const cw = cell.attrs?.colwidth
+      for (let i = 0; i < span; i++) {
+        if (cw?.[i] && widths[at + i] === null) widths[at + i] = cw[i]
+        at++
+      }
+    }
+  }
+  const equal = Math.floor(usableTwips / cols)
+  return widths.map((px) => (px ? Math.round(px * PX_TO_TWIPS) : equal))
+}
+
+function tableFor(node, ctx) {
+  const plan = tableColumnPlan(node, ctx.usableTwips)
+  if (!plan) return null
+  const rows = []
+  for (const row of node.content || []) {
+    const cells = (row.content || []).filter((c) => c.type === 'tableCell' || c.type === 'tableHeader')
+    if (!cells.length) continue
+    const isHeaderRow = cells.every((c) => c.type === 'tableHeader')
+    rows.push(new TableRow({
+      tableHeader: isHeaderRow,
+      children: cells.map((cell) => {
+        const children = []
+        walkBlocks(cell.content, ctx, children)
+        if (!children.length) children.push(new Paragraph({}))
+        return new TableCell({
+          children,
+          ...(cell.attrs?.colspan > 1 ? { columnSpan: cell.attrs.colspan } : {}),
+          ...(cell.attrs?.rowspan > 1 ? { rowSpan: cell.attrs.rowspan } : {}),
+          ...(cell.type === 'tableHeader' ? { shading: { fill: HEADER_FILL } } : {}),
+        })
+      }),
+    }))
+  }
+  if (!rows.length) return null
+  return new Table({
+    rows,
+    columnWidths: plan,
+    width: { size: plan.reduce((a, b) => a + b, 0), type: WidthType.DXA },
+    layout: TableLayoutType.FIXED,
+  })
+}
+
+/* ---- Wave 6: table of contents ----
+   A genuine Word TOC field (w:sdt wrapping fldChar/instrText "TOC"), styled
+   with the standard TOC1-3 paragraph styles Word itself uses. cachedEntries
+   pre-populates the field with the node's own snapshot (title only — real
+   page numbers require print-time layout we don't have at export, and a
+   dirty/uncomputed page number would be more misleading than none), so
+   Word, LibreOffice, and Google Docs all show real content immediately —
+   not a blank field waiting to be updated. `hyperlink: true` means Word's
+   own "Update Field" (F9 / right-click) regenerates fully accurate,
+   clickable entries with real page numbers from its own layout engine;
+   our cached text is only the honest placeholder seen before that. */
+function tocFor(node) {
+  const entries = (node.attrs?.entries || []).map((e) => ({ level: e.level, title: e.text }))
+  return new TableOfContents('Table of Contents', {
+    hyperlink: true,
+    headingStyleRange: '1-3',
+    cachedEntries: entries,
+  })
 }
 
 function listOpts(ctx) {
@@ -395,7 +542,12 @@ function walkList(listNode, ctx, out) {
 
 export function tiptapToDocument(json, pageSettings) {
   let olInstances = 0
-  const ctx = { nextOlInstance: () => olInstances++ }
+  const page = pageSettingsToDocxPage(pageSettings)
+  const ctx = {
+    nextOlInstance: () => olInstances++,
+    // the writable text column, for tables whose columns aren't user-sized
+    usableTwips: page.size.width - page.margin.left - page.margin.right,
+  }
   const children = []
   walkBlocks(json?.content, ctx, children)
   if (!children.length) children.push(new Paragraph({}))
@@ -403,13 +555,22 @@ export function tiptapToDocument(json, pageSettings) {
   return new Document({
     numbering: { config: [{ reference: 'write-ol', levels: OL_LEVELS }] },
     styles: STYLES,
-    sections: [{ properties: { page: pageSettingsToDocxPage(pageSettings) }, children }],
+    sections: [{
+      properties: { page },
+      headers: buildHeaders(pageSettings),
+      footers: buildFooters(pageSettings),
+      children,
+    }],
   })
 }
 
 /* Returns .docx bytes as Uint8Array, in both the browser and Node.
    pageSettings: { pageSize: 'letter'|'a4', orientation: 'portrait'|'landscape',
-                   margin: 'narrow'|'normal'|'wide' } — all optional, default Letter/portrait/normal. */
+                   margin: 'narrow'|'normal'|'wide',
+                   header: { text, align: 'left'|'center'|'right' },
+                   footer: { text, align },
+                   pageNumbers: { enabled, place: 'header'|'footer', align } }
+   — all optional, default Letter/portrait/normal/no header-footer-numbers. */
 export async function exportDocx(json, pageSettings) {
   const doc = tiptapToDocument(json, pageSettings)
   if (typeof Blob !== 'undefined' && typeof window !== 'undefined') {

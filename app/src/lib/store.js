@@ -4,7 +4,7 @@
 
 const DOC_KEY = 'write:doc'
 const RECENTS_KEY = 'write:recents'
-const MAX_RECENTS = 8
+const MAX_RECENTS = 10
 
 export function loadDoc() {
   try { return JSON.parse(localStorage.getItem(DOC_KEY)) } catch { return null }

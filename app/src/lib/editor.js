@@ -9,6 +9,10 @@ import Color from '@tiptap/extension-color'
 import Highlight from '@tiptap/extension-highlight'
 import FontFamily from '@tiptap/extension-font-family'
 import TextAlign from '@tiptap/extension-text-align'
+import Table from '@tiptap/extension-table'
+import TableRow from '@tiptap/extension-table-row'
+import TableCell from '@tiptap/extension-table-cell'
+import TableHeader from '@tiptap/extension-table-header'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { DecorationSet } from '@tiptap/pm/view'
 
@@ -222,7 +226,157 @@ export const FORMATTING_EXTENSIONS = [
 /* The Wave-3 document-furniture set: shared with the test harness too. */
 export const WAVE3_EXTENSIONS = [PageBreak, FindReplace]
 
-export function createEditor(element, { onUpdate, onSelection, content = WELCOME } = {}) {
+/* ---- Wave 6: table of contents ----
+   A snapshot, not a live-bound view: entries are captured from the
+   document's own headings (levels 1-3) at insert time or when the user
+   clicks Refresh, exactly like a Word TOC field — which also only updates
+   on demand (F9 / right-click "Update Field"), never per keystroke. This
+   keeps the node a plain atom (no NodeView machinery watching the whole
+   document on every transaction) while still matching how real Word TOCs
+   behave. Exports to a genuine Word TOC field (docx's TableOfContents,
+   pre-populated with these same cached entries so Word/LibreOffice/Google
+   Docs all show real content immediately, not a blank dirty field) —
+   import.js reads the cached entries back into this same node. */
+export function collectHeadings(doc) {
+  const entries = []
+  doc.descendants((node) => {
+    if (node.type.name === 'heading' && node.attrs.level <= 3) {
+      const text = node.textContent.trim()
+      if (text) entries.push({ level: node.attrs.level, text })
+    }
+  })
+  return entries
+}
+
+export const TableOfContents = Node.create({
+  name: 'tableOfContents',
+  group: 'block',
+  atom: true,
+  selectable: true,
+  addAttributes() {
+    return { entries: { default: [] } }
+  },
+  parseHTML() {
+    return [{
+      tag: 'div[data-type="tableOfContents"]',
+      getAttrs: (el) => {
+        try { return { entries: JSON.parse(el.getAttribute('data-entries') || '[]') } }
+        catch { return { entries: [] } }
+      },
+    }]
+  },
+  renderHTML({ node }) {
+    return ['div', { 'data-type': 'tableOfContents', 'data-entries': JSON.stringify(node.attrs.entries || []) }]
+  },
+  addCommands() {
+    return {
+      insertTableOfContents: () => ({ chain, state }) =>
+        chain().insertContent({ type: this.name, attrs: { entries: collectHeadings(state.doc) } }).run(),
+    }
+  },
+  addNodeView() {
+    return ({ node, editor, getPos }) => {
+      const dom = document.createElement('div')
+      dom.className = 'toc-block'
+      dom.setAttribute('data-type', 'tableOfContents')
+      dom.contentEditable = 'false'
+
+      const render = (entries) => {
+        dom.innerHTML = ''
+        const head = document.createElement('div')
+        head.className = 'toc-head'
+        const title = document.createElement('span')
+        title.className = 'toc-title'
+        title.textContent = 'Contents'
+        const refresh = document.createElement('button')
+        refresh.className = 'toc-refresh'
+        refresh.title = 'Refresh from headings'
+        refresh.textContent = '⟳'
+        refresh.addEventListener('mousedown', (e) => {
+          e.preventDefault()
+          const pos = getPos()
+          if (typeof pos !== 'number') return
+          const fresh = collectHeadings(editor.state.doc)
+          editor.chain().command(({ tr }) => {
+            tr.setNodeAttribute(pos, 'entries', fresh)
+            return true
+          }).run()
+        })
+        head.append(title, refresh)
+        dom.appendChild(head)
+
+        const list = document.createElement('div')
+        list.className = 'toc-entries'
+        if (!entries.length) {
+          const empty = document.createElement('span')
+          empty.className = 'toc-empty'
+          empty.textContent = 'No headings yet — write some, then Refresh.'
+          list.appendChild(empty)
+        }
+        for (const entry of entries) {
+          const a = document.createElement('a')
+          a.className = 'toc-entry'
+          a.dataset.level = String(entry.level)
+          a.textContent = entry.text
+          a.addEventListener('mousedown', (e) => {
+            e.preventDefault()
+            scrollToHeading(editor, entry)
+          })
+          list.appendChild(a)
+        }
+        dom.appendChild(list)
+      }
+      render(node.attrs.entries || [])
+
+      return {
+        dom,
+        update: (updated) => {
+          if (updated.type.name !== 'tableOfContents') return false
+          render(updated.attrs.entries || [])
+          return true
+        },
+        ignoreMutation: () => true,
+      }
+    }
+  },
+})
+
+/* Click a TOC entry: find the Nth heading (in document order) at that
+   level whose text matches — the same lightweight, no-stable-id approach
+   Word itself falls back to when a bookmark has drifted. Good enough for
+   navigation; worst case it lands on a same-named heading nearby. */
+function scrollToHeading(editor, entry) {
+  let target = null
+  editor.state.doc.descendants((node, pos) => {
+    if (target) return false
+    if (node.type.name === 'heading' && node.attrs.level === entry.level && node.textContent.trim() === entry.text) {
+      target = pos
+    }
+  })
+  if (target === null) return
+  editor.chain().focus().setTextSelection(target + 1).run()
+  const dom = editor.view.domAtPos(target + 1).node
+  const el = dom.nodeType === 1 ? dom : dom.parentElement
+  el?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+}
+
+/* ---- Wave 5: tables ----
+   Tiptap's table family (prosemirror-tables underneath): header rows,
+   merge/split (colspan/rowspan), and draggable column resizing. Column
+   widths live on cells as the `colwidth` attribute (px), which export.js
+   maps to Word's w:tblGrid twips and import.js reads back. Shared with the
+   test harness like the other extension sets. */
+export const TABLE_EXTENSIONS = [
+  Table.configure({ resizable: true, lastColumnResizable: false }),
+  TableRow,
+  TableHeader,
+  TableCell,
+]
+
+/* The Wave-6 set: shared with the test harness too. */
+export const WAVE6_EXTENSIONS = [TableOfContents]
+
+export function createEditor(element, { onUpdate, onSelection, content = WELCOME, spellcheck = true } = {}) {
   let instance // assigned below; editorProps handlers only run after construction
   instance = new Editor({
     element,
@@ -236,12 +390,18 @@ export function createEditor(element, { onUpdate, onSelection, content = WELCOME
       Image.configure({ allowBase64: true }),
       ...FORMATTING_EXTENSIONS,
       ...WAVE3_EXTENSIONS,
+      ...TABLE_EXTENSIONS,
+      ...WAVE6_EXTENSIONS,
     ],
     content,
     autofocus: 'end',
     onUpdate: ({ editor }) => onUpdate?.(editor),
     onSelectionUpdate: ({ editor }) => onSelection?.(editor),
     editorProps: {
+      /* native OS/browser spellchecker (Wave 6) — toggled from the Commander,
+         persisted like the other view prefs; no custom dictionary, just the
+         same spellcheck engine every contenteditable gets for free */
+      attributes: { spellcheck: String(spellcheck) },
       /* image files pasted or dropped into the page become data-URL image
          nodes; .docx drops are handled at the window level (App.svelte) */
       handlePaste: (view, event) => {

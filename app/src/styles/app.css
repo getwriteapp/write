@@ -73,6 +73,19 @@ body::before {
 [data-room="noir"] .wordmark, [data-room="slate"] .wordmark {
   font-family: var(--mono); font-weight: 500; letter-spacing: 0.02em;
 }
+/* a soft floor under the corner whispers: text scrolled to the very bottom
+   of a long document fades into this rather than visually colliding with
+   the word count / hint labels sitting on top of it. --floor adapts to
+   whatever surface is actually behind it (the page background in Flow
+   view, the desk color in Page view — see pages.css). */
+.bottom-fade {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  height: 130px;
+  z-index: 45;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--floor, var(--bg)) 68%);
+}
 .stats { bottom: 20px; right: 26px; }
 .stats .dot {
   display: inline-block;
@@ -266,6 +279,24 @@ body.typing .whisper { opacity: 0.05; }
   text-align: center;
 }
 
+/* Wave 4: header/footer text + page numbers, one row apiece */
+.cmd-hf {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  margin-top: 10px;
+}
+.hf-input {
+  flex: 1 1 160px;
+  min-width: 120px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--hairline);
+  border-radius: 7px;
+  padding: 6px 9px;
+}
+.hf-input::placeholder { color: var(--faint); }
+
 .cmd-actions {
   display: flex; gap: 8px; flex-wrap: wrap;
   margin-top: 16px; padding-top: 14px;
@@ -287,14 +318,31 @@ body.typing .whisper { opacity: 0.05; }
   color: var(--ink);
 }
 
-/* ============ the Bar: summonable formatting strip (Ctrl+/) ============ */
-.bar {
+/* ============ the Bar: pinned via Ctrl+/, or peeked by hovering the top edge ============
+   .bar-zone is the fixed, centered hover target — it starts at the very top
+   of the viewport (padding-top is the "catch" strip above the card) so
+   moving the pointer up to the window's edge reveals it, video-controls
+   style; .bar is the visible card, hidden by default and revealed either by
+   :hover on the zone or by the .pinned class (Ctrl+/ / the Commander's
+   Format toggle). Unlike the old click-only version, the state underneath
+   must always stay current (see refreshBar) since it can appear without
+   ever having been explicitly opened. */
+.bar-zone {
   position: fixed;
-  top: 50px; left: 50%;
+  top: 0; left: 50%;
   transform: translateX(-50%);
   z-index: 60;
   display: flex;
+  justify-content: center;
+  padding-top: 14px;
+  max-width: 94vw;
+}
+body[data-focus="on"] .bar-zone { display: none; }
+
+.bar {
+  display: flex;
   align-items: center;
+  justify-content: center;
   flex-wrap: wrap;
   gap: 6px;
   max-width: 94vw;
@@ -304,11 +352,34 @@ body.typing .whisper { opacity: 0.05; }
   border-radius: 12px;
   box-shadow: var(--card-shadow);
   backdrop-filter: blur(14px);
-  transition: opacity 0.4s ease;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px);
+  transition: opacity 0.16s ease, transform 0.16s ease,
+              background-color 0.45s ease, border-color 0.45s ease;
 }
-body.typing .bar { opacity: 0.05; }
-body.typing .bar:hover { opacity: 1; }
-body[data-focus="on"] .bar { display: none; }
+.bar-zone:hover .bar,
+.bar-zone.pinned .bar {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+/* pinned + typing: fade like the other whispers, but hovering still peeks it */
+body.typing .bar-zone.pinned .bar { opacity: 0.05; }
+body.typing .bar-zone.pinned:hover .bar { opacity: 1; }
+/* pinned + scrolled: the bar ducks fully away once the page travels —
+   scrolling means reading, not formatting. It returns on the top-edge
+   hover peek (rule below), Ctrl+/, or scrolling back to the very top. */
+.bar-zone.pinned.scroll-ducked .bar {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px);
+}
+.bar-zone.pinned.scroll-ducked:hover .bar {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
 
 .bar-select {
   font: inherit;
@@ -419,13 +490,16 @@ main {
   min-height: 100vh;
   display: flex;
   justify-content: center;
-  padding: 15vh 24px 34vh;
+  padding: 9vh 24px 20vh;
 }
 .editor-host {
   width: 100%;
-  max-width: var(--measure);
+  max-width: calc(var(--measure) * var(--flow-scale, 1));
   transition: max-width 0.3s ease;
 }
+/* Flow view's column width — a scale on the room's own --measure */
+body[data-flow-width="narrow"] { --flow-scale: 0.8; }
+body[data-flow-width="wide"] { --flow-scale: 1.35; }
 
 .ProseMirror {
   font-family: var(--body-font);
@@ -532,6 +606,132 @@ main {
 }
 .ProseMirror div[data-type="pageBreak"].ProseMirror-selectednode::after {
   color: var(--accent);
+}
+
+/* ---------- Wave 6: table of contents ---------- */
+.ProseMirror .toc-block {
+  margin: 1.6em 0;
+  padding: 0.9em 1.1em;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--ink) 3%, transparent);
+}
+.toc-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 0.5em;
+}
+.toc-title {
+  font-family: var(--mono);
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--faint);
+}
+.toc-refresh {
+  border: none;
+  background: transparent;
+  color: var(--soft);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 5px;
+  line-height: 1;
+  transition: color 0.14s ease, background-color 0.14s ease;
+}
+.toc-refresh:hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.toc-entries { display: flex; flex-direction: column; gap: 0.3em; }
+.toc-entry {
+  display: block;
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 0.95em;
+  cursor: pointer;
+  border-bottom: 1px dotted transparent;
+  transition: border-color 0.14s ease, color 0.14s ease;
+}
+.toc-entry:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.toc-entry[data-level="2"] { margin-left: 1.2em; }
+.toc-entry[data-level="3"] { margin-left: 2.4em; font-size: 0.9em; }
+.toc-empty { color: var(--faint); font-size: 0.9em; font-style: italic; }
+@media print { .toc-refresh { display: none; } }
+
+/* ---------- Wave 5: tables ---------- */
+.ProseMirror .tableWrapper { margin: 1.4em 0; overflow-x: auto; }
+.ProseMirror table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  margin: 0;
+}
+.ProseMirror td, .ProseMirror th {
+  border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
+  padding: 0.35em 0.6em;
+  vertical-align: top;
+  position: relative;
+  min-width: 2em;
+}
+.ProseMirror th {
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  font-weight: 600;
+  text-align: left;
+}
+.ProseMirror table p { margin: 0 0 0.35em; }
+.ProseMirror table p:last-child { margin-bottom: 0; }
+/* cell-selection wash (prosemirror-tables paints .selectedCell) */
+.ProseMirror table .selectedCell::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  pointer-events: none;
+}
+/* the draggable column edge */
+.ProseMirror .column-resize-handle {
+  position: absolute;
+  right: -2px; top: 0; bottom: -2px;
+  width: 4px;
+  background: var(--accent);
+  pointer-events: none;
+}
+.ProseMirror.resize-cursor { cursor: col-resize; }
+
+/* the table bar: summoned by the caret entering a table, mirrors .bar */
+.table-bar {
+  position: fixed;
+  bottom: 52px; left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 94vw;
+  padding: 6px 10px;
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+  backdrop-filter: blur(14px);
+  transition: opacity 0.4s ease;
+}
+body.typing .table-bar { opacity: 0.05; }
+body.typing .table-bar:hover { opacity: 1; }
+body[data-focus="on"] .table-bar { display: none; }
+.tb-label {
+  font-family: var(--mono);
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--faint);
+}
+.table-bar .tb-wide {
+  border: 1px solid var(--hairline);
+  background: transparent;
+  color: var(--soft);
+  font: inherit; font-size: 11px; font-weight: 500;
+  height: 24px; padding: 0 9px;
+  border-radius: 7px; cursor: pointer;
+  transition: color 0.14s ease, border-color 0.14s ease;
+}
+.table-bar .tb-wide:hover { color: var(--ink); }
+.table-bar .tb-danger:hover {
+  color: #c0392b;
+  border-color: color-mix(in srgb, #c0392b 45%, transparent);
 }
 
 /* find-match decorations painted by the findReplace ProseMirror plugin */

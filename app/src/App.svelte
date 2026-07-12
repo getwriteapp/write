@@ -4,6 +4,7 @@
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
   import { ROOMS, DEFAULT_ROOM } from './lib/rooms.js'
   import { fileBridge, isTauri, DOC_EXT_RE } from './lib/bridge.js'
+  import { TEMPLATES } from './lib/templates.js'
   import * as store from './lib/store.js'
 
   let host          // the editor mount point
@@ -21,10 +22,52 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
 
   // view: flow (default, the iA lineage) vs page (paper + margins + real discrete sheets)
   let view = $state(localStorage.getItem('write:view') || 'flow')
+  // Flow view's column width (the --measure): a scale on each room's own
+  // measure, the parked "user-adjustable Flow-view column width" item —
+  // Page view already has real margins, this is Flow's equivalent.
+  let flowWidth = $state(localStorage.getItem('write:flowWidth') || 'normal')
+  function applyFlowWidth(w) {
+    flowWidth = w
+    document.body.setAttribute('data-flow-width', w)
+    localStorage.setItem('write:flowWidth', w)
+  }
   let pageSize = $state(localStorage.getItem('write:pageSize') || 'letter')
   let orientation = $state(localStorage.getItem('write:orientation') || 'portrait')
   let margin = $state(localStorage.getItem('write:margin') || 'normal')
-  let guides = $state(localStorage.getItem('write:guides') !== '0')
+  // Wave 6: native OS/browser spellchecker toggle — applies in both views
+  let spellcheck = $state(localStorage.getItem('write:spellcheck') !== '0')
+  function toggleSpellcheck() {
+    spellcheck = !spellcheck
+    localStorage.setItem('write:spellcheck', spellcheck ? '1' : '0')
+    editor?.view.dom.setAttribute('spellcheck', String(spellcheck))
+  }
+  // Wave 4: header/footer text + page numbers — same "app-wide default for
+  // new docs, document's own on open" pattern as pageSize/orientation/margin.
+  // Rendered as read-only preview bands on the page-sheet; edited via the
+  // Commander (there's no per-page contenteditable — one header/footer
+  // applies to every page, so one summonable editor is all that's needed).
+  function loadJSON(key, fallback) {
+    try { return JSON.parse(localStorage.getItem(key)) ?? fallback } catch { return fallback }
+  }
+  let header = $state(loadJSON('write:header', { text: '', align: 'center' }))
+  let footer = $state(loadJSON('write:footer', { text: '', align: 'center' }))
+  let pageNumbers = $state(loadJSON('write:pageNumbers', { enabled: false, place: 'footer', align: 'center' }))
+  function saveHF() {
+    localStorage.setItem('write:header', JSON.stringify(header))
+    localStorage.setItem('write:footer', JSON.stringify(footer))
+    localStorage.setItem('write:pageNumbers', JSON.stringify(pageNumbers))
+  }
+  function setHeader(patch) { header = { ...header, ...patch }; saveHF() }
+  function setFooter(patch) { footer = { ...footer, ...patch }; saveHF() }
+  function setPageNumbers(patch) { pageNumbers = { ...pageNumbers, ...patch }; saveHF() }
+  // a document's own header/footer/pageNumbers (read back from .docx) take
+  // over the current view on open, same rule as pageSettings below
+  function applyHeaderFooterSettings(s) {
+    if (s.header) header = s.header
+    if (s.footer) footer = s.footer
+    if (s.pageNumbers) pageNumbers = s.pageNumbers
+    saveHF()
+  }
   // one rect per physical page: {top, height, n} — the on-screen home of Tier-4
   let pageRects = $state([])
   // physical page size in CSS px at 96dpi, PORTRAIT orientation; kept in
@@ -43,9 +86,9 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   let pageGapStyleEl
 
   // zoom: scales the document view only (never the app chrome) via CSS zoom
-  // on <main>. measurePages divides every offsetTop/scrollHeight read by the
-  // current zoom factor to stay anchored to the true physical page size —
-  // zoom is a viewing convenience, not something that should change pagination.
+  // on <main>. Standardized CSS zoom (Chrome 128+) leaves layout reads like
+  // offsetTop unscaled, so measurePages uses them raw — zoom is a viewing
+  // convenience, not something that should change pagination.
   let zoomPct = $state(parseInt(localStorage.getItem('write:zoom'), 10) || 100)
   let mainEl
 
@@ -121,10 +164,6 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     syncPageStyle()
     queueMeasure()
   }
-  function toggleGuides() {
-    guides = !guides
-    localStorage.setItem('write:guides', guides ? '1' : '0')
-  }
   const MARGIN_IN = { narrow: '0.5in', normal: '1in', wide: '1.5in' }
   function syncPageStyle() {
     if (!pageStyleEl) { pageStyleEl = document.createElement('style'); document.head.appendChild(pageStyleEl) }
@@ -185,10 +224,16 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
      unconditionally. It's also more accurate than the old approach for 3+
      page documents — each page's fill baseline is the ACTUAL previous break
      point, not a rigid global target that assumed every prior page filled
-     exactly to capacity. Every offsetTop read is divided by the current
-     zoom factor first: zoom changes what the browser reports for layout
-     measurements, but pagination must stay anchored to the true physical
-     page regardless of on-screen zoom. */
+     exactly to capacity. offsetTop reads are used RAW — never divided by
+     the zoom factor. Chromium standardized CSS zoom (Chrome 128+, so every
+     WebView2 this app can meet): layout properties like offsetTop report
+     unzoomed layout-space values; only rendered geometry (e.g.
+     getBoundingClientRect) is scaled. The sheets, the text, and the
+     injected padding all live inside the zoomed <main>, so the whole
+     computation stays in one consistent unzoomed coordinate space. A
+     legacy `/ zoom` division here was a real shipped bug: at any zoom
+     other than 100% it shrank every measured position by the zoom ratio,
+     pushing breaks late and rendering text across the desk gap. */
   function isPageBreakEl(el) {
     return !!el?.getAttribute && el.getAttribute('data-type') === 'pageBreak'
   }
@@ -198,7 +243,6 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     if (!pm) { pageRects = []; lastMeasuredPages = null; if (pageGapStyleEl) pageGapStyleEl.textContent = ''; return }
     const g = geom()
     const pageH = g.my * 2 + g.contentH
-    const zoom = zoomPct / 100
 
     if (!pageGapStyleEl) { pageGapStyleEl = document.createElement('style'); document.head.appendChild(pageGapStyleEl) }
     pageGapStyleEl.textContent = ''
@@ -207,15 +251,28 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     const rules = []
     let cumMargin = 0     // total logical margin injected so far
     let pageIndex = 0     // 0-based index of the page currently being filled
-    let pageStartY = g.my // logical Y where the current page's content began
+    // Logical Y where the current page's content began, in .ProseMirror's own
+    // coordinate space. That space already starts exactly g.my below each
+    // page-sheet's own top edge (.editor-host's CSS padding does that for
+    // page 1, for free), so page 1 begins at 0 here, NOT g.my — adding g.my
+    // again double-counts the top margin for every page after the first,
+    // pushing content that far too low and starving the PRECEDING page of
+    // its bottom margin by the same amount (content crowds its sheet's outer
+    // edge instead of stopping a full margin short of it).
+    let pageStartY = 0
     let lastBreakIdx = -1 // guards against re-breaking at/before the last break
 
     const breakBefore = (idx) => {
-      const naturalTop = children[idx].offsetTop / zoom
+      const naturalTop = children[idx].offsetTop
       pageIndex++
-      const desiredY = pageIndex * (pageH + PAGE_GAP) + g.my
+      const desiredY = pageIndex * (pageH + PAGE_GAP)
       const marginNeeded = Math.max(0, desiredY - naturalTop - cumMargin)
-      rules.push(`.ProseMirror>*:nth-child(${idx + 1}){margin-top:${marginNeeded}px}`)
+      // padding-top, not margin-top: adjacent vertical margins collapse in
+      // CSS (two touching margins become one, sized to the larger — not the
+      // sum), so a margin-top here would silently lose up to the previous
+      // sibling's own margin-bottom, landing content short of its page-2+
+      // target by that amount. Padding never collapses with anything.
+      rules.push(`.ProseMirror>*:nth-child(${idx + 1}){padding-top:${marginNeeded}px}`)
       cumMargin += marginNeeded
       pageStartY = naturalTop
       lastBreakIdx = idx
@@ -228,7 +285,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
         if (i + 1 < children.length) breakBefore(i + 1)
         continue
       }
-      const naturalTop = children[i].offsetTop / zoom
+      const naturalTop = children[i].offsetTop
       const used = naturalTop - pageStartY
       if (used < g.contentH) continue
 
@@ -236,7 +293,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
       // one still on the current page): the Session-16 rounding rule
       let idx = i
       if (i - 1 > lastBreakIdx && !isPageBreakEl(children[i - 1])) {
-        const prevTop = children[i - 1].offsetTop / zoom
+        const prevTop = children[i - 1].offsetTop
         const overshoot = naturalTop - (pageStartY + g.contentH)
         const undershoot = (pageStartY + g.contentH) - prevTop
         if (undershoot < overshoot) idx = i - 1
@@ -309,6 +366,21 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   // The Q10 hybrid made real: quiet by default, chrome when asked for.
   let barOpen = $state(localStorage.getItem('write:bar') === '1')
   let barState = $state({ font: '', size: '', color: '', highlight: '', align: 'left', lineHeight: '', indent: 0 })
+  // scroll-duck: a pinned bar gets out of the way once the page actually
+  // scrolls (reading, not formatting). It returns via the top-edge hover
+  // peek, Ctrl+/, or scrolling back to the very top of the document.
+  let barScrollHidden = $state(false)
+  let barShownAtY = 0 // scrollY when the bar last became visible — hide on real travel, not caret nudges
+  function onDocScroll() {
+    const y = window.scrollY
+    if (y <= 4) {
+      if (barScrollHidden) { barScrollHidden = false; refreshBar() }
+      barShownAtY = y
+      return
+    }
+    if (!barScrollHidden && Math.abs(y - barShownAtY) > 48) barScrollHidden = true
+    if (barScrollHidden) barShownAtY = y
+  }
 
   // every family here ships with the app (fully offline holds)
   const BAR_FONTS = [
@@ -327,12 +399,24 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   const BAR_LINE_HEIGHTS = [['1', '1.0'], ['1.15', '1.15'], ['1.5', '1.5'], ['2', '2.0']]
 
   function toggleBar(force) {
+    // a pinned bar that scroll-ducked away: the first Ctrl+/ summons it back
+    // rather than silently unpinning a bar that isn't even visible
+    if (force === undefined && barOpen && barScrollHidden) {
+      barScrollHidden = false
+      barShownAtY = window.scrollY
+      refreshBar()
+      return
+    }
+    barScrollHidden = false
+    barShownAtY = window.scrollY
     barOpen = force ?? !barOpen
     localStorage.setItem('write:bar', barOpen ? '1' : '0')
     if (barOpen) refreshBar()
   }
   function refreshBar() {
-    if (!editor || !barOpen) return
+    // no barOpen guard: the bar can now appear via hover-peek even when
+    // unpinned, so its state must always be current, not just while pinned
+    if (!editor) return
     const ts = editor.getAttributes('textStyle')
     const para = editor.isActive('heading') ? editor.getAttributes('heading') : editor.getAttributes('paragraph')
     barState = {
@@ -373,6 +457,55 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     editor.chain().focus().insertPageBreak().run()
     commanderOpen = false
     requestAnimationFrame(queueMeasure)
+  }
+
+  // ---- Wave 5: tables ----
+  // Insert lives in the Commander (like Page Break); everything else lives
+  // in the table bar, a quiet strip that appears only while the caret is
+  // inside a table — the same summon-on-need philosophy as the Bar.
+  let inTable = $state(false)
+  function refreshTableState() {
+    inTable = editor?.isActive('table') ?? false
+  }
+  function insertTable() {
+    editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
+    commanderOpen = false
+    requestAnimationFrame(() => { refreshTableState(); queueMeasure() })
+  }
+  const tableCmd = {
+    rowAbove: () => editor.chain().focus().addRowBefore().run(),
+    rowBelow: () => editor.chain().focus().addRowAfter().run(),
+    delRow:   () => editor.chain().focus().deleteRow().run(),
+    colLeft:  () => editor.chain().focus().addColumnBefore().run(),
+    colRight: () => editor.chain().focus().addColumnAfter().run(),
+    delCol:   () => editor.chain().focus().deleteColumn().run(),
+    merge:    () => editor.chain().focus().mergeCells().run(),
+    split:    () => editor.chain().focus().splitCell().run(),
+    header:   () => editor.chain().focus().toggleHeaderRow().run(),
+    delTable: () => editor.chain().focus().deleteTable().run(),
+  }
+  function tableRun(name) {
+    tableCmd[name]()
+    requestAnimationFrame(() => { refreshTableState(); queueMeasure() })
+  }
+
+  // ---- Wave 6: table of contents ----
+  function insertToc() {
+    editor.chain().focus().insertTableOfContents().run()
+    commanderOpen = false
+    requestAnimationFrame(queueMeasure)
+  }
+
+  // ---- Wave 6: templates ----
+  // "＋ New" stays instant-blank (the fast path); templates are an explicit
+  // alternate start, same discard-guard rule as New/Open/drop.
+  function useTemplate(t) { guardThen(() => doUseTemplate(t)) }
+  function doUseTemplate(t) {
+    editor.commands.setContent(t.html)
+    docName = 'Untitled'; saved = true; touched = false; recount()
+    commanderOpen = false
+    editor.commands.focus()
+    queueMeasure()
   }
 
   // ---- Wave 3: Find & Replace ----
@@ -540,7 +673,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   async function saveDoc() {
     persist()
     try {
-      const res = await fileBridge.save(docName, { html: editor.getHTML(), json: editor.getJSON(), pageSettings: { pageSize, orientation, margin } })
+      const res = await fileBridge.save(docName, { html: editor.getHTML(), json: editor.getJSON(), pageSettings: { pageSize, orientation, margin, header, footer, pageNumbers } })
       if (res?.name) { docName = res.name; touched = false; persist(); showToast('Saved'); return true }
     } catch (err) {
       console.error('[write] save failed:', err)
@@ -579,6 +712,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     if (pageSettings?.pageSize) applyPageSize(pageSettings.pageSize)
     if (pageSettings?.orientation) applyOrientation(pageSettings.orientation)
     if (pageSettings?.margin) applyMargin(pageSettings.margin)
+    if (pageSettings) applyHeaderFooterSettings(pageSettings)
     queueMeasure()
   }
   function openRecent(entry) {
@@ -698,6 +832,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   onMount(() => {
     document.body.setAttribute('data-room', room)
     document.body.setAttribute('data-view', view)
+    document.body.setAttribute('data-flow-width', flowWidth)
     document.body.setAttribute('data-page-size', pageSize)
     document.body.setAttribute('data-orientation', orientation)
     document.body.setAttribute('data-margin', margin)
@@ -707,7 +842,8 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     const last = store.loadDoc()
     editor = createEditor(host, {
       content: last?.html || WELCOME,
-      onUpdate: () => { saved = false; touched = true; recount(); markTyping(); scheduleAutosave(); queueMeasure() },
+      spellcheck,
+      onUpdate: () => { saved = false; touched = true; recount(); markTyping(); scheduleAutosave(); queueMeasure(); refreshTableState() },
       onSelection: () => { updateBubble(); litParagraph() },
     })
     if (last?.name) docName = last.name
@@ -721,6 +857,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     document.fonts?.ready?.then(() => measurePages())
     window.addEventListener('keydown', onKey)
     window.addEventListener('scroll', updateBubble, { passive: true })
+    window.addEventListener('scroll', onDocScroll, { passive: true })
     window.addEventListener('resize', onResize)
     document.addEventListener('selectionchange', onSelectionChange)
     document.addEventListener('mousemove', clearTyping)
@@ -736,13 +873,14 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
 
   function onResize() { updateBubble(); measurePages() }
 
-  function onSelectionChange() { updateBubble(); litParagraph(); refreshBar() }
+  function onSelectionChange() { updateBubble(); litParagraph(); refreshBar(); refreshTableState() }
   function clearTyping() { if (typing) { typing = false; document.body.classList.remove('typing') } }
 
   onDestroy(() => {
     editor?.destroy()
     window.removeEventListener('keydown', onKey)
     window.removeEventListener('scroll', updateBubble)
+    window.removeEventListener('scroll', onDocScroll)
     window.removeEventListener('resize', onResize)
     document.removeEventListener('selectionchange', onSelectionChange)
     document.removeEventListener('mousemove', clearTyping)
@@ -761,8 +899,22 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     {#if view === 'page'}
       {#each pageRects as r}
         <div class="page-sheet" style="top:{r.top}px; height:{r.height}px">
-          {#if guides}<div class="margin-guide"></div>{/if}
-          <span class="page-num">{r.n + 1}</span>
+          {#if header.text || (pageNumbers.enabled && pageNumbers.place === 'header')}
+            <div class="page-band page-band-header">
+              {#if header.text}<span class="pb-line" data-align={header.align}>{header.text}</span>{/if}
+              {#if pageNumbers.enabled && pageNumbers.place === 'header'}
+                <span class="pb-line pb-num" data-align={pageNumbers.align}>{r.n + 1}</span>
+              {/if}
+            </div>
+          {/if}
+          {#if footer.text || (pageNumbers.enabled && pageNumbers.place === 'footer')}
+            <div class="page-band page-band-footer">
+              {#if footer.text}<span class="pb-line" data-align={footer.align}>{footer.text}</span>{/if}
+              {#if pageNumbers.enabled && pageNumbers.place === 'footer'}
+                <span class="pb-line pb-num" data-align={pageNumbers.align}>{r.n + 1}</span>
+              {/if}
+            </div>
+          {/if}
         </div>
       {/each}
     {/if}
@@ -783,8 +935,8 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   <button class:on={active.block === 'ul'} onmousedown={(e) => run('ul', e)} title="Bulleted list">•≡</button>
 </div>
 
-<!-- the Bar: summonable formatting strip (Ctrl+/) -->
-{#if barOpen}
+<!-- the Bar: summoned by Ctrl+/ (pinned) or by hovering the very top edge (peek) -->
+<div class="bar-zone" class:pinned={barOpen} class:scroll-ducked={barScrollHidden}>
   <div class="bar" role="toolbar" aria-label="Formatting">
     <select class="bar-select" value={barState.font} onchange={(e) => barRun('font', e.target.value)} title="Typeface">
       {#each BAR_FONTS as f}<option value={f.value}>{f.label}</option>{/each}
@@ -809,9 +961,9 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     </span>
     <span class="bar-sep"></span>
     <span class="seg bar-seg" title="Alignment">
-      <button class:on={barState.align === 'left'} onclick={() => barRun('align', 'left')} title="Align left">⯇</button>
+      <button class:on={barState.align === 'left'} onclick={() => barRun('align', 'left')} title="Align left">⯈</button>
       <button class:on={barState.align === 'center'} onclick={() => barRun('align', 'center')} title="Center">⯀</button>
-      <button class:on={barState.align === 'right'} onclick={() => barRun('align', 'right')} title="Align right">⯈</button>
+      <button class:on={barState.align === 'right'} onclick={() => barRun('align', 'right')} title="Align right">⯇</button>
       <button class:on={barState.align === 'justify'} onclick={() => barRun('align', 'justify')} title="Justify">☰</button>
     </span>
     <select class="bar-select bar-lh" value={barState.lineHeight} onchange={(e) => barRun('lineHeight', e.target.value)} title="Line spacing">
@@ -825,7 +977,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     <span class="bar-sep"></span>
     <button class="bar-clear" onclick={() => barRun('clear')} title="Clear formatting">Aa ×</button>
   </div>
-{/if}
+</div>
 
 <!-- the find bar: summonable Find & Replace (Ctrl+F) -->
 {#if findOpen}
@@ -847,6 +999,30 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     <button class="find-wide" onclick={replaceAll} disabled={!findQuery} title="Replace all matches">Replace All</button>
     <span class="bar-sep"></span>
     <button class="find-close" onclick={closeFind} title="Close (Esc)">×</button>
+  </div>
+{/if}
+
+<!-- the table bar: appears while the caret is inside a table (Wave 5) -->
+{#if inTable}
+  <div class="table-bar" role="toolbar" aria-label="Table">
+    <span class="tb-label">Row</span>
+    <span class="seg bar-seg">
+      <button onclick={() => tableRun('rowAbove')} title="Add row above">↥</button>
+      <button onclick={() => tableRun('rowBelow')} title="Add row below">↧</button>
+      <button onclick={() => tableRun('delRow')} title="Delete row">×</button>
+    </span>
+    <span class="tb-label">Column</span>
+    <span class="seg bar-seg">
+      <button onclick={() => tableRun('colLeft')} title="Add column left">↤</button>
+      <button onclick={() => tableRun('colRight')} title="Add column right">↦</button>
+      <button onclick={() => tableRun('delCol')} title="Delete column">×</button>
+    </span>
+    <span class="bar-sep"></span>
+    <button class="tb-wide" onclick={() => tableRun('merge')} title="Merge selected cells">Merge</button>
+    <button class="tb-wide" onclick={() => tableRun('split')} title="Split merged cell">Split</button>
+    <button class="tb-wide" onclick={() => tableRun('header')} title="Toggle header row">Header</button>
+    <span class="bar-sep"></span>
+    <button class="tb-wide tb-danger" onclick={() => tableRun('delTable')} title="Delete the whole table">× Table</button>
   </div>
 {/if}
 
@@ -874,6 +1050,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   </div>
 {/if}
 
+<div class="bottom-fade"></div>
 <span class="whisper stats">
   <span class="dot" class:unsaved={!saved}></span>{words.toLocaleString()} words · {readMin} min
 </span>
@@ -917,6 +1094,14 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
           <button class:on={view === 'page'} onclick={() => applyView('page')}>Page</button>
         </div>
         <button class="seg-ghost" class:on={barOpen} onclick={() => toggleBar()} title="Formatting bar (Ctrl+/)">Format</button>
+        <button class="seg-ghost" class:on={spellcheck} onclick={toggleSpellcheck} title="Spell check (native)">Spelling</button>
+        {#if view === 'flow'}
+          <div class="seg">
+            <button class:on={flowWidth === 'narrow'} onclick={() => applyFlowWidth('narrow')}>Narrow</button>
+            <button class:on={flowWidth === 'normal'} onclick={() => applyFlowWidth('normal')}>Normal</button>
+            <button class:on={flowWidth === 'wide'} onclick={() => applyFlowWidth('wide')}>Wide</button>
+          </div>
+        {/if}
         {#if view === 'page'}
           <div class="seg">
             <button class:on={pageSize === 'letter'} onclick={() => applyPageSize('letter')}>Letter</button>
@@ -931,7 +1116,6 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
             <button class:on={margin === 'normal'} onclick={() => applyMargin('normal')}>Normal</button>
             <button class:on={margin === 'wide'} onclick={() => applyMargin('wide')}>Wide</button>
           </div>
-          <button class="seg-ghost" class:on={guides} onclick={toggleGuides} title="Show margin guides">Margins</button>
         {/if}
         <span class="seg zoom-seg" title="Zoom (Ctrl+scroll)">
           <button onclick={() => applyZoom(zoomPct - 10)} disabled={zoomPct <= 50}>−</button>
@@ -940,11 +1124,63 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
         </span>
       </div>
 
+      {#if view === 'page'}
+        <div class="cmd-hf">
+          <span class="cmd-sublabel">Header</span>
+          <input
+            class="hf-input" type="text" placeholder="Header text"
+            value={header.text} oninput={(e) => setHeader({ text: e.target.value })}
+          />
+          <span class="seg bar-seg" title="Header alignment">
+            <button class:on={header.align === 'left'} onclick={() => setHeader({ align: 'left' })}>⯈</button>
+            <button class:on={header.align === 'center'} onclick={() => setHeader({ align: 'center' })}>⯀</button>
+            <button class:on={header.align === 'right'} onclick={() => setHeader({ align: 'right' })}>⯇</button>
+          </span>
+        </div>
+        <div class="cmd-hf">
+          <span class="cmd-sublabel">Footer</span>
+          <input
+            class="hf-input" type="text" placeholder="Footer text"
+            value={footer.text} oninput={(e) => setFooter({ text: e.target.value })}
+          />
+          <span class="seg bar-seg" title="Footer alignment">
+            <button class:on={footer.align === 'left'} onclick={() => setFooter({ align: 'left' })}>⯈</button>
+            <button class:on={footer.align === 'center'} onclick={() => setFooter({ align: 'center' })}>⯀</button>
+            <button class:on={footer.align === 'right'} onclick={() => setFooter({ align: 'right' })}>⯇</button>
+          </span>
+        </div>
+        <div class="cmd-hf">
+          <button class="seg-ghost" class:on={pageNumbers.enabled} onclick={() => setPageNumbers({ enabled: !pageNumbers.enabled })}>
+            {pageNumbers.enabled ? '● Page numbers' : '○ Page numbers'}
+          </button>
+          {#if pageNumbers.enabled}
+            <span class="seg bar-seg" title="Where">
+              <button class:on={pageNumbers.place === 'header'} onclick={() => setPageNumbers({ place: 'header' })}>Header</button>
+              <button class:on={pageNumbers.place === 'footer'} onclick={() => setPageNumbers({ place: 'footer' })}>Footer</button>
+            </span>
+            <span class="seg bar-seg" title="Number alignment">
+              <button class:on={pageNumbers.align === 'left'} onclick={() => setPageNumbers({ align: 'left' })}>⯈</button>
+              <button class:on={pageNumbers.align === 'center'} onclick={() => setPageNumbers({ align: 'center' })}>⯀</button>
+              <button class:on={pageNumbers.align === 'right'} onclick={() => setPageNumbers({ align: 'right' })}>⯇</button>
+            </span>
+          {/if}
+        </div>
+      {/if}
+
+      <div class="cmd-hf">
+        <span class="cmd-sublabel">Templates</span>
+        {#each TEMPLATES as t}
+          <button class="seg-ghost" onclick={() => useTemplate(t)} title={t.note}>{t.label}</button>
+        {/each}
+      </div>
+
       <div class="cmd-actions">
         <button onclick={newDoc}>＋ New</button>
         <button onclick={openDoc}>↥ Open…</button>
         <button onclick={saveDoc}>⤓ Save…</button>
         <button onclick={insertPageBreak} title="Insert a manual page break (Ctrl+Shift+Enter)">↡ Page Break</button>
+        <button onclick={insertTable} title="Insert a 3×3 table with a header row">▦ Table</button>
+        <button onclick={insertToc} title="Insert a table of contents from the document's headings">≡ Contents</button>
         {#if view === 'page'}<button onclick={() => window.print()}>⎙ Print…</button>{/if}
       </div>
 
