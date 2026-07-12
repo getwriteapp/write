@@ -74,7 +74,17 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   // sync with pages.css and export.js's PAGE_SIZE_TWIPS
   const PAGE_PHYSICAL = { letter: { w: 816, h: 1056 }, a4: { w: 794, h: 1123 } }
   const MARGIN_PX = { narrow: 48, normal: 96, wide: 144 } // 0.5in / 1in / 1.5in
-  const PAGE_GAP = 44 // desk showing through between discrete sheets
+  const PAGE_GAP = 28 // desk showing through between discrete sheets
+  // Compact junctions: the DISPLAYED vertical margin where one page meets the
+  // next (page N's bottom edge, page N+1's top edge) is trimmed to this, so
+  // typing onto a fresh page doesn't strand the text ~236px from where you
+  // left off. Display only — the real margin (g.my) still governs how much
+  // content fits a page, so pagination stays true to print/.docx. The first
+  // page's top and the last page's bottom keep the full real margin: the
+  // document still opens and closes looking like an actual page. 48 = the
+  // Narrow preset, so Narrow documents keep their true proportions; it also
+  // leaves room for a two-line header/footer band (see .page-band).
+  const JUNCTION_MY = 48
   // the current page's usable geometry — my (margin) + contentH (writable height)
   function geom() {
     const phys = PAGE_PHYSICAL[pageSize] || PAGE_PHYSICAL.letter
@@ -177,7 +187,9 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   function applyZoom(pct) {
     zoomPct = Math.max(50, Math.min(200, Math.round(pct / 10) * 10))
     localStorage.setItem('write:zoom', String(zoomPct))
-    if (mainEl) mainEl.style.zoom = zoomPct / 100
+    // no zoom style at all at 100%: any zoom on the scrolling subtree can
+    // demote scrolling to the main thread in some engines
+    if (mainEl) mainEl.style.zoom = zoomPct === 100 ? '' : String(zoomPct / 100)
     queueMeasure()
   }
   function onWheel(e) {
@@ -185,6 +197,23 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     e.preventDefault()
     applyZoom(zoomPct + (e.deltaY < 0 ? 10 : -10))
   }
+  // Ctrl+scroll zoom needs a NON-passive wheel listener (to preventDefault
+  // the browser's own zoom) — but a permanently-registered one forces every
+  // ordinary wheel tick to wait on the JS thread before the compositor may
+  // scroll, which reads as sticky, laggy scrolling (WebView2 especially).
+  // So the blocking listener only exists while Ctrl is actually held.
+  let ctrlZoomArmed = false
+  function armCtrlZoom() {
+    if (ctrlZoomArmed) return
+    window.addEventListener('wheel', onWheel, { passive: false, capture: true })
+    ctrlZoomArmed = true
+  }
+  function disarmCtrlZoom() {
+    if (!ctrlZoomArmed) return
+    window.removeEventListener('wheel', onWheel, { capture: true })
+    ctrlZoomArmed = false
+  }
+  function onCtrlUp(e) { if (e.key === 'Control') disarmCtrlZoom() }
   function queueMeasure() {
     requestAnimationFrame(() => requestAnimationFrame(measurePages))
   }
@@ -204,8 +233,9 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   /* Tier-4: discrete floating pages. ProseMirror keeps one continuous
      document — we never split its DOM — so the "pages" are an illusion made
      of two parts kept in sync:
-       1. paper rects (pageRects, below) drawn behind the text at fixed,
-          nominal page-height intervals with a real gap between them;
+       1. paper rects (pageRects, below) drawn behind the text with a real
+          gap between them — full-height margins on the document's outer
+          edges, compact JUNCTION_MY margins where sheets meet;
        2. a margin-top pushed onto the block that starts each new page, via
           an injected `:nth-child` stylesheet rule — the same technique
           the focus-dimming feature uses, because ProseMirror strips foreign
@@ -242,7 +272,11 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     const pm = host.querySelector('.ProseMirror')
     if (!pm) { pageRects = []; lastMeasuredPages = null; if (pageGapStyleEl) pageGapStyleEl.textContent = ''; return }
     const g = geom()
-    const pageH = g.my * 2 + g.contentH
+    // compact-junction display geometry (see JUNCTION_MY): trimmed vertical
+    // margins where sheets meet; capacity (g.contentH) is untouched
+    const jmy = Math.min(g.my, JUNCTION_MY)
+    const firstH = g.my + g.contentH + jmy // page 0's height when it has a successor
+    const midH = jmy + g.contentH + jmy    // every later non-final page
 
     if (!pageGapStyleEl) { pageGapStyleEl = document.createElement('style'); document.head.appendChild(pageGapStyleEl) }
     pageGapStyleEl.textContent = ''
@@ -265,7 +299,11 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     const breakBefore = (idx) => {
       const naturalTop = children[idx].offsetTop
       pageIndex++
-      const desiredY = pageIndex * (pageH + PAGE_GAP)
+      // where page k's first text lands in .ProseMirror space (whose origin
+      // sits g.my below sheet 0's top): every page before k has a successor,
+      // so its displayed bottom margin is jmy; page k's displayed top margin
+      // is jmy too (k ≥ 1 here, so it always has a predecessor)
+      const desiredY = firstH + (pageIndex - 1) * midH + pageIndex * PAGE_GAP + jmy - g.my
       const marginNeeded = Math.max(0, desiredY - naturalTop - cumMargin)
       // padding-top, not margin-top: adjacent vertical margins collapse in
       // CSS (two touching margins become one, sized to the larger — not the
@@ -306,11 +344,22 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     pageGapStyleEl.textContent = rules.length ? `@media screen{${rules.join('')}}` : ''
 
     const pages = pageIndex + 1
-    pageRects = Array.from({ length: pages }, (_, i) => ({ top: i * (pageH + PAGE_GAP), height: pageH, n: i }))
+    // variable sheet heights: full margins on the document's outer edges,
+    // compact ones at every junction (a lone page is exactly nominal pageH)
+    const rects = []
+    let rectTop = 0
+    for (let i = 0; i < pages; i++) {
+      const h = (i === 0 ? g.my : jmy) + g.contentH + (i === pages - 1 ? g.my : jmy)
+      rects.push({ top: rectTop, height: h, n: i })
+      rectTop += h + PAGE_GAP
+    }
+    pageRects = rects
     // grew onto a new page (typing past the bottom, not a doc/view load) —
     // follow the cursor down so the writer lands at the top of the new sheet
     if (lastMeasuredPages !== null && pages > lastMeasuredPages) followCaretToNewPage()
     lastMeasuredPages = pages
+    // the injected padding just moved blocks; the caret must move with them
+    updateCaret()
   }
 
   // ---- focus dimming: light only the block the cursor is in ----
@@ -350,16 +399,62 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     }
   }
   function updateBubble() {
+    // hideBubble (not a bare reassignment): this runs on EVERY scroll event,
+    // and re-assigning $state each tick makes Svelte re-render for nothing
+    const hideBubble = () => { if (bubble.show) bubble = { ...bubble, show: false } }
     const sel = window.getSelection()
-    if (!editor || !sel || sel.isCollapsed || !sel.rangeCount) { bubble = { ...bubble, show: false }; return }
+    if (!editor || !sel || sel.isCollapsed || !sel.rangeCount) { hideBubble(); return }
     const range = sel.getRangeAt(0)
     const root = host.querySelector('.ProseMirror')
-    if (!root || !root.contains(range.commonAncestorContainer)) { bubble = { ...bubble, show: false }; return }
+    if (!root || !root.contains(range.commonAncestorContainer)) { hideBubble(); return }
     const r = range.getBoundingClientRect()
-    if (!r || (r.width < 1 && r.height < 1)) { bubble = { ...bubble, show: false }; return }
+    if (!r || (r.width < 1 && r.height < 1)) { hideBubble(); return }
     const x = Math.min(Math.max(r.left + r.width / 2, 140), window.innerWidth - 140)
     bubble = { show: true, x, y: Math.max(r.top, 68) }
     refreshActive()
+  }
+
+  // ---- the caret: a custom gliding cursor (see .caret in app.css) ----
+  // Positioned via ProseMirror's coordsAtPos (robust in empty paragraphs,
+  // where a collapsed DOM range has no rect). Styles are written directly to
+  // the element — this runs on every keystroke/selection tick, and routing
+  // x/y through $state would make Svelte re-render for nothing.
+  let caretEl
+  let caretVisible = $state(false) // also drives .custom-caret (hides the native caret)
+  let composing = false
+  let caretLastX = null, caretLastY = null
+  function updateCaret() {
+    if (!caretEl || !host) return
+    // activeElement (not editor.isFocused): the caret should hide exactly
+    // when another control (Commander, Find, the Bar) takes the keyboard —
+    // and isFocused also goes false whenever the OS window loses focus,
+    // which reads as the caret losing your place
+    const pmRoot = host.querySelector('.ProseMirror')
+    const engaged = pmRoot && (pmRoot === document.activeElement || pmRoot.contains(document.activeElement))
+    if (!editor || composing || !engaged || !editor.state.selection.empty) {
+      caretVisible = false
+      return
+    }
+    let c
+    try { c = editor.view.coordsAtPos(editor.state.selection.head) } catch { caretVisible = false; return }
+    // viewport coords are zoom-scaled; the caret element lives in the zoomed
+    // subtree's own layout space, so divide the difference back out
+    const zoom = zoomPct / 100
+    const hostRect = host.getBoundingClientRect()
+    const x = (c.left - hostRect.left) / zoom
+    const y = (c.top - hostRect.top) / zoom
+    const h = (c.bottom - c.top) / zoom
+    const appearing = !caretVisible
+    if (appearing) caretEl.style.transition = 'none' // materialize in place, don't glide in from the old spot
+    caretEl.style.transform = `translate(${x}px, ${y}px)`
+    caretEl.style.height = `${h}px`
+    if (appearing) { void caretEl.offsetWidth; caretEl.style.transition = '' }
+    caretVisible = true
+    if (x !== caretLastX || y !== caretLastY) {
+      // restart the breathe cycle so a moving caret is always solid
+      caretEl.classList.remove('blinking'); void caretEl.offsetWidth; caretEl.classList.add('blinking')
+      caretLastX = x; caretLastY = y
+    }
   }
 
   // ---- the Bar: summonable formatting strip (Ctrl+/, or via the Commander) ----
@@ -802,6 +897,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
 
   function onKey(e) {
     const mod = e.ctrlKey || e.metaKey
+    if (e.ctrlKey) armCtrlZoom() // see armCtrlZoom: blocking wheel listener only while Ctrl is down
     if (e.key === 'Escape') {
       if (findOpen) { closeFind(); return }
       if (confirmState) { confirmState = null; return }
@@ -837,15 +933,24 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     document.body.setAttribute('data-orientation', orientation)
     document.body.setAttribute('data-margin', margin)
     syncPageStyle()
-    if (mainEl) mainEl.style.zoom = zoomPct / 100
+    if (mainEl && zoomPct !== 100) mainEl.style.zoom = String(zoomPct / 100)
     recents = store.loadRecents()
     const last = store.loadDoc()
     editor = createEditor(host, {
       content: last?.html || WELCOME,
       spellcheck,
       onUpdate: () => { saved = false; touched = true; recount(); markTyping(); scheduleAutosave(); queueMeasure(); refreshTableState() },
-      onSelection: () => { updateBubble(); litParagraph() },
+      onSelection: () => { updateBubble(); litParagraph(); updateCaret() },
     })
+    editor.on('focus', updateCaret)
+    editor.on('blur', updateCaret)
+    {
+      // IME composition: get fully out of the way — hide the custom caret and
+      // let the browser's own caret/underline drive until composition ends
+      const pmRoot = host.querySelector('.ProseMirror')
+      pmRoot?.addEventListener('compositionstart', () => { composing = true; updateCaret() })
+      pmRoot?.addEventListener('compositionend', () => { composing = false; updateCaret() })
+    }
     if (last?.name) docName = last.name
     recount()
     queueMeasure()
@@ -861,7 +966,8 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     window.addEventListener('resize', onResize)
     document.addEventListener('selectionchange', onSelectionChange)
     document.addEventListener('mousemove', clearTyping)
-    mainEl?.addEventListener('wheel', onWheel, { passive: false })
+    window.addEventListener('keyup', onCtrlUp)
+    window.addEventListener('blur', disarmCtrlZoom) // Ctrl can be released outside the window (alt-tab)
     if (isTauri) {
       setupNativeDragDrop()
     } else {
@@ -871,9 +977,9 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     }
   })
 
-  function onResize() { updateBubble(); measurePages() }
+  function onResize() { updateBubble(); measurePages(); updateCaret() }
 
-  function onSelectionChange() { updateBubble(); litParagraph(); refreshBar(); refreshTableState() }
+  function onSelectionChange() { updateBubble(); litParagraph(); refreshBar(); refreshTableState(); updateCaret() }
   function clearTyping() { if (typing) { typing = false; document.body.classList.remove('typing') } }
 
   onDestroy(() => {
@@ -887,6 +993,9 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     window.removeEventListener('dragover', onDragOver)
     window.removeEventListener('dragleave', onDragLeave)
     window.removeEventListener('drop', onDrop)
+    window.removeEventListener('keyup', onCtrlUp)
+    window.removeEventListener('blur', disarmCtrlZoom)
+    disarmCtrlZoom()
     unlistenDragDrop?.()
   })
 </script>
@@ -895,7 +1004,8 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
 <button class="whisper wordmark" onclick={() => toggleCommander()} title="Rooms & recents (Ctrl+K)">write</button>
 
 <main bind:this={mainEl}>
-  <div class="editor-host" bind:this={host}>
+  <div class="editor-host" class:custom-caret={caretVisible} bind:this={host}>
+    <div class="caret" class:show={caretVisible} bind:this={caretEl}></div>
     {#if view === 'page'}
       {#each pageRects as r}
         <div class="page-sheet" style="top:{r.top}px; height:{r.height}px">

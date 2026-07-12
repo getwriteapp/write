@@ -493,10 +493,42 @@ main {
   padding: 9vh 24px 20vh;
 }
 .editor-host {
+  position: relative; /* anchors the custom caret overlay in both views */
   width: 100%;
   max-width: calc(var(--measure) * var(--flow-scale, 1));
   transition: max-width 0.3s ease;
 }
+
+/* ============ the caret: a gliding, breathing cursor ============
+   The native caret is hidden ONLY while the custom one is shown (the
+   .custom-caret class tracks that exactly), so there is never a state with
+   no caret at all — IME composition, blur, and any positioning failure all
+   fall back to the browser's own. The custom caret glides between
+   positions and breathes (a soft fade) instead of hard-blinking; every
+   move restarts the cycle, so it burns steady while you type. */
+.editor-host.custom-caret .ProseMirror { caret-color: transparent; }
+.caret {
+  position: absolute;
+  top: 0; left: 0;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 2px color-mix(in srgb, var(--accent) 70%, transparent),
+              0 0 10px color-mix(in srgb, var(--accent) 45%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2; /* text is z-index 1 in page view; the caret rides above it */
+  transition: transform 75ms cubic-bezier(0.25, 0.6, 0.3, 1), height 75ms ease;
+  will-change: transform, opacity;
+}
+.caret.show { opacity: 1; }
+/* solid for 0.45s after every move (typing keeps restarting it), then breathe */
+.caret.show.blinking { animation: caret-breathe 1.15s ease-in-out 0.45s infinite; }
+@keyframes caret-breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.12; }
+}
+@media print { .caret { display: none !important; } }
 /* Flow view's column width — a scale on the room's own --measure */
 body[data-flow-width="narrow"] { --flow-scale: 0.8; }
 body[data-flow-width="wide"] { --flow-scale: 1.35; }

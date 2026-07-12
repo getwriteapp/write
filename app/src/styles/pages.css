@@ -83,8 +83,10 @@
   color: var(--faint);
   pointer-events: none;
 }
-.page-band-header { top: 28px; }
-.page-band-footer { bottom: 28px; }
+/* 16px (not deeper): junction sheets show a compact 48px vertical margin
+   (JUNCTION_MY in App.svelte), and a two-line band must still clear it */
+.page-band-header { top: 16px; }
+.page-band-footer { bottom: 16px; }
 .pb-line { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pb-line[data-align="left"] { text-align: left; }
 .pb-line[data-align="center"] { text-align: center; }
