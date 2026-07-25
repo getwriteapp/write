@@ -18,6 +18,12 @@ const WORD_TO_CSS = {
   'geist': "'Geist Variable', sans-serif",
   'ibm plex sans': "'IBM Plex Sans', sans-serif",
   'geist mono': "'Geist Mono Variable', monospace",
+  'eb garamond': "'EB Garamond Variable', Garamond, serif",
+  'lora': "'Lora Variable', Georgia, serif",
+  'playfair display': "'Playfair Display Variable', Georgia, serif",
+  'inter': "'Inter Variable', -apple-system, sans-serif",
+  'atkinson hyperlegible': "'Atkinson Hyperlegible', -apple-system, sans-serif",
+  'jetbrains mono': "'JetBrains Mono Variable', ui-monospace, monospace",
 }
 
 /* CSS stack → Word family name: first family, quotes stripped, and the

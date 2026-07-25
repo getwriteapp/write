@@ -81,10 +81,10 @@ body::before {
 .bottom-fade {
   position: fixed;
   left: 0; right: 0; bottom: 0;
-  height: 130px;
+  height: 76px;
   z-index: 45;
   pointer-events: none;
-  background: linear-gradient(to bottom, transparent, var(--floor, var(--bg)) 68%);
+  background: linear-gradient(to bottom, transparent, var(--floor, var(--bg)) 62%);
 }
 .stats { bottom: 20px; right: 26px; }
 .stats .dot {
@@ -380,6 +380,18 @@ body.typing .bar-zone.pinned:hover .bar { opacity: 1; }
   pointer-events: auto;
   transform: translateY(0);
 }
+/* An open typeface menu pins the Bar open. The menu is a child of .bar, so
+   every rule that hides the Bar would hide the menu with it — including
+   `body.typing`, which fires on each live preview, and the hover rules, which
+   stop applying the moment the pointer leaves for the keyboard. The
+   body.typing variant is listed explicitly so it wins on specificity rather
+   than by luck of ordering. */
+.bar-zone.menu-open .bar,
+body.typing .bar-zone.menu-open .bar {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
 
 .bar-select {
   font: inherit;
@@ -396,6 +408,71 @@ body.typing .bar-zone.pinned:hover .bar { opacity: 1; }
 .bar-select option { color: #1a1a1a; background: #fff; }
 .bar-size { max-width: 62px; }
 .bar-lh { max-width: 84px; }
+
+/* ---------- the typeface menu ----------
+   A listbox rather than a native <select>: options rendered in their own
+   face, and arrow keys that preview live in the document. */
+.font-picker { position: relative; display: inline-flex; }
+.bar-font {
+  width: 132px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  height: 24px;
+  line-height: 1;
+}
+.font-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 60;
+  min-width: 218px;
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+  padding: 5px;
+  border-radius: 12px;
+  border: 1px solid var(--hairline);
+  background: var(--card);
+  backdrop-filter: blur(14px) saturate(1.3);
+  box-shadow: var(--card-shadow);
+  outline: none;
+}
+.font-group {
+  padding: 8px 9px 3px;
+  font-family: var(--ui-font);
+  font-size: 9.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.font-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  /* the whole point: each name wears its own face, at a size big enough to
+     actually judge it by. font-family comes from the inline style. */
+  font-size: 16px;
+  line-height: 1.35;
+  padding: 5px 9px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.font-row.sel {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.font-menu-foot {
+  margin-top: 4px;
+  padding: 6px 9px 3px;
+  border-top: 1px solid var(--hairline);
+  font-family: var(--ui-font);
+  font-size: 10px;
+  color: var(--faint);
+}
 
 .bar-sep { width: 1px; height: 18px; background: var(--hairline); }
 
@@ -512,9 +589,13 @@ main {
   top: 0; left: 0;
   width: 2px;
   border-radius: 2px;
-  background: var(--accent);
-  box-shadow: 0 0 2px color-mix(in srgb, var(--accent) 70%, transparent),
-              0 0 10px color-mix(in srgb, var(--accent) 45%, transparent);
+  /* --caret, not --accent: the caret is its own quieter relative of the room's
+     accent (see rooms.css). An exact accent match reads too strong, and ties
+     the cursor's identity to every other accented thing on screen. */
+  background: var(--caret);
+  /* one narrow halo, not two. The old 10px/45% bloom made the caret shimmer
+     against the text — the eye keeps trying to focus something with no edge. */
+  box-shadow: 0 0 4px color-mix(in srgb, var(--caret) 26%, transparent);
   opacity: 0;
   pointer-events: none;
   z-index: 2; /* text is z-index 1 in page view; the caret rides above it */
@@ -522,11 +603,13 @@ main {
   will-change: transform, opacity;
 }
 .caret.show { opacity: 1; }
-/* solid for 0.45s after every move (typing keeps restarting it), then breathe */
-.caret.show.blinking { animation: caret-breathe 1.15s ease-in-out 0.45s infinite; }
+/* solid for 0.7s after every move (typing keeps restarting it), then breathe.
+   Slow and shallow on purpose: a cursor is peripheral furniture, and anything
+   quick or near-zero at the bottom of the cycle reads as a nag. */
+.caret.show.blinking { animation: caret-breathe 3.4s ease-in-out 0.7s infinite; }
 @keyframes caret-breathe {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.12; }
+  50% { opacity: 0.38; }
 }
 @media print { .caret { display: none !important; } }
 /* Flow view's column width — a scale on the room's own --measure */
@@ -598,6 +681,21 @@ body[data-flow-width="wide"] { --flow-scale: 1.35; }
   color: inherit; /* browsers force black on <mark>; keep the room's ink */
   border-radius: 3px;
   padding: 0.04em 0.12em;
+}
+/* Highlight in the dark rooms.
+   A highlighter pen is a PAPER instrument: every highlight color that exists —
+   ours, Word's, or whatever arrives in an imported .docx — is a pale pastel
+   meant to sit under dark ink. Drop one onto a dark sheet with the room's own
+   light ink on top and it blows out: a glaring block with near-invisible text.
+   The fix darkens the BAND, not the text. `background-image` composites over
+   `background-color`, and Tiptap writes the highlight as an inline
+   `background-color` — so this dims any highlight to a deep tint of its own
+   hue without the stylesheet ever needing to know which color it is. The
+   stored/exported value is untouched: the .docx still carries real yellow. */
+[data-room="slate"] .ProseMirror mark,
+[data-room="noir"] .ProseMirror mark {
+  background-image: linear-gradient(rgba(0, 0, 0, 0.62), rgba(0, 0, 0, 0.62));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 10%, transparent);
 }
 .ProseMirror img {
   display: block;

@@ -3,6 +3,16 @@
    A room is more than a theme: it sets the light (palette),
    the voice (typeface), and the temperature of the work.
    Rooms are ordered light → dark.
+
+   --caret vs --accent: these used to be the same value in every room. They
+   are deliberately no longer. The accent is a UI voice — it lights buttons,
+   list markers, the saved dot, focus rings — and a cursor wearing that exact
+   color reads as another piece of chrome, and reads too loud besides (the
+   caret is the one thing on screen you stare straight at for hours). Each
+   room's caret is now a quieter blood-relative of its accent: same hue,
+   pulled down in chroma and, in the dark rooms, in brightness too, so it
+   stops glaring off a near-black page. Both the custom gliding caret and the
+   native fallback read from --caret, so they always agree.
    ============================================================ */
 
 :root {
@@ -16,7 +26,7 @@
   --ink: #1B1B1B;
   --soft: #8F8F8C;
   --faint: #C8C8C5;
-  --caret: #0D99FF;
+  --caret: #2C82C9;
   --sel: rgba(13, 153, 255, 0.16);
   --accent: #0D99FF;
   --hairline: #ECECEA;
@@ -36,7 +46,7 @@
   --ink: #17171C;
   --soft: #7B7988;
   --faint: #C2C0CE;
-  --caret: #6E62E5;
+  --caret: #6459C0;
   --sel: rgba(110, 98, 229, 0.15);
   --accent: #6E62E5;
   --hairline: #E9E8F1;
@@ -58,7 +68,7 @@
   --ink: #262022;
   --soft: #8B7B80;
   --faint: #CDBCC2;
-  --caret: #C0577E;
+  --caret: #A85572;
   --sel: rgba(192, 87, 126, 0.15);
   --accent: #C0577E;
   --hairline: #EFE2E4;
@@ -80,7 +90,7 @@
   --ink: #3B3226;
   --soft: #85765C;
   --faint: #C9BC9F;
-  --caret: #587350;
+  --caret: #4E6A48;
   --sel: rgba(88, 115, 80, 0.18);
   --accent: #587350;
   --hairline: #E5DBC5;
@@ -100,7 +110,7 @@
   --ink: #E2E6EA;
   --soft: #8A94A0;
   --faint: #414C59;
-  --caret: #7BC4B4;
+  --caret: #6FB0A2;
   --sel: rgba(123, 196, 180, 0.22);
   --accent: #7BC4B4;
   --hairline: #2A323D;
@@ -122,7 +132,7 @@
   --ink: #ECEAE5;
   --soft: #8B8990;
   --faint: #46444B;
-  --caret: #FFB454;
+  --caret: #D99A4A;
   --sel: rgba(255, 180, 84, 0.24);
   --accent: #FFB454;
   --hairline: #232327;

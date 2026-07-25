@@ -1,5 +1,5 @@
 <script>
-  import { onMount, onDestroy } from 'svelte'
+  import { onMount, onDestroy, tick } from 'svelte'
   import { createEditor, WELCOME, insertImageFiles, bytesToDataUrl, IMAGE_EXT_MIME, findReplaceKey, markPastePlain } from './lib/editor.js'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
   import { ROOMS, DEFAULT_ROOM } from './lib/rooms.js'
@@ -85,6 +85,10 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   // Narrow preset, so Narrow documents keep their true proportions; it also
   // leaves room for a two-line header/footer band (see .page-band).
   const JUNCTION_MY = 48
+  // How far a block may hang past its page's capacity line before it gets
+  // pushed to the next sheet instead. Small on purpose — this is tolerance for
+  // sub-pixel layout rounding, not a licence to overhang.
+  const OVERHANG_SLOP = 4
   // the current page's usable geometry — my (margin) + contentH (writable height)
   function geom() {
     const phys = PAGE_PHYSICAL[pageSize] || PAGE_PHYSICAL.letter
@@ -128,6 +132,11 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     document.body.setAttribute('data-room', next)
     localStorage.setItem('write:room', next)
     if (toastIt) showToast(ROOMS.find((r) => r.id === next)?.label || next)
+    // a room carries its own typeface, size, leading and measure — every one
+    // of which changes how much text fits a page (and the new family may not
+    // even be downloaded yet, hence the font-aware pass as well as the frame one)
+    queueMeasure()
+    measureWhenFontReady(getComputedStyle(document.body).getPropertyValue('--body-font'))
   }
 
   function showToast(text) {
@@ -217,6 +226,31 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   function queueMeasure() {
     requestAnimationFrame(() => requestAnimationFrame(measurePages))
   }
+  /* Re-measure once a newly-requested typeface has actually arrived.
+     @font-face is lazy: the file is only fetched when something on screen
+     first asks for that family, and every face this app ships is
+     `font-display: swap`. So the moment you pick a font, the text is laid out
+     in a FALLBACK — and it silently reflows to different metrics a beat later
+     when the real font lands. A measurement taken on the next frame (which is
+     all queueMeasure waits for) is therefore measuring text that is about to
+     change height, and Page view's break positions come out computed for the
+     wrong document: text overruns the bottom of its sheet and carries on
+     across the desk gap. This was Brett's "changing fonts mid-page breaks
+     pagination" bug. Same reason the very first measurement at mount hangs
+     off document.fonts.ready. */
+  function measureWhenFontReady(css) {
+    if (!document.fonts) return
+    let kick
+    // load() takes a CSS `font` shorthand, so the stack needs a size in front
+    try { kick = document.fonts.load(`16px ${css || 'sans-serif'}`) } catch { kick = null }
+    Promise.resolve(kick)
+      .catch(() => {})
+      // .ready as well as the explicit load: bold/italic faces of the same
+      // family are separate files, requested only as they're painted
+      .then(() => document.fonts.ready)
+      .then(() => measurePages())
+      .catch(() => {})
+  }
 
   // tracks the page count across measurements so we can tell "you just grew
   // onto a new page" (while typing) apart from "the doc/view just loaded" —
@@ -240,18 +274,18 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
           an injected `:nth-child` stylesheet rule — the same technique
           the focus-dimming feature uses, because ProseMirror strips foreign
           classes/attrs on its own nodes but leaves an external <style> alone.
-     Natural overflow breaks snap to the nearest block boundary (never
-     mid-paragraph) — a paragraph that would straddle a page in Word stays
-     whole here instead. Documented as the known Tier-4 gap; true reflow
-     needs a real pagination engine, a further increment.
+     Breaks always fall on a block boundary (never mid-paragraph) — a
+     paragraph that would straddle a page in Word is moved down whole here
+     instead. Documented as the known Tier-4 gap; true reflow needs a real
+     pagination engine, a further increment.
 
      Wave 3 rewrite: a single forward sweep over top-level blocks (instead of
      the old "compute a nominal page count, then search for each target"
      approach), tracking how much natural content height has accumulated
-     since the current page began. One pass now handles two break triggers:
-     natural overflow (same nearest-boundary rounding as before) AND a
-     manual pageBreak node, which forces the next block onto a fresh page
-     unconditionally. It's also more accurate than the old approach for 3+
+     since the current page began. One pass handles three break triggers: a
+     block that starts past the page, a block that starts on the page but
+     ends past it (Session 27 — see the loop), and a manual pageBreak node,
+     which forces the next block onto a fresh page unconditionally. It's also more accurate than the old approach for 3+
      page documents — each page's fill baseline is the ACTUAL previous break
      point, not a rigid global target that assumed every prior page filled
      exactly to capacity. offsetTop reads are used RAW — never divided by
@@ -294,7 +328,9 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     // its bottom margin by the same amount (content crowds its sheet's outer
     // edge instead of stopping a full margin short of it).
     let pageStartY = 0
-    let lastBreakIdx = -1 // guards against re-breaking at/before the last break
+    let pageStartIdx = 0 // the block that opens the page being filled; it can
+                         // never be pushed further down (there is nowhere left
+                         // to push it to, and trying would loop forever)
 
     const breakBefore = (idx) => {
       const naturalTop = children[idx].offsetTop
@@ -313,7 +349,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
       rules.push(`.ProseMirror>*:nth-child(${idx + 1}){padding-top:${marginNeeded}px}`)
       cumMargin += marginNeeded
       pageStartY = naturalTop
-      lastBreakIdx = idx
+      pageStartIdx = idx
     }
 
     for (let i = 0; i < children.length; i++) {
@@ -323,20 +359,40 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
         if (i + 1 < children.length) breakBefore(i + 1)
         continue
       }
-      const naturalTop = children[i].offsetTop
-      const used = naturalTop - pageStartY
-      if (used < g.contentH) continue
+      /* Where does this block belong? Two questions, in order.
 
-      // overflow — snap to the nearer boundary (this child vs. the previous
-      // one still on the current page): the Session-16 rounding rule
-      let idx = i
-      if (i - 1 > lastBreakIdx && !isPageBreakEl(children[i - 1])) {
-        const prevTop = children[i - 1].offsetTop
-        const overshoot = naturalTop - (pageStartY + g.contentH)
-        const undershoot = (pageStartY + g.contentH) - prevTop
-        if (undershoot < overshoot) idx = i - 1
-      }
-      breakBefore(idx)
+         Until Session 27 only the first was asked — "does the block START
+         below the capacity line?" — and when it did, the break snapped to
+         whichever boundary was nearer, this block or the one before it. That
+         rounding compares where blocks BEGIN, which says nothing about where
+         the previous one ENDS: a paragraph starting just above the line and
+         running well past it stayed put and rendered straight off the bottom
+         of its sheet, through the desk gap, and over the next page's top
+         edge. That was Brett's screenshot, and it contradicted this view's
+         own stated contract — page breaks fall on block boundaries, so a
+         page holds whole blocks. Asking the second question makes the
+         contract true: a block that does not FIT is moved down entire.
+
+         The cost is honest and worth naming: pages now end where the text
+         allows rather than where the paper does, so a page can finish a
+         paragraph short of its bottom margin (~11% more pages than the old
+         cram-and-overhang behaviour, measured over 3000 synthetic
+         documents). Word splits paragraphs across pages and we don't, so
+         screen page counts can differ from the exported .docx's — the
+         documented Tier-4 limit, now applied consistently instead of
+         intermittently. */
+      const el = children[i]
+      const top = el.offsetTop
+      const capacity = pageStartY + g.contentH
+      // 1. starts past the page — it belongs to the next one
+      if (top >= capacity) { breakBefore(i); continue }
+      // 2. starts here but ends past the page — move it down whole, unless it
+      //    is taller than a page can ever be (nothing holds it, and pushing it
+      //    along would only repeat the overhang one sheet later), or it is
+      //    this page's opening block (there is nowhere left to push it to)
+      if (i > pageStartIdx
+          && top + el.offsetHeight > capacity + OVERHANG_SLOP
+          && el.offsetHeight <= g.contentH) breakBefore(i)
     }
 
     // scoped to screen only: these margins are a visual illusion for the
@@ -477,19 +533,56 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     if (barScrollHidden) barShownAtY = y
   }
 
-  // every family here ships with the app (fully offline holds)
-  const BAR_FONTS = [
-    { label: 'Room default', value: '' },
-    { label: 'Quattro', value: "'iA Writer Quattro S', monospace" },
-    { label: 'Literata', value: "'Literata Variable', serif" },
-    { label: 'Source Serif', value: "'Source Serif 4 Variable', serif" },
-    { label: 'Newsreader', value: "'Newsreader Variable', serif" },
-    { label: 'Geist', value: "'Geist Variable', sans-serif" },
-    { label: 'Plex Sans', value: "'IBM Plex Sans', sans-serif" },
-    { label: 'Geist Mono', value: "'Geist Mono Variable', monospace" },
+  /* The typeface library. Every family here ships with the app — no network
+     call has ever been made for type and none ever will be. Grouped by voice
+     rather than listed flat, because thirteen names in one column is a wall.
+     Each is a deliberate pick, not a dump of what Fontsource happens to have:
+       Serif  — Literata (screen-first book face) · Source Serif (Adobe's
+                workhorse) · EB Garamond (the classic old-style, for anything
+                that wants to feel printed) · Lora (contemporary, brushed
+                contrast) · Newsreader (editorial warmth) · Playfair Display
+                (high-contrast — a title face, not a body face)
+       Sans   — Geist · Inter (the neutral workhorse) · IBM Plex Sans
+                (humanist, slightly technical) · Atkinson Hyperlegible (drawn
+                by the Braille Institute for maximum letter distinction —
+                genuinely the kindest face here for tired eyes)
+       Type-  — iA Writer Quattro (the app's own voice) · JetBrains Mono
+       writer   (warmer, rounder mono) · Geist Mono (tight and neutral) */
+  const FONT_GROUPS = [
+    { name: '', items: [{ label: 'Room default', value: '' }] },
+    { name: 'Serif', items: [
+      { label: 'Literata', value: "'Literata Variable', serif" },
+      { label: 'Source Serif', value: "'Source Serif 4 Variable', serif" },
+      { label: 'EB Garamond', value: "'EB Garamond Variable', Garamond, serif" },
+      { label: 'Lora', value: "'Lora Variable', Georgia, serif" },
+      { label: 'Newsreader', value: "'Newsreader Variable', serif" },
+      { label: 'Playfair Display', value: "'Playfair Display Variable', Georgia, serif" },
+    ] },
+    { name: 'Sans', items: [
+      { label: 'Geist', value: "'Geist Variable', sans-serif" },
+      { label: 'Inter', value: "'Inter Variable', -apple-system, sans-serif" },
+      { label: 'Plex Sans', value: "'IBM Plex Sans', sans-serif" },
+      { label: 'Atkinson Hyperlegible', value: "'Atkinson Hyperlegible', -apple-system, sans-serif" },
+    ] },
+    { name: 'Typewriter', items: [
+      { label: 'iA Writer Quattro', value: "'iA Writer Quattro S', monospace" },
+      { label: 'JetBrains Mono', value: "'JetBrains Mono Variable', ui-monospace, monospace" },
+      { label: 'Geist Mono', value: "'Geist Mono Variable', monospace" },
+    ] },
   ]
+  const BAR_FONTS = FONT_GROUPS.flatMap((g) => g.items) // flat, for index math
   const BAR_SIZES = ['10pt', '11pt', '12pt', '14pt', '16pt', '18pt', '24pt', '32pt']
-  const BAR_COLORS = ['#B91C1C', '#B45309', '#15803D', '#1D4ED8', '#7E22CE', '#6B7280']
+  /* Text colors are picked to survive BOTH surfaces. The old set was Tailwind's
+     700s — chosen for white paper, and close to invisible on a Slate or Noir
+     page (dark red ink on a dark sheet). These are mid-tones: every one clears
+     ~4:1 contrast against white AND against Noir's near-black sheet, so the
+     same document is legible in every room and still prints as a real color.
+     (Unlike a highlight, ink can't be dimmed per-room without lying about what
+     the .docx contains — so the palette itself has to be the honest one.) */
+  const BAR_COLORS = ['#D64545', '#BE7016', '#2E8B57', '#3B7DE0', '#8E5FD3', '#7C818B']
+  /* Highlights stay true pastels: a highlighter is a paper instrument and the
+     .docx must carry real marker colors. The dark rooms dim the BAND on screen
+     instead — see `[data-room="noir"] .ProseMirror mark` in app.css. */
   const BAR_HIGHLIGHTS = ['#FEF08A', '#BBF7D0', '#BFDBFE', '#FBCFE8', '#FED7AA']
   const BAR_LINE_HEIGHTS = [['1', '1.0'], ['1.15', '1.15'], ['1.5', '1.5'], ['2', '2.0']]
 
@@ -544,6 +637,86 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   function barRun(name, v) {
     barCmd[name](v)
     requestAnimationFrame(() => { refreshBar(); queueMeasure() })
+    if (name === 'font' || name === 'clear') measureWhenFontReady(v)
+  }
+
+  /* ---- the typeface menu ----
+     A real listbox instead of a native <select>, for two reasons a <select>
+     can't do on Windows: it renders every name IN its own face (the only
+     honest way to choose type), and arrowing through it previews each font
+     live in the document underneath. Word does the same thing and it's the
+     one piece of its formatting UI worth stealing outright.
+
+     Contract: ↑/↓ (or hover) previews · Enter or click keeps it · Escape or
+     clicking away puts back what you started with. Preview transactions carry
+     `addToHistory: false`, so cycling past ten fonts leaves ten *nothings* in
+     the undo stack and only the choice you keep is a real, undoable edit.
+     Note the previews deliberately do NOT call .focus() — the menu owns the
+     keyboard while it's open, and ProseMirror applies a mark command to its
+     stored selection whether or not its DOM node is focused. */
+  let fontMenuOpen = $state(false)
+  let fontIdx = $state(0)
+  // $state because the menu is inside an {#if}: the binding is written on
+  // every open and cleared on close, and Svelte 5 flags a plain `let` for that
+  let fontMenuEl = $state(null)
+  let fontOriginal = ''
+  const fontLabel = (v) => BAR_FONTS.find((f) => f.value === v)?.label ?? 'Mixed'
+
+  // tick(), not requestAnimationFrame: focusing the menu and keeping the
+  // selected row in view must happen as soon as Svelte has written the DOM,
+  // and rAF is not a promise that it ever will — a backgrounded or occluded
+  // window throttles it to nothing, which would leave the menu open but
+  // unfocused, swallowing every arrow key
+  function scrollFontRow() {
+    tick().then(() => fontMenuEl?.querySelector(`[data-fi="${fontIdx}"]`)?.scrollIntoView({ block: 'nearest' }))
+  }
+  function setFontQuiet(v) {
+    if (!editor) return
+    const c = editor.chain().setMeta('addToHistory', false)
+    ;(v ? c.setFontFamily(v) : c.unsetFontFamily()).run()
+    queueMeasure()
+  }
+  function previewFont(i) {
+    fontIdx = i
+    setFontQuiet(BAR_FONTS[i].value)
+    scrollFontRow()
+  }
+  function openFontMenu() {
+    if (fontMenuOpen) { closeFontMenu(false); return }
+    fontOriginal = barState.font
+    const i = BAR_FONTS.findIndex((f) => f.value === fontOriginal)
+    fontIdx = i < 0 ? 0 : i
+    fontMenuOpen = true
+    tick().then(() => { fontMenuEl?.focus(); scrollFontRow() })
+  }
+  function closeFontMenu(commit) {
+    if (!fontMenuOpen || !editor) return
+    fontMenuOpen = false
+    const v = commit ? BAR_FONTS[fontIdx].value : fontOriginal
+    // only a kept, actually-different choice earns a place in the undo stack;
+    // a cancelled preview must leave the history exactly as it found it
+    const real = commit && v !== fontOriginal
+    let c = editor.chain().focus()
+    if (!real) c = c.setMeta('addToHistory', false)
+    ;(v ? c.setFontFamily(v) : c.unsetFontFamily()).run()
+    refreshBar()
+    queueMeasure()
+    if (real) measureWhenFontReady(v)
+  }
+  function onFontKey(e) {
+    if (!fontMenuOpen) {
+      if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openFontMenu() }
+      return
+    }
+    const n = BAR_FONTS.length
+    if (e.key === 'ArrowDown') { e.preventDefault(); previewFont((fontIdx + 1) % n) }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); previewFont((fontIdx - 1 + n) % n) }
+    else if (e.key === 'Home') { e.preventDefault(); previewFont(0) }
+    else if (e.key === 'End') { e.preventDefault(); previewFont(n - 1) }
+    else if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); closeFontMenu(true) }
+    // stopPropagation: Escape here means "cancel the preview", not the
+    // window-level Escape that closes the Commander / leaves focus mode
+    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeFontMenu(false) }
   }
 
   // ---- commands ----
@@ -1046,11 +1219,51 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
 </div>
 
 <!-- the Bar: summoned by Ctrl+/ (pinned) or by hovering the very top edge (peek) -->
-<div class="bar-zone" class:pinned={barOpen} class:scroll-ducked={barScrollHidden}>
+<div class="bar-zone" class:pinned={barOpen} class:scroll-ducked={barScrollHidden} class:menu-open={fontMenuOpen}>
   <div class="bar" role="toolbar" aria-label="Formatting">
-    <select class="bar-select" value={barState.font} onchange={(e) => barRun('font', e.target.value)} title="Typeface">
-      {#each BAR_FONTS as f}<option value={f.value}>{f.label}</option>{/each}
-    </select>
+    <!-- typeface: a listbox, not a <select> — names set in their own face,
+         and ↑/↓ previews each one live in the document (see onFontKey) -->
+    <span class="font-picker">
+      <button
+        class="bar-select bar-font"
+        aria-haspopup="listbox"
+        aria-expanded={fontMenuOpen}
+        title="Typeface — ↑↓ to preview"
+        style="font-family: {barState.font || 'var(--body-font)'}"
+        onclick={openFontMenu}
+        onkeydown={onFontKey}
+      >{fontLabel(barState.font)}</button>
+      {#if fontMenuOpen}
+        <div
+          class="font-menu"
+          role="listbox"
+          aria-label="Typeface"
+          tabindex="-1"
+          bind:this={fontMenuEl}
+          onkeydown={onFontKey}
+          onblur={() => closeFontMenu(false)}
+        >
+          {#each FONT_GROUPS as g}
+            {#if g.name}<div class="font-group">{g.name}</div>{/if}
+            {#each g.items as f}
+              {@const i = BAR_FONTS.indexOf(f)}
+              <button
+                type="button"
+                class="font-row"
+                class:sel={i === fontIdx}
+                role="option"
+                aria-selected={i === fontIdx}
+                data-fi={i}
+                style="font-family: {f.value || 'var(--body-font)'}"
+                onmouseenter={() => previewFont(i)}
+                onmousedown={(e) => { e.preventDefault(); fontIdx = i; closeFontMenu(true) }}
+              >{f.label}</button>
+            {/each}
+          {/each}
+          <div class="font-menu-foot">↑↓ preview · ↵ keep · esc cancel</div>
+        </div>
+      {/if}
+    </span>
     <select class="bar-select bar-size" value={barState.size} onchange={(e) => barRun('size', e.target.value)} title="Size">
       <option value="">Size</option>
       {#each BAR_SIZES as s}<option value={s}>{s.replace('pt', '')}</option>{/each}

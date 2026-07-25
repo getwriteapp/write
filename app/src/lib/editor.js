@@ -398,6 +398,17 @@ export function createEditor(element, { onUpdate, onSelection, content = WELCOME
     onUpdate: ({ editor }) => onUpdate?.(editor),
     onSelectionUpdate: ({ editor }) => onSelection?.(editor),
     editorProps: {
+      /* Keep the caret clear of the app's own furniture when ProseMirror
+         scrolls to follow it. Left to itself PM scrolls the caret just barely
+         into the viewport — flush against the bottom edge, which in this app
+         is underneath the fixed bottom-fade and the word-count/hint whispers.
+         The caret is then "in view" by PM's arithmetic and invisible in fact:
+         press Enter at the foot of a page and your typing disappears until
+         you scroll by hand. scrollMargin reserves that furniture's height, and
+         scrollThreshold starts the scroll before the caret reaches it rather
+         than after. Top gets a smaller reserve for the Bar's hover strip. */
+      scrollMargin: { top: 64, bottom: 132, left: 0, right: 0 },
+      scrollThreshold: { top: 64, bottom: 132, left: 0, right: 0 },
       /* native OS/browser spellchecker (Wave 6) — toggled from the Commander,
          persisted like the other view prefs; no custom dictionary, just the
          same spellcheck engine every contenteditable gets for free */
