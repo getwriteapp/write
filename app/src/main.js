@@ -1,32 +1,18 @@
 import { mount } from 'svelte'
 
-/* Typography — all bundled locally, zero network dependency. */
-import '@fontsource-variable/literata'
-import '@fontsource-variable/literata/wght-italic.css'
-import '@fontsource-variable/source-serif-4'
-import '@fontsource-variable/source-serif-4/wght-italic.css'
-import '@fontsource-variable/newsreader'
-import '@fontsource-variable/newsreader/wght-italic.css'
-import '@fontsource-variable/geist'
-import '@fontsource-variable/geist-mono'
-import '@fontsource/ibm-plex-sans/400.css'
-import '@fontsource/ibm-plex-sans/400-italic.css'
-import '@fontsource/ibm-plex-sans/600.css'
-import '@fontsource/ibm-plex-sans/700.css'
-/* the Session 27 additions. `wght.css` rather than the packages' `index.css`:
-   index pulls every axis a family publishes (Inter alone ships opsz and
-   "standard" builds as well as wght — three times the bytes for one visible
-   difference). Weight + italic is all a word processor asks of a face. */
-import '@fontsource-variable/eb-garamond/wght.css'
-import '@fontsource-variable/eb-garamond/wght-italic.css'
-import '@fontsource-variable/lora/wght.css'
-import '@fontsource-variable/lora/wght-italic.css'
-import '@fontsource-variable/playfair-display/wght.css'
-import '@fontsource-variable/playfair-display/wght-italic.css'
-import '@fontsource-variable/inter/wght.css'
-import '@fontsource-variable/inter/wght-italic.css'
-import '@fontsource-variable/jetbrains-mono/wght.css'
-import '@fontsource-variable/jetbrains-mono/wght-italic.css'
+/* Typography — all bundled locally, zero network dependency, latin-only.
+   Every VARIABLE family (the original five and the Session-27 additions) is
+   declared in fonts-extra.css with latin + latin-ext faces only. Fontsource's
+   own per-family CSS pulls every script it publishes — Cyrillic, Greek,
+   Vietnamese, symbols — which was ~1.5 MB of glyphs this app never renders.
+   The two STATIC families are imported here via their own latin-only per-subset
+   files (Fontsource ships those for static families; it does not for variable
+   ones, hence fonts-extra.css). iA Writer Quattro lives in fonts.css. */
+import './styles/fonts-extra.css'
+import '@fontsource/ibm-plex-sans/latin-400.css'
+import '@fontsource/ibm-plex-sans/latin-400-italic.css'
+import '@fontsource/ibm-plex-sans/latin-600.css'
+import '@fontsource/ibm-plex-sans/latin-700.css'
 import '@fontsource/atkinson-hyperlegible/latin-400.css'
 import '@fontsource/atkinson-hyperlegible/latin-400-italic.css'
 import '@fontsource/atkinson-hyperlegible/latin-700.css'

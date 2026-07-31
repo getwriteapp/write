@@ -85,6 +85,31 @@ export const ParagraphFormat = Extension.create({
       },
     }
   },
+  /* Tab must do SOMETHING in the editor. With no handler, the browser default
+     runs — Tab moves focus to the next control, out of ProseMirror entirely,
+     which blurs the editor and makes the (custom AND native) caret vanish:
+     Brett's "tab does not function properly, caret just disappears". Bound to
+     the indent commands the Bar already exposes, it now nudges the paragraph's
+     left indent instead. Returning `true` swallows the keystroke so focus can
+     never escape. Tables and lists get first refusal: `sinkListItem` /
+     `liftListItem` return false when not in a list, and returning false from
+     here lets the Table extension's own Tab (cell navigation) take over — its
+     keymap plugin sits ahead of this one, but the explicit guard makes the
+     precedence intentional rather than incidental. */
+  addKeyboardShortcuts() {
+    return {
+      Tab: ({ editor }) => {
+        if (editor.isActive('table')) return false
+        if (editor.can().sinkListItem('listItem') && editor.commands.sinkListItem('listItem')) return true
+        return editor.commands.indent()
+      },
+      'Shift-Tab': ({ editor }) => {
+        if (editor.isActive('table')) return false
+        if (editor.can().liftListItem('listItem') && editor.commands.liftListItem('listItem')) return true
+        return editor.commands.outdent()
+      },
+    }
+  },
 })
 
 /* ---- Wave 3: manual page breaks ----

@@ -513,16 +513,32 @@ body.typing .bar-zone.menu-open .bar {
 .bar-seg button.on { color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, transparent); }
 .bar-seg button:disabled { opacity: 0.35; cursor: default; }
 
-.bar-clear {
+/* Reset: inert (dimmed, no pointer) until the selection actually carries
+   Bar-owned formatting, then it lights up. It stays mounted in both states so
+   the Bar never reflows as the caret moves — the "show only when there's
+   something to clear" idea expressed as enable/disable rather than mount/unmount. */
+.bar-reset {
   border: 1px solid var(--hairline);
   background: transparent;
-  color: var(--soft);
+  color: var(--faint);
+  font: inherit;
   font-size: 11px;
-  padding: 3px 8px;
+  letter-spacing: 0.02em;
+  padding: 3px 9px;
   border-radius: 7px;
-  cursor: pointer;
+  cursor: default;
+  opacity: 0.5;
+  transition: color 0.14s ease, border-color 0.14s ease, opacity 0.14s ease;
 }
-.bar-clear:hover { color: var(--ink); }
+.bar-reset.live {
+  color: var(--soft);
+  cursor: pointer;
+  opacity: 1;
+}
+.bar-reset.live:hover {
+  color: var(--ink);
+  border-color: color-mix(in srgb, var(--ink) 25%, transparent);
+}
 
 /* discard guard: a small, quiet confirm card on the commander's veil */
 .confirm-card {
@@ -603,10 +619,11 @@ main {
   will-change: transform, opacity;
 }
 .caret.show { opacity: 1; }
-/* solid for 0.7s after every move (typing keeps restarting it), then breathe.
-   Slow and shallow on purpose: a cursor is peripheral furniture, and anything
-   quick or near-zero at the bottom of the cycle reads as a nag. */
-.caret.show.blinking { animation: caret-breathe 3.4s ease-in-out 0.7s infinite; }
+/* solid for 0.35s after every move (typing keeps restarting it), then breathe.
+   The cycle is slow and shallow on purpose — a cursor is peripheral furniture —
+   but the delay before it STARTS is short (Brett's note): a long hold before
+   the first breath reads as the caret hanging, not resting. */
+.caret.show.blinking { animation: caret-breathe 3.4s ease-in-out 0.35s infinite; }
 @keyframes caret-breathe {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.38; }

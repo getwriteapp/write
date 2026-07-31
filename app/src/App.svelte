@@ -517,6 +517,16 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   // The Q10 hybrid made real: quiet by default, chrome when asked for.
   let barOpen = $state(localStorage.getItem('write:bar') === '1')
   let barState = $state({ font: '', size: '', color: '', highlight: '', align: 'left', lineHeight: '', indent: 0 })
+  // Is there any Bar-owned formatting on the current selection to reset? Drives
+  // the Reset button's live/inert state (see .bar-reset). "left" and the empty
+  // strings are the room defaults, so they don't count as something to clear.
+  // Deliberately scoped to what Reset actually touches — bold/italic/underline
+  // (the selection bubble) and heading level (a block type) are NOT cleared by
+  // it, so they must not light it up either.
+  let barDirty = $derived(
+    !!barState.font || !!barState.size || !!barState.color || !!barState.highlight ||
+    (barState.align && barState.align !== 'left') || !!barState.lineHeight || barState.indent > 0
+  )
   // scroll-duck: a pinned bar gets out of the way once the page actually
   // scrolls (reading, not formatting). It returns via the top-edge hover
   // peek, Ctrl+/, or scrolling back to the very top of the document.
@@ -1298,7 +1308,13 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
       <button onclick={() => barRun('indent')} title="Increase indent">⇥</button>
     </span>
     <span class="bar-sep"></span>
-    <button class="bar-clear" onclick={() => barRun('clear')} title="Clear formatting">Aa ×</button>
+    <!-- Reset: returns the selection's type styling (font/size/color/highlight/
+         alignment/spacing/indent) to the room's defaults. Named with a word, not
+         the old "Aa ×" glyph; goes live only when there's actually something to
+         reset (see barDirty) but stays mounted so the Bar doesn't reflow. -->
+    <button class="bar-reset" class:live={barDirty} disabled={!barDirty}
+            onclick={() => barRun('clear')}
+            title="Reset type styling to the room's defaults">Reset</button>
   </div>
 </div>
 
