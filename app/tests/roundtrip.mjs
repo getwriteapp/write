@@ -166,6 +166,17 @@ const fixtures = [
     html: '<p style="line-height: 2">double spaced</p><p data-indent="2">indented two steps</p><p style="line-height: 1.5" data-indent="1">both at once</p>',
   },
   {
+    /* Session 27: Word's Tab makes two things this must carry — a FIRST-LINE
+       indent (w:ind/@firstLine, distinct from the block's @left) and real tab
+       characters (<w:tab/> elements, not spaces). Tabs need the white-space
+       span to survive HTML parsing at all — see escKeepingTabs in import.js. */
+    name: 'fmt-first-line-and-tabs',
+    html: '<p data-first-line="1">first line only</p>'
+      + '<p data-indent="1" data-first-line="2">block indent plus first line</p>'
+      + '<p>before<span style="white-space: pre">\t</span>after<span style="white-space: pre">\t</span>end</p>'
+      + '<p><strong>bold<span style="white-space: pre">\t</span>tabbed</strong></p>',
+  },
+  {
     name: 'fmt-textstyle',
     html: `<p><span style="color: #b91c1c">red text</span> plain <mark data-color="#fef08a">sunny</mark> <span style="font-size: 18pt">big</span> <span style="font-family: 'Literata Variable', serif">literata</span> <span style="font-family: Georgia">georgia</span>.</p>`,
   },

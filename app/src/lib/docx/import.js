@@ -304,11 +304,14 @@ function paraAttrs(pPrNode, ctx, { isList = false } = {}) {
     if (!isList) {
       const ind = find(kids, 'w:ind')
       if (ind) {
+        const steps = (v) => Math.max(0, Math.min(8, Math.round(v / 720)))
         const left = parseInt(attr(ind, 'w:left') ?? attr(ind, 'w:start'), 10)
-        if (left) {
-          const steps = Math.max(0, Math.min(8, Math.round(left / 720)))
-          if (steps) indentAttr = ` data-indent="${steps}"`
-        }
+        if (left && steps(left)) indentAttr = ` data-indent="${steps(left)}"`
+        // w:firstLine is the first-line indent (Tab at the start of a
+        // paragraph); w:hanging is its negative twin, which this editor has no
+        // representation for, so it's dropped rather than faked
+        const firstLine = parseInt(attr(ind, 'w:firstLine'), 10)
+        if (firstLine && steps(firstLine)) indentAttr += ` data-first-line="${steps(firstLine)}"`
       }
     }
   }
@@ -331,7 +334,10 @@ function collectSegments(nodes, ctx, out, href = null) {
         } else if (ct === 'w:br') {
           out.segs.push({ type: attr(child, 'w:type') === 'page' ? 'pagebreak' : 'br', props: {}, href })
         } else if (ct === 'w:tab') {
-          out.segs.push({ type: 'text', text: ' ', props, href })
+          // a real tab, not the space it used to be flattened into: the editor
+          // now renders tab characters at Word's own 0.5in stops (tab-size in
+          // app.css) and exports them back out as <w:tab/>
+          out.segs.push({ type: 'text', text: '\t', props, href })
         } else if (ct === 'w:drawing') {
           collectDrawing(child, ctx, out)
         }
@@ -394,11 +400,23 @@ function segsToHtml(segs) {
   return html
 }
 
+/* A tab character cannot travel through HTML as itself: the parser collapses
+   every run of whitespace to one space, so both a raw \t and `&#9;` arrive as
+   a plain space (verified). Wrapping it in an explicit `white-space: pre` span
+   is what survives — ProseMirror's DOM parser honours that and keeps the tab.
+   Everything else in the string is escaped normally. */
+function escKeepingTabs(text) {
+  if (!text.includes('\t')) return esc(text)
+  return text.split('\t')
+    .map((piece) => esc(piece))
+    .join('<span style="white-space: pre">\t</span>')
+}
+
 function segHtml(s) {
   if (s.type === 'br') return '<br>'
   if (s.type === 'pagebreak') return ''
   if (!s.text) return ''
-  let t = esc(s.text)
+  let t = escKeepingTabs(s.text)
   const p = s.props
   if (p.code) t = `<code>${t}</code>`
   if (p.strike) t = `<s>${t}</s>`

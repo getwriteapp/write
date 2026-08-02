@@ -37,6 +37,7 @@ import {
   Paragraph,
   Table,
   TableCell,
+  Tab,
   TableLayoutType,
   TableOfContents,
   TableRow,
@@ -292,12 +293,33 @@ function paraProps(node) {
   if (a.textAlign && a.textAlign !== 'left' && ALIGN[a.textAlign]) p.alignment = ALIGN[a.textAlign]
   const lh = parseFloat(a.lineHeight)
   if (lh) p.spacing = { line: Math.round(lh * 240) } // 240 twips = single spacing
-  if (a.indent) p.indent = { left: 720 * a.indent } // one step = 0.5in = 720 twips
+  // one step = 0.5in = 720 twips. `left` moves the whole block, `firstLine`
+  // moves only its first line — Word's own two separate knobs (w:ind).
+  if (a.indent || a.firstLine) {
+    p.indent = {}
+    if (a.indent) p.indent.left = 720 * a.indent
+    if (a.firstLine) p.indent.firstLine = 720 * a.firstLine
+  }
   return p
 }
 
 function linkHref(marks = []) {
   return marks.find((m) => m.type === 'link')?.attrs?.href || null
+}
+
+/* A tab typed into the document is a real tab stop, not whitespace: Word
+   represents it as a <w:tab/> ELEMENT inside the run, not as a tab character
+   in <w:t> (where it would be normalized away). So any run whose text holds
+   a \t is emitted as children — text, Tab(), text — instead of a plain
+   string. Runs with no tab keep the simpler `text:` form untouched. */
+function runOpts(text, rest) {
+  if (!text.includes('\t')) return { text, ...rest }
+  const children = []
+  text.split('\t').forEach((piece, i) => {
+    if (i) children.push(new Tab())
+    if (piece) children.push(piece)
+  })
+  return { children, ...rest }
 }
 
 /* Consecutive inline nodes sharing one href collapse into one hyperlink,
@@ -316,13 +338,13 @@ function inlineToChildren(nodes = []) {
 
     const href = linkHref(node.marks)
     if (!href) {
-      out.push(new TextRun({ text: node.text || '', ...markProps(node.marks) }))
+      out.push(new TextRun(runOpts(node.text || '', markProps(node.marks))))
       i++
       continue
     }
     const runs = []
     while (i < nodes.length && nodes[i].type === 'text' && linkHref(nodes[i].marks) === href) {
-      runs.push(new TextRun({ text: nodes[i].text || '', style: 'Hyperlink', ...markProps(nodes[i].marks) }))
+      runs.push(new TextRun(runOpts(nodes[i].text || '', { style: 'Hyperlink', ...markProps(nodes[i].marks) })))
       i++
     }
     out.push(new ExternalHyperlink({ children: runs, link: href }))

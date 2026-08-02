@@ -516,7 +516,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   // ---- the Bar: summonable formatting strip (Ctrl+/, or via the Commander) ----
   // The Q10 hybrid made real: quiet by default, chrome when asked for.
   let barOpen = $state(localStorage.getItem('write:bar') === '1')
-  let barState = $state({ font: '', size: '', color: '', highlight: '', align: 'left', lineHeight: '', indent: 0 })
+  let barState = $state({ font: '', size: '', color: '', highlight: '', align: 'left', lineHeight: '', indent: 0, firstLine: 0 })
   // Is there any Bar-owned formatting on the current selection to reset? Drives
   // the Reset button's live/inert state (see .bar-reset). "left" and the empty
   // strings are the room defaults, so they don't count as something to clear.
@@ -525,7 +525,8 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   // it, so they must not light it up either.
   let barDirty = $derived(
     !!barState.font || !!barState.size || !!barState.color || !!barState.highlight ||
-    (barState.align && barState.align !== 'left') || !!barState.lineHeight || barState.indent > 0
+    (barState.align && barState.align !== 'left') || !!barState.lineHeight ||
+    barState.indent > 0 || barState.firstLine > 0
   )
   // scroll-duck: a pinned bar gets out of the way once the page actually
   // scrolls (reading, not formatting). It returns via the top-edge hover
@@ -625,6 +626,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
       align: para.textAlign || 'left',
       lineHeight: para.lineHeight ? String(para.lineHeight) : '',
       indent: para.indent || 0,
+      firstLine: para.firstLine || 0,
     }
   }
   const barCmd = {
@@ -640,8 +642,8 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
       editor.chain().focus()
         .unsetColor().unsetFontFamily().unsetFontSize().unsetHighlight()
         .setTextAlign('left').unsetLineHeight().run()
-      editor.commands.updateAttributes('paragraph', { indent: 0 })
-      editor.commands.updateAttributes('heading', { indent: 0 })
+      editor.commands.updateAttributes('paragraph', { indent: 0, firstLine: 0 })
+      editor.commands.updateAttributes('heading', { indent: 0, firstLine: 0 })
     },
   }
   function barRun(name, v) {
@@ -1183,8 +1185,13 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   })
 </script>
 
-<!-- Wordmark doubles as the room/command opener. -->
-<button class="whisper wordmark" onclick={() => toggleCommander()} title="Rooms & recents (Ctrl+K)">write</button>
+<!-- Wordmark doubles as the room/command opener. It ducks away on scroll with
+     the Bar (see barScrollHidden) and comes back on hover of the top-left
+     corner, on Ctrl+/, or on scrolling home — .mark-zone is the always-present
+     hover target, the button itself is what fades. -->
+<div class="mark-zone" class:ducked={barScrollHidden}>
+  <button class="whisper wordmark" onclick={() => toggleCommander()} title="Rooms & recents (Ctrl+K)">write</button>
+</div>
 
 <main bind:this={mainEl}>
   <div class="editor-host" class:custom-caret={caretVisible} bind:this={host}>

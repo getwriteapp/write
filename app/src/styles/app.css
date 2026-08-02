@@ -38,6 +38,32 @@ body::before {
   transition: opacity 0.6s ease, color 0.45s ease;
   user-select: none;
 }
+/* The wordmark's hover catcher — the mirror of .bar-zone, in the top-left
+   corner. It stays mounted and pointer-transparent so it never eats clicks
+   meant for the page; only the wordmark inside it is interactive. Reaching
+   into the corner brings the mark back after it has ducked, the same gesture
+   the Bar answers to at the top edge. */
+.mark-zone {
+  position: fixed;
+  top: 0; left: 0;
+  z-index: 50;
+  width: 160px; height: 72px;
+  pointer-events: none;
+}
+.mark-zone .wordmark { pointer-events: auto; }
+/* ducked: scrolled away, exactly like the Bar. Hovering the corner (or
+   Ctrl+/, or scrolling home — both clear the state itself) brings it back. */
+.mark-zone.ducked .wordmark {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px);
+}
+.mark-zone.ducked:hover .wordmark {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
 .wordmark {
   top: 24px; left: 28px;
   font-weight: 600; font-size: 13px;
@@ -50,7 +76,7 @@ body::before {
   cursor: pointer;
   padding: 2px 4px;
   border-radius: 6px;
-  transition: color 0.15s ease, opacity 0.6s ease;
+  transition: color 0.15s ease, opacity 0.6s ease, transform 0.16s ease;
 }
 .wordmark:hover { color: var(--ink); }
 .wordmark::after {
@@ -640,6 +666,12 @@ body[data-flow-width="wide"] { --flow-scale: 1.35; }
   caret-color: var(--caret);
   outline: none;
   min-height: 40vh;
+  /* Tab stops every 0.5in — Word's default, and the same step the indent
+     commands use (INDENT_STEP_PX). Without this a tab character falls back to
+     8 space-widths, which is a code-editor convention, not a document one.
+     (ProseMirror's own CSS already sets white-space: pre-wrap, so the tab
+     character survives and renders rather than collapsing.) */
+  tab-size: 48px;
 }
 .ProseMirror > * { transition: opacity 0.35s ease; }
 

@@ -66,6 +66,19 @@ export const ParagraphFormat = Extension.create({
               ? { 'data-indent': attrs.indent, style: `margin-left: ${attrs.indent * INDENT_STEP_PX}px` }
               : {},
         },
+        /* First-line indent — the whole block's left edge stays put and only
+           its FIRST line moves. Separate from `indent` because Word treats
+           them as separate things, and so does .docx (`w:ind/@left` vs
+           `w:ind/@firstLine`): the Bar's ⇥ button moves the block, the Tab key
+           at the start of a paragraph moves the first line. */
+        firstLine: {
+          default: 0,
+          parseHTML: (el) => parseInt(el.getAttribute('data-first-line'), 10) || 0,
+          renderHTML: (attrs) =>
+            attrs.firstLine
+              ? { 'data-first-line': attrs.firstLine, style: `text-indent: ${attrs.firstLine * INDENT_STEP_PX}px` }
+              : {},
+        },
       },
     }]
   },
@@ -82,6 +95,14 @@ export const ParagraphFormat = Extension.create({
       outdent: () => ({ state, commands }) => {
         const cur = state.selection.$from.parent.attrs.indent || 0
         return setAttr('indent', Math.max(cur - 1, 0))({ commands })
+      },
+      indentFirstLine: () => ({ state, commands }) => {
+        const cur = state.selection.$from.parent.attrs.firstLine || 0
+        return setAttr('firstLine', Math.min(cur + 1, MAX_INDENT))({ commands })
+      },
+      outdentFirstLine: () => ({ state, commands }) => {
+        const cur = state.selection.$from.parent.attrs.firstLine || 0
+        return setAttr('firstLine', Math.max(cur - 1, 0))({ commands })
       },
     }
   },
@@ -110,22 +131,48 @@ export const ParagraphFormat = Extension.create({
      priority — it's already correct, and priority would also reorder the
      schema attributes. */
   addKeyboardShortcuts() {
-    // is the caret parked at the very start of an indented top-level block?
-    const indentAtCaretStart = (editor) => {
+    // the caret sits at the very start of a formattable top-level block
+    const atBlockStart = (editor) => {
       const { empty, $from } = editor.state.selection
-      if (!empty || $from.parentOffset !== 0) return 0
-      if (!['paragraph', 'heading'].includes($from.parent.type.name)) return 0
-      return $from.parent.attrs.indent || 0
+      return empty && $from.parentOffset === 0
+        && ['paragraph', 'heading'].includes($from.parent.type.name)
+    }
+    // does the selection cross more than one block? (Word indents them all)
+    const spansBlocks = (editor) => {
+      const { $from, $to, empty } = editor.state.selection
+      return !empty && $from.blockRange($to) && $from.parent !== $to.parent
     }
     return {
+      /* Word's Tab, faithfully: it does THREE different things depending on
+         where the caret is, and the difference is the whole point — a tab
+         should move one line, not the paragraph, unless you asked for the
+         paragraph. Brett: "it tabs the whole paragraph over rather than just
+         the line where the caret is... I would like this to perfectly mimic
+         Word's functionality."
+           1. selection across several blocks  -> increase each block's LEFT
+              indent (Word's Increase Indent — the Bar's ⇥ button does this too)
+           2. caret at the very start of a block -> FIRST-LINE indent: only
+              that first line moves, the rest of the paragraph stays put
+           3. caret anywhere else -> insert a real tab character, which
+              advances to the next tab stop (CSS `tab-size` in app.css is set
+              to the same 0.5in step Word uses) and exports as a real <w:tab/>
+         Lists and tables still get first refusal, as before. */
       Tab: ({ editor }) => {
         if (editor.isActive('table')) return false
         if (editor.can().sinkListItem('listItem') && editor.commands.sinkListItem('listItem')) return true
-        return editor.commands.indent()
+        if (spansBlocks(editor)) return editor.commands.indent()
+        if (atBlockStart(editor)) return editor.commands.indentFirstLine()
+        return editor.commands.command(({ tr, dispatch }) => {
+          if (dispatch) tr.insertText('\t')
+          return true
+        })
       },
+      /* Shift-Tab is Tab's inverse, unwinding in the same order it was built:
+         the first-line indent first, then the block's left indent. */
       'Shift-Tab': ({ editor }) => {
         if (editor.isActive('table')) return false
         if (editor.can().liftListItem('listItem') && editor.commands.liftListItem('listItem')) return true
+        if (editor.state.selection.$from.parent.attrs.firstLine > 0) return editor.commands.outdentFirstLine()
         return editor.commands.outdent()
       },
       /* Backspace at the start of an indented block removes the INDENT before
@@ -141,8 +188,12 @@ export const ParagraphFormat = Extension.create({
          the guard above — not the return value — is what decides. */
       Backspace: ({ editor }) => {
         if (editor.isActive('table')) return false
-        if (!indentAtCaretStart(editor)) return false
-        return editor.commands.outdent()
+        if (!atBlockStart(editor)) return false
+        // unwind in the same order Tab built it: first line, then the block
+        const { firstLine, indent } = editor.state.selection.$from.parent.attrs
+        if (firstLine > 0) return editor.commands.outdentFirstLine()
+        if (indent > 0) return editor.commands.outdent()
+        return false
       },
       /* Enter carries the indent onto the new block, the way every word
          processor does — paragraph formatting continues until you change it.
@@ -156,8 +207,9 @@ export const ParagraphFormat = Extension.create({
         if (!empty || $from.depth !== 1) return false
         if (!['paragraph', 'heading'].includes($from.parent.type.name)) return false
         const indent = $from.parent.attrs.indent || 0
-        if (!indent) return false
-        return editor.chain().splitBlock().updateAttributes('paragraph', { indent }).run()
+        const firstLine = $from.parent.attrs.firstLine || 0
+        if (!indent && !firstLine) return false
+        return editor.chain().splitBlock().updateAttributes('paragraph', { indent, firstLine }).run()
       },
     }
   },
