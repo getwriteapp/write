@@ -95,8 +95,28 @@ export const ParagraphFormat = Extension.create({
      `liftListItem` return false when not in a list, and returning false from
      here lets the Table extension's own Tab (cell navigation) take over — its
      keymap plugin sits ahead of this one, but the explicit guard makes the
-     precedence intentional rather than incidental. */
+     precedence intentional rather than incidental.
+
+     Backspace and Enter are bound here for the same reason: once Tab can
+     create an indent, the other two keys have to know indents exist, or the
+     feature is a trap door. Both fall through (`return false`) whenever they
+     have nothing indent-specific to do, so every default behaviour is intact.
+
+     Ordering note — this works without touching `priority`: Tiptap REVERSES
+     the extension list before building plugins (see ExtensionManager.plugins,
+     "run plugins at the end of an array first"), and core extensions are
+     prepended. So a user extension's keymap runs ahead of core's Backspace/
+     Enter, which is exactly what these two need. Don't "fix" that by raising
+     priority — it's already correct, and priority would also reorder the
+     schema attributes. */
   addKeyboardShortcuts() {
+    // is the caret parked at the very start of an indented top-level block?
+    const indentAtCaretStart = (editor) => {
+      const { empty, $from } = editor.state.selection
+      if (!empty || $from.parentOffset !== 0) return 0
+      if (!['paragraph', 'heading'].includes($from.parent.type.name)) return 0
+      return $from.parent.attrs.indent || 0
+    }
     return {
       Tab: ({ editor }) => {
         if (editor.isActive('table')) return false
@@ -107,6 +127,37 @@ export const ParagraphFormat = Extension.create({
         if (editor.isActive('table')) return false
         if (editor.can().liftListItem('listItem') && editor.commands.liftListItem('listItem')) return true
         return editor.commands.outdent()
+      },
+      /* Backspace at the start of an indented block removes the INDENT before
+         it will merge the block into whatever precedes it — Word's rule, and
+         the inverse of Tab. Without this, Tab's indent had no undo on the key
+         you'd naturally reach for, and Backspace jumped straight to
+         joinBackward: a body paragraph following a heading got swallowed INTO
+         that heading and re-rendered at H1 size (Brett's four-shot sequence —
+         the whole paragraph turned into giant heading text). Now Backspace
+         walks the indent back down to 0, and only then behaves normally.
+         `editor.commands.outdent()` reports success unconditionally
+         (updateAttributes returns true whenever the schema has the type), so
+         the guard above — not the return value — is what decides. */
+      Backspace: ({ editor }) => {
+        if (editor.isActive('table')) return false
+        if (!indentAtCaretStart(editor)) return false
+        return editor.commands.outdent()
+      },
+      /* Enter carries the indent onto the new block, the way every word
+         processor does — paragraph formatting continues until you change it.
+         PM's splitBlock builds the new node from `defaultBlockAt` with default
+         attrs, so the indent was silently dropped the moment you pressed
+         Enter. Narrow on purpose: top-level paragraphs/headings with an actual
+         indent, nothing else, so list/blockquote/code/table Enter behaviour is
+         untouched. */
+      Enter: ({ editor }) => {
+        const { empty, $from } = editor.state.selection
+        if (!empty || $from.depth !== 1) return false
+        if (!['paragraph', 'heading'].includes($from.parent.type.name)) return false
+        const indent = $from.parent.attrs.indent || 0
+        if (!indent) return false
+        return editor.chain().splitBlock().updateAttributes('paragraph', { indent }).run()
       },
     }
   },
