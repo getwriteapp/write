@@ -1311,7 +1311,15 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
         <button class="swatch swatch-hl" class:on={barState.highlight.toUpperCase() === c} style="--sw:{c}" onclick={() => barRun('highlight', c)} title={c}></button>
       {/each}
     </span>
-    <span class="bar-sep"></span>
+    <!-- Forced row break. The Bar used to wrap wherever the window width
+         happened to run out, so which controls shared a row changed as you
+         resized. This splits it the way Word splits its own ribbon — the top
+         row is CHARACTER formatting (typeface, size, ink, highlight: what the
+         letters look like), the bottom row is PARAGRAPH formatting (alignment,
+         spacing, indent: where the block sits) — and Reset, which clears both.
+         `flex-basis: 100%` on a zero-height item is the flexbox idiom for
+         "break the line here" in a wrap container. -->
+    <span class="bar-row-break"></span>
     <span class="seg bar-seg" title="Alignment">
       <button class:on={barState.align === 'left'} onclick={() => barRun('align', 'left')} title="Align left">⯈</button>
       <button class:on={barState.align === 'center'} onclick={() => barRun('align', 'center')} title="Center">⯀</button>
