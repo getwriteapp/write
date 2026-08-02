@@ -11,6 +11,30 @@
    (kept in sync with PAGE_GEOM in App.svelte for break measurement)
    ============================================================ */
 
+/* ---------- Page view renders the DOCUMENT's typography, not the room's ----------
+   The sheet was pixel-accurate but the text on it wasn't: rooms set ~19px at
+   1.72 leading, while export.js writes 11pt at 1.15 with 8pt after each
+   paragraph. So Page view was predicting page breaks from metrics about twice
+   as loose as the file we actually hand to Word — a Letter page held 26 lines
+   here and ~46 there, and any document over a page long broke in the wrong
+   places. Page view's whole promise is "this is what Word will see", so in
+   this view the type matches the export exactly, in the same units
+   (11pt = 14.667px at 96dpi; 8pt = 10.667px).
+
+   Flow view is deliberately NOT changed — it keeps each room's generous
+   reading typography. That's the same split Word draws between Draft and
+   Print Layout: one view for writing, one for what the paper will do. Use
+   zoom (Ctrl+scroll) for comfort here; because the sheet and the text scale
+   together, zooming never changes where a page breaks.
+
+   These four numbers are the export's; if export.js's Normal style changes,
+   change them together or Page view starts lying again. */
+body[data-view="page"] {
+  --body-size: 14.667px;  /* 11pt — export.js Normal run size 22 half-points */
+  --body-leading: 1.15;   /* export.js spacing line 276 / 240 */
+}
+body[data-view="page"] .ProseMirror p { margin: 0 0 10.667px; } /* 8pt after */
+
 /* per-room desk (behind the sheet) + paper (the sheet) + its shadow.
    Defined here so the room files stay about the writing surface. */
 [data-room="quattro"] { --desk: #EDEDEB; --paper: #FFFFFF; --paper-shadow: 0 1px 2px rgba(0,0,0,.05), 0 10px 28px rgba(0,0,0,.10); }
