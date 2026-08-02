@@ -15,3 +15,7 @@ app/tests/out/
 
 # personal test documents at the repo root
 /*.docx
+
+# bug-report screenshots dropped at the repo root (Windows names them by
+# timestamp — transient evidence for a session, not project assets)
+/*.png
