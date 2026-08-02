@@ -24,17 +24,16 @@ import { generateJSON } from '@tiptap/html'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
-import Image from '@tiptap/extension-image'
 
 import { exportDocx } from '../src/lib/docx/export.js'
 import { importDocx } from '../src/lib/docx/import.js'
-import { WELCOME, FORMATTING_EXTENSIONS, WAVE3_EXTENSIONS, TABLE_EXTENSIONS, WAVE6_EXTENSIONS } from '../src/lib/editor.js'
+import { WELCOME, OfflineImage, FORMATTING_EXTENSIONS, WAVE3_EXTENSIONS, TABLE_EXTENSIONS, WAVE6_EXTENSIONS } from '../src/lib/editor.js'
 
 const EXT = [
   StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
   Underline,
   Link.configure({ openOnClick: false }),
-  Image.configure({ allowBase64: true }),
+  OfflineImage,
   ...FORMATTING_EXTENSIONS,
   ...WAVE3_EXTENSIONS,
   ...TABLE_EXTENSIONS,

@@ -50,7 +50,14 @@ Cycle them with `Ctrl/⌘ + \`.
 - Auto-save that never asks; recent files; a quiet guard before unsaved work is replaced
 - Drag a `.docx` from your file manager onto the window to open it
 - Chrome that fades while you type; live word count and reading time
-- **Fully offline** — every font ships with the app; zero network calls, ever
+- **Fully offline, and built so it can't quietly stop being true** — every font
+  ships inside the app, and `write` makes no network requests at runtime. A
+  document that points an image at someone else's server has that image left
+  out rather than fetched, so opening a file can't announce your IP address or
+  the moment you read it. Enforced twice over: the editor's schema refuses to
+  parse the reference, and the app's Content Security Policy refuses to make
+  the request. There's a [test suite](app/tests/sanitize-probe.mjs) that fails
+  if either lock comes loose.
 
 ## Keyboard
 
@@ -70,6 +77,7 @@ Cycle them with `Ctrl/⌘ + \`.
 - **[Svelte 5](https://svelte.dev)** + **[Vite](https://vite.dev)** frontend
 - **[Tiptap](https://tiptap.dev)** / ProseMirror editor core
 - Fonts are all SIL Open Font License, safe to bundle with a GPL app
+- No dependency is copyleft — everything upstream is MIT, Apache-2.0, or OFL
 
 ## Develop
 
@@ -83,6 +91,29 @@ npm run tauri build  # produce installers for the current OS
 
 Requires Node 20+ and a Rust toolchain (`rustup`). On Windows you also need the WebView2 runtime (preinstalled on Windows 11) and the MSVC build tools.
 
+```bash
+npm test    # .docx round-trip suite + sanitizer regression suite + npm audit
+```
+
+## Security
+
+`write` opens documents made by other people, so hostile input is part of the
+job rather than an edge case. Four properties are meant to hold, and each is
+enforced in code rather than promised:
+
+| A document you open cannot… | How it's stopped |
+|---|---|
+| run code | the editor's schema drops scripts, event handlers, `javascript:` URLs, and frames |
+| phone home | remote image sources are refused, and the CSP blocks the request anyway |
+| read or write other files | the webview has no filesystem access; the Rust side grants one file at a time, only after you pick it |
+| exhaust your machine | archive decompression is capped before anything is inflated |
+
+Found a way around one of them? See [SECURITY.md](SECURITY.md) — please report
+it privately rather than opening an issue.
+
+Release binaries are not code-signed yet, so Windows will warn on first run.
+Verify the SHA-256 against the checksum in the release notes.
+
 ## Design prototypes
 
 The design was explored in two standalone HTML labs before any code was written — they still open in any browser and are worth a look:
@@ -94,6 +125,15 @@ The design was explored in two standalone HTML labs before any code was written 
 ## License
 
 [GPL-3.0-or-later](LICENSE). `write` is free forever. You may use, study, share, and improve it. If you distribute a modified version, it must stay open under the same license — nobody gets to close the source and sell it.
+
+Bundled typefaces and libraries carry their own licenses — all of them SIL
+Open Font License, MIT, or Apache-2.0. Every one is listed in
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md), and the notices ship inside
+the installed app as well as living here.
+
+The iA Writer typefaces are used under the OFL, unmodified. `write` is an
+independent project, not affiliated with or endorsed by Information
+Architects Inc.
 
 ## Support
 

@@ -5,7 +5,7 @@
 
    Milestone 2: .docx is the primary save/open format (the product promise).
    Save offers .docx and .html; the chosen extension decides the writer.
-   Open accepts .docx (binary → mammoth) and .html/.htm/.txt (text).
+   Open accepts .docx (binary → docx/import.js) and .html/.htm/.txt (text).
    The docx modules are imported dynamically so the editor bundle stays lean.
 
    Contract with App.svelte:
@@ -23,6 +23,21 @@ const inTauri = typeof window !== 'undefined' &&
 const ext = (path) => (path.match(/\.([^.\\/]+)$/)?.[1] || '').toLowerCase()
 const baseName = (path) => path.split(/[\\/]/).pop().replace(/\.[^.]+$/, '')
 
+/* .txt is text, not markup. Both open paths below read any non-.docx file as
+   a string and hand it to the editor as HTML, so a plain-text file containing
+   `<b>` or `a < b` rendered as bold — or lost the "< b" entirely. What the
+   file says and what the user sees have to match. Escaping at this boundary,
+   the one place the file's type is known, keeps the editor's single content
+   path (HTML) intact rather than threading a second content kind through
+   every caller. Blank lines become empty paragraphs so spacing survives. */
+const escapeHtml = (s) =>
+  String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+const textToHtml = (text) =>
+  String(text).replace(/\r\n/g, '\n').split('\n')
+    .map((line) => (line ? `<p>${escapeHtml(line)}</p>` : '<p></p>'))
+    .join('')
+
 async function toDocxBytes(json, pageSettings) {
   const { exportDocx } = await import('./docx/export.js')
   return exportDocx(json, pageSettings)
@@ -33,17 +48,19 @@ async function fromDocxBytes(bytes) {
   return importDocx(bytes)
 }
 
-/* ---- Tauri (native dialogs, real paths) ---- */
+/* ---- Tauri (native dialogs, real paths) ----
+
+   The dialogs live in Rust (src-tauri/src/lib.rs), not here. That is a
+   security boundary, not a style choice: the webview holds no filesystem
+   scope of its own, so `readFile`/`writeFile` below only succeed on a path
+   the Rust side just granted after the user picked it in a native dialog or
+   dropped it on the window. Asking JS for a path and then reading it would
+   put the choice back in the webview's hands and undo the whole arrangement
+   — so if you ever need a new file operation, add a command over there. */
 
 async function tauriSave(name, { html, json, pageSettings }) {
-  const { save } = await import('@tauri-apps/plugin-dialog')
-  const path = await save({
-    defaultPath: `${name}.docx`,
-    filters: [
-      { name: 'Word document', extensions: ['docx'] },
-      { name: 'Web page', extensions: ['html'] },
-    ],
-  })
+  const { invoke } = await import('@tauri-apps/api/core')
+  const path = await invoke('pick_document_to_save', { defaultName: `${name}.docx` })
   if (!path) return null
 
   if (ext(path) === 'docx') {
@@ -57,13 +74,8 @@ async function tauriSave(name, { html, json, pageSettings }) {
 }
 
 async function tauriOpen() {
-  const { open } = await import('@tauri-apps/plugin-dialog')
-  const path = await open({
-    filters: [
-      { name: 'Documents', extensions: ['docx', 'html', 'htm', 'txt'] },
-      { name: 'Word document', extensions: ['docx'] },
-    ],
-  })
+  const { invoke } = await import('@tauri-apps/api/core')
+  const path = await invoke('pick_document_to_open')
   if (!path) return null
   return tauriOpenPath(path)
 }
@@ -76,7 +88,8 @@ async function tauriOpenPath(path) {
     return { name: baseName(path), html, messages, pageSettings }
   }
   const { readTextFile } = await import('@tauri-apps/plugin-fs')
-  return { name: baseName(path), html: await readTextFile(path) }
+  const raw = await readTextFile(path)
+  return { name: baseName(path), html: ext(path) === 'txt' ? textToHtml(raw) : raw }
 }
 
 /* ---- browser fallback (dev preview) ---- */
@@ -119,7 +132,10 @@ function webOpenFile(file) {
       }
       reader.readAsArrayBuffer(file)
     } else {
-      reader.onload = () => resolve({ name, html: String(reader.result) })
+      reader.onload = () => {
+        const raw = String(reader.result)
+        resolve({ name, html: ext(file.name) === 'txt' ? textToHtml(raw) : raw })
+      }
       reader.readAsText(file)
     }
   })

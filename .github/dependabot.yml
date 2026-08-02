@@ -1,0 +1,35 @@
+# Dependency updates.
+#
+# `write` parses .docx files from strangers, and the parsing libraries
+# (fast-xml-parser, fflate) are the ones actually exposed to that input — so
+# an unnoticed advisory in a transitive dep is the realistic way this app gets
+# a vulnerability. Weekly is often enough for a project this size; grouping
+# keeps it to a couple of PRs rather than a drip.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /app
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      tiptap:
+        patterns: ["@tiptap/*"]
+      fontsource:
+        patterns: ["@fontsource*/*"]
+      tauri-js:
+        patterns: ["@tauri-apps/*"]
+
+  - package-ecosystem: cargo
+    directory: /app/src-tauri
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      tauri:
+        patterns: ["tauri*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

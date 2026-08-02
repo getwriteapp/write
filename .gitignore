@@ -3,6 +3,9 @@ node_modules/
 
 # build output
 app/dist/
+# copied from the repo root by `npm run prebuild` so the licence notices ship
+# inside the binary as well as living in the repo — one source, no drift
+app/public/THIRD-PARTY-NOTICES.md
 app/src-tauri/target/
 app/src-tauri/gen/schemas/
 
@@ -12,6 +15,11 @@ app/tests/out/
 # local tooling & logs
 .claude/
 *.log
+
+# the build diary — working notes for an audience of one, split out of
+# PROJECT.md at publish. Deliberately never committed; PROJECT.md sections
+# 1-16 carry the reasoning that's worth reading.
+SESSIONS.md
 
 # personal test documents at the repo root
 /*.docx

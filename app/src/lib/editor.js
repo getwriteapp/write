@@ -281,6 +281,40 @@ export function markPastePlain() {
   setTimeout(() => { pastePlainNext = false }, 500)
 }
 
+/* ---- offline images ----
+   "write makes zero network requests" has to be enforced where HTML enters
+   the document, not promised in the README. Tiptap's Image with allowBase64
+   parses `img[src]` — ANY src, https: included. So a page copied out of a
+   browser, or a .html file opened from disk, could carry
+   <img src="https://tracker.example/pixel.png"> straight into the document,
+   and the webview would fetch it: a tracking pixel telling a stranger the
+   reader's IP and the moment they opened the file. That is precisely what
+   Word grew protections against.
+
+   Narrowing the parse rule to data: URLs makes the guarantee structural
+   rather than advisory — paste, drop, and setContent all funnel through
+   ProseMirror's DOM parser, so one rule covers every entry point, and no
+   future caller can forget to sanitize. Nothing legitimate is lost: images
+   we insert ourselves are data: URLs (insertImageFiles below), and the
+   .docx importer already refuses external image relationships. The CSP in
+   tauri.conf.json (img-src 'self' data:) is the second lock on the same
+   door — if this rule is ever loosened by accident, the webview still
+   refuses to make the request. */
+export const OfflineImage = Image.extend({
+  parseHTML() {
+    return [{ tag: 'img[src^="data:"]' }]
+  },
+})
+
+/* Counting only — the schema above is what actually blocks these. This
+   exists so the app can SAY something when it drops an image, instead of
+   silently eating content the user watched themselves paste. Deliberately
+   a regex and not a parser: a miscount is a slightly wrong toast, never a
+   security hole, so it must not be mistaken for the boundary. */
+export function countRemoteImages(html) {
+  return (String(html || '').match(/<img\b[^>]*\bsrc\s*=\s*["'](?!data:)/gi) || []).length
+}
+
 /* Image formats we accept: the set that round-trips into .docx (see
    docx/export.js). Everything is stored as a data URL so documents stay
    self-contained and fully offline. */
@@ -504,7 +538,7 @@ export const TABLE_EXTENSIONS = [
 /* The Wave-6 set: shared with the test harness too. */
 export const WAVE6_EXTENSIONS = [TableOfContents]
 
-export function createEditor(element, { onUpdate, onSelection, content = WELCOME, spellcheck = true } = {}) {
+export function createEditor(element, { onUpdate, onSelection, onRemoteImagesBlocked, content = WELCOME, spellcheck = true } = {}) {
   let instance // assigned below; editorProps handlers only run after construction
   instance = new Editor({
     element,
@@ -515,7 +549,7 @@ export function createEditor(element, { onUpdate, onSelection, content = WELCOME
       Underline,
       Link.configure({ openOnClick: false, autolink: true }),
       Placeholder.configure({ placeholder: 'Begin…' }),
-      Image.configure({ allowBase64: true }),
+      OfflineImage,
       ...FORMATTING_EXTENSIONS,
       ...WAVE3_EXTENSIONS,
       ...TABLE_EXTENSIONS,
@@ -541,6 +575,16 @@ export function createEditor(element, { onUpdate, onSelection, content = WELCOME
          persisted like the other view prefs; no custom dictionary, just the
          same spellcheck engine every contenteditable gets for free */
       attributes: { spellcheck: String(spellcheck) },
+      /* Runs for pasted AND dropped HTML (both go through PM's
+         parseFromClipboard). The HTML is returned untouched — OfflineImage's
+         parse rule is what drops remote images. This hook exists purely so
+         the app can tell the user an image went missing rather than letting
+         it vanish silently. */
+      transformPastedHTML: (html) => {
+        const blocked = countRemoteImages(html)
+        if (blocked) onRemoteImagesBlocked?.(blocked)
+        return html
+      },
       /* image files pasted or dropped into the page become data-URL image
          nodes; .docx drops are handled at the window level (App.svelte) */
       handlePaste: (view, event) => {

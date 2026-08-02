@@ -1,27 +1,14 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capabilities for the write main window: file dialogs and reading/writing user-chosen files.",
+  "description": "The write main window. File-system commands are granted with NO path scope on purpose: every path is denied until src/lib.rs widens the scope for one specific file the user picked in a dialog or dropped on the window. Do not add `allow` entries here — a static path allowance is exactly the capability this design removes.",
   "windows": ["main"],
   "permissions": [
     "core:default",
-    "dialog:default",
     "fs:default",
-    {
-      "identifier": "fs:allow-read-text-file",
-      "allow": [{ "path": "**" }]
-    },
-    {
-      "identifier": "fs:allow-write-text-file",
-      "allow": [{ "path": "**" }]
-    },
-    {
-      "identifier": "fs:allow-read-file",
-      "allow": [{ "path": "**" }]
-    },
-    {
-      "identifier": "fs:allow-write-file",
-      "allow": [{ "path": "**" }]
-    }
+    "fs:allow-read-file",
+    "fs:allow-write-file",
+    "fs:allow-read-text-file",
+    "fs:allow-write-text-file"
   ]
 }

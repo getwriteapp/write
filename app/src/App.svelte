@@ -1,6 +1,6 @@
 <script>
   import { onMount, onDestroy, tick } from 'svelte'
-  import { createEditor, WELCOME, insertImageFiles, bytesToDataUrl, IMAGE_EXT_MIME, findReplaceKey, markPastePlain } from './lib/editor.js'
+  import { createEditor, WELCOME, insertImageFiles, bytesToDataUrl, IMAGE_EXT_MIME, findReplaceKey, markPastePlain, countRemoteImages } from './lib/editor.js'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
   import { ROOMS, DEFAULT_ROOM } from './lib/rooms.js'
   import { fileBridge, isTauri, DOC_EXT_RE } from './lib/bridge.js'
@@ -943,6 +943,15 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   }
 
   // surface .docx conversion notes quietly, never modally
+  /* An image that lived on someone else's server can't come in — fetching it
+     would announce the reader's IP and the moment they opened the document.
+     The editor's schema drops it (OfflineImage); this says so out loud, so
+     content never disappears without explanation. */
+  function noteRemoteImages(count) {
+    if (!count) return
+    showToast(`${count} online image${count > 1 ? 's' : ''} left out — write stays offline`)
+  }
+
   function noteImportMessages(messages) {
     if (!messages?.length) return
     console.warn('[write] .docx import notes:', messages)
@@ -982,6 +991,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     commanderOpen = false
   }
   function loadInto(html, name, pageSettings) {
+    const remoteImages = countRemoteImages(html)
     editor.commands.setContent(html)
     docName = name; saved = true; touched = false; recount()
     commanderOpen = false
@@ -994,6 +1004,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     if (pageSettings?.margin) applyMargin(pageSettings.margin)
     if (pageSettings) applyHeaderFooterSettings(pageSettings)
     queueMeasure()
+    noteRemoteImages(remoteImages)
   }
   function openRecent(entry) {
     guardThen(() => loadInto(entry.html, entry.name))
@@ -1126,6 +1137,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
       spellcheck,
       onUpdate: () => { saved = false; touched = true; recount(); markTyping(); scheduleAutosave(); queueMeasure(); refreshTableState() },
       onSelection: () => { updateBubble(); litParagraph(); updateCaret() },
+      onRemoteImagesBlocked: noteRemoteImages,
     })
     editor.on('focus', updateCaret)
     editor.on('blur', updateCaret)

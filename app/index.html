@@ -4,8 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>write</title>
-  <!-- All typography is bundled locally (Fontsource + /public/fonts).
-       write makes zero network requests. -->
+  <!-- All typography is bundled locally (Fontsource + /public/fonts), and
+       write makes no network requests at runtime. That is enforced, not
+       assumed: remote image sources are dropped by the editor schema
+       (OfflineImage in src/lib/editor.js) and the Content Security Policy in
+       src-tauri/tauri.conf.json blocks the request even if one slipped past.
+       No CSP <meta> here on purpose — Tauri injects the real one at build. -->
 </head>
 <body data-room="quattro" data-focus="off">
   <div id="app"></div>

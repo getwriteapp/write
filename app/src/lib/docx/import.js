@@ -803,8 +803,35 @@ function readHeaderFooterSettings(zip, body, rels) {
 
 /* ---------- entry point ---------- */
 
+/* A .docx is a zip, and a zip can lie about how big it is. DEFLATE reaches
+   roughly 1000:1 on repetitive input, so a 1 MB file can ask us to allocate a
+   gigabyte — and then `strFromU8` copies it again as a UTF-16 string before
+   the parser allocates a node per element. Nothing in the pipeline pushes
+   back, so the webview simply dies, taking the user's unsaved work with it.
+   Refusing is the only safe answer: a real document is far under this, and
+   `.docx` files arrive by email and drag-drop from people you don't know.
+   Enforced in fflate's own entry filter, so we reject BEFORE inflating
+   rather than after. Sizes come from the zip's central directory, which an
+   attacker controls — but fflate allocates from those same numbers, so
+   capping them caps the allocation. */
+const MAX_TOTAL_BYTES = 50 * 1024 * 1024
+const MAX_ENTRIES = 512
+
 export async function importDocx(bytes) {
-  const zip = unzipSync(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes))
+  let total = 0
+  let entries = 0
+  const zip = unzipSync(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes), {
+    filter: (file) => {
+      if (++entries > MAX_ENTRIES) {
+        throw new Error(`.docx rejected: more than ${MAX_ENTRIES} parts in the archive`)
+      }
+      total += file.originalSize || 0
+      if (total > MAX_TOTAL_BYTES) {
+        throw new Error(`.docx rejected: unpacks to over ${Math.round(MAX_TOTAL_BYTES / 1048576)} MB`)
+      }
+      return true
+    },
+  })
   const doc = parsePart(zip, 'word/document.xml')
   if (!doc) throw new Error('not a .docx file (word/document.xml missing)')
 

@@ -1,0 +1,51 @@
+# The gates that keep the security properties in SECURITY.md true.
+#
+# These suites only protect anything if they run without being remembered, so
+# they run on every push and pull request. `npm test` chains three of them:
+# the .docx round-trip suite, the sanitizer regression suite (scripts and
+# remote images must not survive an import), and an npm audit gate.
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Tests, sanitizer, npm audit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - name: Round-trip, sanitizer, and audit
+        run: npm test
+
+  rust:
+    name: cargo audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+      - name: Audit Rust dependencies
+        working-directory: app/src-tauri
+        # Plain `cargo audit` fails on advisories and only warns on
+        # unmaintained/unsound crates. That distinction matters here: Tauri's
+        # Linux path pulls in the unmaintained GTK3 bindings and an unsound
+        # glib iterator, neither of which we can act on. Denying warnings
+        # would make this job red forever and train everyone to ignore it.
+        run: cargo audit
