@@ -31,7 +31,15 @@
    change them together or Page view starts lying again. */
 body[data-view="page"] {
   --body-size: 14.667px;  /* 11pt — export.js Normal run size 22 half-points */
-  --body-leading: 1.15;   /* export.js spacing line 276 / 240 */
+  /* NOT 1.15. Word's `w:line="276"` with lineRule="auto" means 1.15 x the
+     FONT'S OWN natural line height; CSS line-height:1.15 means 1.15 x the font
+     SIZE. Those differ a lot — Quattro's natural line height is 1.31em, so
+     Word's "1.15 spacing" is really ~1.51em. Setting 1.15 here made Page view
+     tighter than Word (over-reporting lines per page) AND tighter than the
+     glyph box itself, which is why highlights spilled onto the line above.
+     --page-leading is measured from the live font by syncPageLeading() in
+     App.svelte; the fallback covers the moment before that first runs. */
+  --body-leading: var(--page-leading, 1.32);
 }
 body[data-view="page"] .ProseMirror p { margin: 0 0 10.667px; } /* 8pt after */
 

@@ -127,6 +127,42 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   let typingTimer
   let autosaveTimer
 
+  /* Page view's line height, measured from the font actually in use.
+     Word stores line spacing as a multiple of the font's OWN natural line
+     height (`w:line="276"`, lineRule="auto" = 1.15x), while CSS line-height
+     multiplies the font SIZE. The two only agree for a font whose natural
+     line height happens to be 1.0, which is none of them — ours range from
+     1.15em (Literata, Source Serif, Newsreader) to 1.31em (Quattro, Geist).
+     So the multiplier has to be computed per font rather than written down,
+     or Page view mis-predicts how much fits on a page. Measuring also keeps
+     this correct for any typeface added later, with no table to maintain. */
+  const WORD_LINE_MULTIPLE = 1.15 // export.js: spacing { line: 276 } / 240
+  function syncPageLeading() {
+    const family = getComputedStyle(document.body).getPropertyValue('--body-font')
+    const measure = (display, lineHeight) => {
+      const el = document.createElement(display === 'inline' ? 'span' : 'div')
+      el.style.cssText = `position:absolute;visibility:hidden;white-space:nowrap;font-size:100px;display:${display};line-height:${lineHeight}`
+      el.style.fontFamily = family
+      el.textContent = 'Hxg' // ascender, x-height, descender
+      document.body.appendChild(el)
+      const h = el.getBoundingClientRect().height / 100
+      el.remove()
+      return h
+    }
+    const natural = measure('block', 'normal')
+    /* The second measurement is the one that stops highlights spilling. An
+       inline element's background is painted over its CONTENT AREA (the font's
+       ascent + descent), which is NOT the same as `line-height: normal` — for
+       Literata normal is 1.15em while the content area is ~1.5em. If the line
+       box is shorter than that, a <mark> is taller than its own line and bleeds
+       onto the one above (Brett's screenshot). So the leading is Word's
+       multiple, floored at the height the glyphs actually occupy. */
+    const contentArea = measure('inline', 'normal')
+    if (!natural || !isFinite(natural)) return // font not ready; the fallback holds
+    const leading = Math.max(natural * WORD_LINE_MULTIPLE, contentArea * 1.02)
+    document.documentElement.style.setProperty('--page-leading', leading.toFixed(3))
+  }
+
   function applyRoom(next, { toastIt = false } = {}) {
     room = next
     document.body.setAttribute('data-room', next)
@@ -135,6 +171,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     // a room carries its own typeface, size, leading and measure — every one
     // of which changes how much text fits a page (and the new family may not
     // even be downloaded yet, hence the font-aware pass as well as the frame one)
+    syncPageLeading() // the new room's font has its own natural line height
     queueMeasure()
     measureWhenFontReady(getComputedStyle(document.body).getPropertyValue('--body-font'))
   }
@@ -192,19 +229,72 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     pageStyleEl.textContent = `@media print{@page{size:${size}${orient};margin:${marginIn};}}`
   }
 
-  // ---- zoom: Ctrl+scroll, or the Commander's +/− ----
-  function applyZoom(pct) {
-    zoomPct = Math.max(50, Math.min(200, Math.round(pct / 10) * 10))
+  /* The zoom read-out. Zoom is otherwise invisible while you're doing it —
+     you can end up at 90% and not know why the page looks slightly off, with
+     the only number buried in the Commander. This shows the percentage while
+     you zoom and fades once you stop, and marks 100% as the resting state so
+     "am I back to normal?" is answerable at a glance. It borrows the toast's
+     visual language, so it inherits every room's palette for free. */
+  let zoomBadge = $state(false)
+  let zoomBadgeTimer
+  function flashZoomBadge() {
+    zoomBadge = true
+    clearTimeout(zoomBadgeTimer)
+    zoomBadgeTimer = setTimeout(() => { zoomBadge = false }, 1100)
+  }
+
+  /* ---- zoom: Ctrl+scroll, Ctrl+= / Ctrl+- / Ctrl+0, or the Commander's +/− ----
+     Zoom holds a point of the document STILL rather than growing everything
+     away from the top-left. Without this, `zoom` scales from the origin while
+     the scroll offset stays put, so the page appears to run away upward and
+     you have to chase it back — the whole document slides even though you only
+     wanted it bigger.
+
+     The anchor is the mouse for Ctrl+scroll (what maps, Figma and browsers do —
+     zoom goes where you're pointing) and the centre of the viewport for the
+     keyboard and the Commander's buttons, where there's no pointer to speak of.
+
+     The maths: with CSS zoom, a point at unzoomed document coordinate `docY`
+     is painted at `docY * zoom - scrollY`. Solve for the scroll that keeps
+     that point under the same screen offset before and after. Both axes,
+     because a zoomed page sheet can be wider than the window too. */
+  function applyZoom(pct, anchor) {
+    const prev = zoomPct / 100
+    const next = Math.max(50, Math.min(200, Math.round(pct / 10) * 10))
+    // the badge shows even when the value doesn't move — at the 50/200 stops,
+    // and on Ctrl+0 when you're already at 100%, where confirming "yes, you
+    // are at default" is exactly the question being asked
+    flashZoomBadge()
+    if (next === zoomPct) return
+    // screen offsets to hold fixed; default to the middle of the window
+    const ax = anchor?.x ?? window.innerWidth / 2
+    const ay = anchor?.y ?? window.innerHeight / 2
+    // the document point currently sitting under the anchor, in unzoomed coords
+    const docX = (window.scrollX + ax) / prev
+    const docY = (window.scrollY + ay) / prev
+
+    zoomPct = next
     localStorage.setItem('write:zoom', String(zoomPct))
     // no zoom style at all at 100%: any zoom on the scrolling subtree can
     // demote scrolling to the main thread in some engines
-    if (mainEl) mainEl.style.zoom = zoomPct === 100 ? '' : String(zoomPct / 100)
+    const scale = zoomPct / 100
+    if (mainEl) mainEl.style.zoom = zoomPct === 100 ? '' : String(scale)
+
+    // read a layout property so the new zoom is applied before we scroll —
+    // otherwise the scroll lands against the OLD document height and is clamped
+    if (mainEl) void mainEl.offsetHeight
+    window.scrollTo({
+      left: Math.max(0, docX * scale - ax),
+      top: Math.max(0, docY * scale - ay),
+      behavior: 'instant',
+    })
     queueMeasure()
   }
   function onWheel(e) {
     if (!e.ctrlKey) return
     e.preventDefault()
-    applyZoom(zoomPct + (e.deltaY < 0 ? 10 : -10))
+    // zoom toward the pointer
+    applyZoom(zoomPct + (e.deltaY < 0 ? 10 : -10), { x: e.clientX, y: e.clientY })
   }
   // Ctrl+scroll zoom needs a NON-passive wheel listener (to preventDefault
   // the browser's own zoom) — but a permanently-registered one forces every
@@ -248,7 +338,9 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
       // .ready as well as the explicit load: bold/italic faces of the same
       // family are separate files, requested only as they're painted
       .then(() => document.fonts.ready)
-      .then(() => measurePages())
+      // leading first: it depends on the font's own metrics, and it changes
+      // how much fits a page, so measurePages must run after it
+      .then(() => { syncPageLeading(); measurePages() })
       .catch(() => {})
   }
 
@@ -1113,6 +1205,15 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     // so we just flag it here and let editor.js's handlePaste consume the flag
     if (mod && e.shiftKey && e.key.toLowerCase() === 'v') { markPastePlain() }
     if (mod && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); setFocus(!focus) }
+    /* Zoom from the keyboard — the shortcuts every app has, and the first
+       place anyone reaches. Zoom itself already existed (Ctrl+scroll, and the
+       ± in the Commander) and already applied to BOTH views, but with no
+       keys bound it was effectively undiscoverable. `=` rather than `+`
+       because that's the unshifted key; `+` is accepted too for the shifted
+       form and the numpad. Ctrl+0 returns to 100%, as everywhere else. */
+    if (mod && (e.key === '=' || e.key === '+')) { e.preventDefault(); applyZoom(zoomPct + 10) }
+    if (mod && e.key === '-') { e.preventDefault(); applyZoom(zoomPct - 10) }
+    if (mod && e.key === '0') { e.preventDefault(); applyZoom(100) }
     // cycle rooms with Ctrl/Cmd + \
     if (mod && e.key === '\\') {
       e.preventDefault()
@@ -1156,7 +1257,8 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     // measurePages() directly (not via queueMeasure/rAF): reading
     // offsetTop/scrollHeight forces a synchronous layout regardless of
     // paint timing, and rAF itself can be throttled in a backgrounded tab.
-    document.fonts?.ready?.then(() => measurePages())
+    syncPageLeading() // best-effort now; redone below once the real font lands
+    document.fonts?.ready?.then(() => { syncPageLeading(); measurePages() })
     window.addEventListener('keydown', onKey)
     window.addEventListener('scroll', updateBubble, { passive: true })
     window.addEventListener('scroll', onDocScroll, { passive: true })
@@ -1397,6 +1499,14 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   <div class="toast">{toast}</div>
 {/if}
 
+<!-- zoom read-out: appears while zooming, fades when you stop. Sits low so it
+     never collides with the Bar or the toast, and calls out 100% as "home". -->
+{#if zoomBadge}
+  <div class="zoom-badge" class:home={zoomPct === 100} aria-live="polite">
+    {zoomPct}%{#if zoomPct === 100}<span class="zb-home">default</span>{/if}
+  </div>
+{/if}
+
 <!-- drag-drop hint while a file hovers the window -->
 {#if dropHint}
   <div class="toast drop-toast">Drop to open</div>
@@ -1404,8 +1514,14 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
 
 <!-- discard guard: quiet confirm before replacing unsaved work -->
 {#if confirmState}
-  <div class="veil" onclick={() => (confirmState = null)} role="presentation">
-    <div class="commander confirm-card" onclick={(e) => e.stopPropagation()} role="dialog" aria-label="Unsaved changes">
+  <!-- The veil dismisses only when the click LANDS on the veil itself
+       (target === currentTarget). That replaces a stopPropagation handler on
+       the card, which was a click listener on a non-interactive element —
+       unreachable by keyboard and the source of two Svelte a11y warnings.
+       The card carries tabindex="-1" (a dialog must be focusable
+       programmatically) and aria-modal. Escape already closes both. -->
+  <div class="veil" onclick={(e) => { if (e.target === e.currentTarget) confirmState = null }} role="presentation">
+    <div class="commander confirm-card" role="dialog" aria-modal="true" tabindex="-1" aria-label="Unsaved changes">
       <p class="confirm-text">This page has changes not yet saved to a file.</p>
       <div class="cmd-actions confirm-actions">
         <button onclick={confirmSaveFirst}>⤓ Save…</button>
@@ -1426,8 +1542,8 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
 
 <!-- ============ The Commander: summonable rooms + recents ============ -->
 {#if commanderOpen}
-  <div class="veil" onclick={() => (commanderOpen = false)} role="presentation">
-    <div class="commander" onclick={(e) => e.stopPropagation()} role="dialog" aria-label="Rooms and recents">
+  <div class="veil" onclick={(e) => { if (e.target === e.currentTarget) commanderOpen = false }} role="presentation">
+    <div class="commander" role="dialog" aria-modal="true" tabindex="-1" aria-label="Rooms and recents">
       <header class="cmd-head">
         <span class="cmd-title">Rooms</span>
         <button class="cmd-focus" class:on={focus} onclick={() => setFocus(!focus)}>
