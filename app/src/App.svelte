@@ -924,6 +924,17 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     commanderOpen = false
     editor.commands.focus()
     queueMeasure()
+    /* And again once the document's own typefaces have arrived. A document can
+       name families that have never been painted before — the Specimen alone
+       uses twenty-one — and @font-face fetches each only at first use. So the
+       next-frame measurement above runs against FALLBACK metrics, the real
+       faces land a moment later, every one of those blocks changes height, and
+       the page breaks (and the desk-gap masks drawn from them) are left
+       describing a layout that no longer exists: text ends up clipped at the
+       top of a sheet. Brett's screenshot. Same trap as changing a font from
+       the Bar, which measureWhenFontReady already covered — document LOADING
+       simply never went through it. */
+    measureWhenFontReady()
   }
 
   // ---- Wave 3: Find & Replace ----
@@ -1143,6 +1154,9 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     if (pageSettings?.margin) applyMargin(pageSettings.margin)
     if (pageSettings) applyHeaderFooterSettings(pageSettings)
     queueMeasure()
+    // an opened .docx can name any typeface it likes, loaded only on first
+    // paint — so re-measure once they've landed (see doUseTemplate)
+    measureWhenFontReady()
     noteRemoteImages(remoteImages)
   }
   function openRecent(entry) {
