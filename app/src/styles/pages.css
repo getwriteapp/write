@@ -77,7 +77,19 @@ body[data-view="page"] .ProseMirror p { margin: 0 0 10.667px; } /* 8pt after */
    through it continuously (never split by JS — a page break is a margin
    pushed onto a block, see measurePages in App.svelte). The desk shows
    through where a page-sheet rect isn't painted: the gap between pages. */
-[data-view="page"] main { overflow-x: auto; }
+/* Horizontal scrolling for a page wider than the window (landscape, or a high
+   zoom) belongs to the VIEWPORT, not to <main>.
+   `overflow-x: auto` on main used to provide it — but CSS computes a `visible`
+   axis to `auto` whenever the other axis isn't visible, so that quietly made
+   main a VERTICAL scroll container as well. Its content always exactly fits
+   (min-height, not height), so it had zero vertical slack: every wheel tick
+   hit its limit immediately, produced Chromium's elastic overscroll stretch,
+   and only then chained to the document. That is Brett's "grabs as if it has
+   reached a top or a bottom, stretches, unstretches and then continues".
+   Putting overflow-x on the body instead propagates it to the viewport, which
+   is already the vertical scroller — so there is only ever one scroll
+   container, and nothing to bounce against. */
+body[data-view="page"] { overflow-x: auto; }
 [data-view="page"] .editor-host {
   position: relative;
   width: var(--page-w);

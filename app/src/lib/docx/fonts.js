@@ -24,6 +24,14 @@ const WORD_TO_CSS = {
   'inter': "'Inter Variable', -apple-system, sans-serif",
   'atkinson hyperlegible': "'Atkinson Hyperlegible', -apple-system, sans-serif",
   'jetbrains mono': "'JetBrains Mono Variable', ui-monospace, monospace",
+  'work sans': "'Work Sans Variable', -apple-system, sans-serif",
+  'archivo': "'Archivo Variable', -apple-system, sans-serif",
+  'manrope': "'Manrope Variable', -apple-system, sans-serif",
+  'roboto slab': "'Roboto Slab Variable', Rockwell, serif",
+  'bitter': "'Bitter Variable', Rockwell, serif",
+  'crimson pro': "'Crimson Pro Variable', Garamond, serif",
+  'fraunces': "'Fraunces Variable', Georgia, serif",
+  'libre franklin': "'Libre Franklin Variable', -apple-system, sans-serif",
 }
 
 /* CSS stack → Word family name: first family, quotes stripped, and the

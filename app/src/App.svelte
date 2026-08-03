@@ -643,6 +643,22 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   // peek, Ctrl+/, or scrolling back to the very top of the document.
   let barScrollHidden = $state(false)
   let barShownAtY = 0 // scrollY when the bar last became visible — hide on real travel, not caret nudges
+  /* Duck the chrome — the Bar and the wordmark — the moment the writer engages
+     with the page at all. Brett: "it can start to go away the moment someone
+     points and clicks on the page, starts typing, starts scrolling down...
+     other than at startup we really want it hidden most of the time."
+     So this is called from three places: the first keystroke (markTyping), a
+     pointer landing in the editor, and any real scroll. It comes back on the
+     hover zones, Ctrl+/, or scrolling home. */
+  function duckChrome() {
+    if (barScrollHidden) return
+    barScrollHidden = true
+    barShownAtY = window.scrollY
+  }
+  // 8px, not 48: a deliberate scroll should hide the chrome immediately rather
+  // than after most of a wheel notch. The threshold exists only so a caret
+  // nudge or a follow-scroll doesn't count as "the reader is moving".
+  const DUCK_AFTER_PX = 8
   function onDocScroll() {
     const y = window.scrollY
     if (y <= 4) {
@@ -650,7 +666,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
       barShownAtY = y
       return
     }
-    if (!barScrollHidden && Math.abs(y - barShownAtY) > 48) barScrollHidden = true
+    if (!barScrollHidden && Math.abs(y - barShownAtY) > DUCK_AFTER_PX) barScrollHidden = true
     if (barScrollHidden) barShownAtY = y
   }
 
@@ -675,15 +691,27 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
       { label: 'Literata', value: "'Literata Variable', serif" },
       { label: 'Source Serif', value: "'Source Serif 4 Variable', serif" },
       { label: 'EB Garamond', value: "'EB Garamond Variable', Garamond, serif" },
+      { label: 'Crimson Pro', value: "'Crimson Pro Variable', Garamond, serif" },
       { label: 'Lora', value: "'Lora Variable', Georgia, serif" },
       { label: 'Newsreader', value: "'Newsreader Variable', serif" },
-      { label: 'Playfair Display', value: "'Playfair Display Variable', Georgia, serif" },
+    ] },
+    { name: 'Slab', items: [
+      { label: 'Roboto Slab', value: "'Roboto Slab Variable', Rockwell, serif" },
+      { label: 'Bitter', value: "'Bitter Variable', Rockwell, serif" },
     ] },
     { name: 'Sans', items: [
       { label: 'Geist', value: "'Geist Variable', sans-serif" },
       { label: 'Inter', value: "'Inter Variable', -apple-system, sans-serif" },
+      { label: 'Work Sans', value: "'Work Sans Variable', -apple-system, sans-serif" },
+      { label: 'Libre Franklin', value: "'Libre Franklin Variable', -apple-system, sans-serif" },
+      { label: 'Archivo', value: "'Archivo Variable', -apple-system, sans-serif" },
+      { label: 'Manrope', value: "'Manrope Variable', -apple-system, sans-serif" },
       { label: 'Plex Sans', value: "'IBM Plex Sans', sans-serif" },
       { label: 'Atkinson Hyperlegible', value: "'Atkinson Hyperlegible', -apple-system, sans-serif" },
+    ] },
+    { name: 'Display', items: [
+      { label: 'Playfair Display', value: "'Playfair Display Variable', Georgia, serif" },
+      { label: 'Fraunces', value: "'Fraunces Variable', Georgia, serif" },
     ] },
     { name: 'Typewriter', items: [
       { label: 'iA Writer Quattro', value: "'iA Writer Quattro S', monospace" },
@@ -1013,6 +1041,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
 
   function markTyping() {
     typing = true
+    duckChrome() // writing is not formatting: get the chrome out of the way
     document.body.classList.add('typing')
     clearTimeout(typingTimer)
     typingTimer = setTimeout(() => { typing = false; document.body.classList.remove('typing') }, 2200)
@@ -1280,6 +1309,11 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     window.addEventListener('keydown', onKey)
     window.addEventListener('scroll', updateBubble, { passive: true })
     window.addEventListener('scroll', onDocScroll, { passive: true })
+    // a pointer landing on the page means the writer is working, not reaching
+    // for a control — the Bar and wordmark duck. Bound to <main> rather than
+    // the document so clicking the Bar, the Commander or the corner itself
+    // doesn't dismiss the very thing being reached for.
+    mainEl?.addEventListener('pointerdown', duckChrome, { passive: true })
     window.addEventListener('resize', onResize)
     document.addEventListener('selectionchange', onSelectionChange)
     document.addEventListener('mousemove', clearTyping)
@@ -1304,6 +1338,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     window.removeEventListener('keydown', onKey)
     window.removeEventListener('scroll', updateBubble)
     window.removeEventListener('scroll', onDocScroll)
+    mainEl?.removeEventListener('pointerdown', duckChrome)
     window.removeEventListener('resize', onResize)
     document.removeEventListener('selectionchange', onSelectionChange)
     document.removeEventListener('mousemove', clearTyping)
