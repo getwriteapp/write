@@ -118,6 +118,24 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   let touched = false
   let confirmState = $state(null) // { action } → quiet "unsaved changes" surface
 
+  /* While the Commander or the discard guard is up, the page behind them must
+     hold still. `overscroll-behavior: contain` on the Commander stops the
+     scroll chaining once you reach its end, but a wheel over the veil itself —
+     which is most of the screen — still reaches the document. So the page
+     scroll is locked outright for as long as a modal is open.
+     The padding compensates for the scrollbar the lock removes: without it the
+     whole layout jumps sideways by the scrollbar's width the moment the
+     Commander opens, and jumps back when it closes. */
+  $effect(() => {
+    const open = commanderOpen || !!confirmState
+    const el = document.documentElement
+    if (!open) { el.style.overflow = ''; el.style.paddingRight = ''; return }
+    const gap = window.innerWidth - el.clientWidth
+    el.style.overflow = 'hidden'
+    if (gap > 0) el.style.paddingRight = `${gap}px`
+    return () => { el.style.overflow = ''; el.style.paddingRight = '' }
+  })
+
   // selection bubble
   let bubble = $state({ show: false, x: 0, y: 0 })
   let active = $state({ bold: false, italic: false, underline: false, strike: false, block: '' })
@@ -1311,6 +1329,17 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   <div class="editor-host" class:custom-caret={caretVisible} bind:this={host}>
     <div class="caret" class:show={caretVisible} bind:this={caretEl}></div>
     {#if view === 'page'}
+      <!-- Desk showing between sheets, painted ABOVE the text. Page breaks are
+           made by injecting padding-top onto the block that starts the new
+           page, and a block with a left rule — a blockquote — draws that rule
+           down through its own padding, i.e. straight across the gap (Brett's
+           screenshot: a stray accent line spanning the break). Masking the gap
+           fixes that and every future case of it (table borders, rules) in one
+           place, and it is safe because pagination already guarantees no TEXT
+           lands here. -->
+      {#each pageRects.slice(0, -1) as r}
+        <div class="page-gap" style="top:{r.top + r.height}px; height:{PAGE_GAP}px"></div>
+      {/each}
       {#each pageRects as r}
         <div class="page-sheet" style="top:{r.top}px; height:{r.height}px">
           {#if header.text || (pageNumbers.enabled && pageNumbers.place === 'header')}

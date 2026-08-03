@@ -48,8 +48,16 @@ body::before {
   top: 0; left: 0;
   z-index: 50;
   width: 160px; height: 72px;
+  /* pointer-events NONE while the mark is visible, so the corner never eats
+     clicks meant for the page — but AUTO once it has ducked, because an
+     element with pointer-events:none cannot be a hover target at all, and
+     `.mark-zone.ducked:hover` would never match. That was a real bug: the
+     hover-to-summon simply did nothing (Brett: "I'd like to get back the
+     function of hovering over the top left corner"). Only while ducked does
+     the corner become live, which is exactly when it needs to be. */
   pointer-events: none;
 }
+.mark-zone.ducked { pointer-events: auto; }
 .mark-zone .wordmark { pointer-events: auto; }
 /* ducked: scrolled away, exactly like the Bar. Hovering the corner (or
    Ctrl+/, or scrolling home — both clear the state itself) brings it back. */
@@ -63,6 +71,9 @@ body::before {
   pointer-events: auto;
   transform: translateY(0);
 }
+/* a ducked mark that's been hovered back must still be clickable — it opens
+   the Commander, which is the whole point of reaching for it */
+.mark-zone.ducked:hover .wordmark:hover { color: var(--ink); }
 
 .wordmark {
   top: 24px; left: 28px;
@@ -216,6 +227,10 @@ body.typing .whisper { opacity: 0.05; }
   max-width: 92vw;
   max-height: 76vh;
   overflow-y: auto;
+  /* Stop the scroll from "chaining" into the document behind: without this,
+     reaching the top or bottom of the Commander hands the remaining scroll to
+     the page underneath, which then slides around behind the veil. */
+  overscroll-behavior: contain;
   background: var(--card);
   border: 1px solid var(--hairline);
   border-radius: 18px;
@@ -419,11 +434,19 @@ body[data-focus="on"] .bar-zone { display: none; }
   border: 1px solid var(--hairline);
   border-radius: 12px;
   box-shadow: var(--card-shadow);
-  backdrop-filter: blur(14px);
   opacity: 0;
   pointer-events: none;
   transform: translateY(-6px);
-  transition: opacity 0.16s ease, transform 0.16s ease,
+  /* `visibility` as well as opacity, and `backdrop-filter` only while shown
+     (see .bar.lit below). .bar-zone is mounted for the whole session, so an
+     invisible-but-painted bar still made the compositor re-sample the blurred
+     backdrop behind it on every scroll frame — a fixed, always-present
+     backdrop-filter is one of the classic causes of scroll that "feels
+     sticky", and this app has been bitten by that family of problem before
+     (the permanent non-passive wheel listener, Session 26). Hidden now means
+     genuinely not painted. */
+  visibility: hidden;
+  transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s,
               background-color 0.45s ease, border-color 0.45s ease;
 }
 .bar-zone:hover .bar,
@@ -431,6 +454,14 @@ body[data-focus="on"] .bar-zone { display: none; }
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0);
+}
+/* every state in which the bar is on screen at all — including the 0.05
+   typing fade, which is faint but still visible — gets the blur */
+.bar-zone:hover .bar,
+.bar-zone.pinned .bar,
+.bar-zone.menu-open .bar {
+  visibility: visible;
+  backdrop-filter: blur(14px);
 }
 /* pinned + typing: fade like the other whispers, but hovering still peeks it */
 body.typing .bar-zone.pinned .bar { opacity: 0.05; }
@@ -689,7 +720,10 @@ main {
   box-shadow: 0 0 4px color-mix(in srgb, var(--caret) 26%, transparent);
   opacity: 0;
   pointer-events: none;
-  z-index: 2; /* text is z-index 1 in page view; the caret rides above it */
+  /* text is z-index 1 in page view and the desk-gap masks are 2; the caret
+     rides above both — it is rendered before them in the DOM, so an equal
+     z-index would let the masks paint over it */
+  z-index: 3;
   transition: transform 75ms cubic-bezier(0.25, 0.6, 0.3, 1), height 75ms ease;
   will-change: transform, opacity;
 }

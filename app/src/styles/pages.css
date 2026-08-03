@@ -92,6 +92,23 @@ body[data-view="page"] .ProseMirror p { margin: 0 0 10.667px; } /* 8pt after */
 
 /* Tier-4: one paper rect per physical page, fixed nominal height, stacked
    with a real gap — the discrete-pages illusion. Painted behind the text. */
+/* The desk strip between two sheets, painted OVER the text layer (which is
+   z-index 1) rather than under it. Anything a block draws into the gap — a
+   blockquote's left rule running through the padding that pushes it onto the
+   next page, a table border, a horizontal rule — is hidden by this instead of
+   floating in the space between pages. Safe to paint over, because the break
+   rule already guarantees no text occupies a gap. Slightly wider than the
+   sheet so a page's rounded corners and shadow don't peek past its edges. */
+.page-gap {
+  position: absolute;
+  left: -4px; right: -4px;
+  z-index: 2;
+  background: var(--desk);
+  pointer-events: none;
+  transition: background-color 0.45s ease;
+}
+@media print { .page-gap { display: none !important; } }
+
 .page-sheet {
   position: absolute;
   left: 0; right: 0;
