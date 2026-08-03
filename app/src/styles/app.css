@@ -763,6 +763,54 @@ body[data-flow-width="wide"] { --flow-scale: 1.35; }
 }
 .ProseMirror > * { transition: opacity 0.35s ease; }
 
+/* ---------- formatting marks (Ctrl+Shift+8) ----------
+   Word's ¶ toggle, painted entirely with pseudo-elements: generated content
+   isn't in the DOM, so a mark can't be selected, deleted, read back into the
+   document by ProseMirror, or ride along in a copy. The dot and the arrow sit
+   in absolutely positioned boxes so they occupy NO width — every line breaks
+   exactly where it broke with the marks off, which is the whole point of a
+   view-only overlay. Set in a system UI face rather than the document's: of
+   the 21 bundled families (all latin subsets) not every one carries ¶ or ↵,
+   and a tofu box would be worse than no mark at all. */
+.ProseMirror { --fm-ink: color-mix(in srgb, var(--soft) 72%, transparent); }
+.fm-space, .fm-tab { position: relative; }
+.fm-space::after, .fm-tab::after {
+  content: '·';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--fm-font, ui-sans-serif, system-ui, 'Segoe UI', sans-serif);
+  color: var(--fm-ink);
+  pointer-events: none;
+}
+/* A tab is only as wide as the distance to the next stop, which can be a few
+   px — `overflow: hidden` keeps a short tab's arrow from spilling over the
+   letters either side of it. */
+.fm-tab::after { content: '→'; font-size: 0.78em; overflow: hidden; }
+/* The pilcrow keeps the block's own size, the way Word's does — a heading's
+   paragraph mark is a heading-sized mark — but never its weight or slant. */
+.fm-para::after {
+  content: '¶';
+  font-family: var(--fm-font, ui-sans-serif, system-ui, 'Segoe UI', sans-serif);
+  font-size: 0.85em;
+  font-weight: 400;
+  font-style: normal;
+  letter-spacing: 0;
+  color: var(--fm-ink);
+}
+.fm-break {
+  font-family: var(--fm-font, ui-sans-serif, system-ui, 'Segoe UI', sans-serif);
+  font-size: 0.8em;
+  color: var(--fm-ink);
+  user-select: none;
+}
+/* Word doesn't print them either — they're a writing aid, not the document. */
+@media print {
+  .fm-space::after, .fm-tab::after, .fm-para::after, .fm-break { display: none !important; }
+}
+
 .ProseMirror h1 {
   font-size: var(--h1-size);
   font-weight: var(--h1-weight);

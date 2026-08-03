@@ -14,7 +14,7 @@ import TableRow from '@tiptap/extension-table-row'
 import TableCell from '@tiptap/extension-table-cell'
 import TableHeader from '@tiptap/extension-table-header'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
-import { DecorationSet } from '@tiptap/pm/view'
+import { Decoration, DecorationSet } from '@tiptap/pm/view'
 
 /* ---- Wave 1 formatting: font size + paragraph format extensions ----
    Tiptap ships no font-size extension; this stores it as a `textStyle`
@@ -266,6 +266,162 @@ export const FindReplace = Extension.create({
         },
       }),
     ]
+  },
+})
+
+/* ---- Session 30: formatting marks (Word's ¶ toggle) ----
+   Show the characters that are normally invisible: a middle dot for every
+   space, an arrow for every tab, a pilcrow at the end of every paragraph,
+   and ↵ for a line break. Purely a view layer — decorations never touch the
+   document, so nothing here can reach the .docx or the undo stack.
+
+   Two deliberate choices, both about cost:
+
+   1. **Paragraph marks are NODE decorations, not widgets.** One decoration
+      per block with a class, and the ¶ itself is a CSS `::after`. A widget
+      would put a real DOM element inside the paragraph — something the
+      caret can land beside, ProseMirror has to reconcile, and a copy could
+      conceivably pick up. A pseudo-element can't be any of those things.
+   2. **Space dots are the expensive half, so the set is rebuilt in pieces.**
+      Every single space needs its own inline decoration (there is no CSS
+      that can paint a dot in each gap of a run of text), so a 3000-word
+      document is ~3000 decorations and ~3000 spans. Building that on every
+      keystroke would be a per-character walk of the whole document. Instead
+      the set is built once when the toggle goes on, then MAPPED through each
+      transaction and rebuilt only for the top-level blocks the change
+      actually touched — so typing costs one paragraph, not one document. */
+export const formattingMarksKey = new PluginKey('formattingMarks')
+
+const MARK_BLOCKS = new Set(['paragraph', 'heading'])
+
+function breakWidget() {
+  const el = document.createElement('span')
+  el.className = 'fm-break'
+  el.textContent = '↵'
+  el.contentEditable = 'false'
+  el.setAttribute('aria-hidden', 'true')
+  return el
+}
+
+/* Decorations for one slice of the document. `from`/`to` must be whole-block
+   boundaries (see blockRange) — every decoration is clamped to them so a
+   rebuild can safely remove-then-add exactly this range. */
+function markDecorations(doc, from, to) {
+  const decos = []
+  const ws = /[ \t]/g
+  doc.nodesBetween(from, to, (node, pos) => {
+    if (node.isText) {
+      const text = node.text || ''
+      ws.lastIndex = 0
+      let m
+      while ((m = ws.exec(text))) {
+        const at = pos + m.index
+        if (at < from || at >= to) continue
+        decos.push(Decoration.inline(at, at + 1, { class: m[0] === ' ' ? 'fm-space' : 'fm-tab' }))
+      }
+      return false
+    }
+    if (node.type.name === 'hardBreak') {
+      if (pos >= from && pos < to) {
+        decos.push(Decoration.widget(pos, breakWidget, { side: -1, marks: [], key: 'fm-break' }))
+      }
+      return false
+    }
+    if (MARK_BLOCKS.has(node.type.name) && pos >= from && pos + node.nodeSize <= to) {
+      decos.push(Decoration.node(pos, pos + node.nodeSize, { class: 'fm-para' }))
+    }
+    return true
+  })
+  return decos
+}
+
+function buildAll(doc) {
+  return DecorationSet.create(doc, markDecorations(doc, 0, doc.content.size))
+}
+
+/* Widen a changed range out to whole top-level blocks, plus one block either
+   side for slack. Deliberately index-based rather than `$pos.before(1)`:
+   positions BETWEEN two top-level blocks resolve to depth 0 (every Enter and
+   every joining Backspace produces one), where `before(1)` throws. */
+function blockRange(doc, from, to) {
+  const size = doc.content.size
+  const last = doc.childCount - 1
+  if (last < 0) return [0, size]
+  const clamp = (p) => Math.max(0, Math.min(p, size))
+  const iFrom = Math.max(0, Math.min(doc.resolve(clamp(from)).index(0), last) - 1)
+  const iTo = Math.min(doc.resolve(clamp(to)).index(0), last)
+  let start = 0
+  for (let i = 0; i < iFrom; i++) start += doc.child(i).nodeSize
+  let end = start
+  for (let i = iFrom; i <= iTo; i++) end += doc.child(i).nodeSize
+  return [start, end]
+}
+
+/* Every range this transaction rewrote, in the NEW document's coordinates. */
+function changedRanges(tr) {
+  const ranges = []
+  tr.mapping.maps.forEach((map, i) => {
+    const rest = tr.mapping.slice(i + 1)
+    map.forEach((_fromA, _toA, fromB, toB) => {
+      ranges.push(blockRange(tr.doc, rest.map(fromB, -1), rest.map(toB, 1)))
+    })
+  })
+  return ranges
+}
+
+export const FormattingMarks = Extension.create({
+  name: 'formattingMarks',
+  addOptions() {
+    return { initial: false }
+  },
+  addProseMirrorPlugins() {
+    const initial = !!this.options.initial
+    return [
+      new Plugin({
+        key: formattingMarksKey,
+        state: {
+          init: (_config, state) => ({ on: initial, set: initial ? buildAll(state.doc) : DecorationSet.empty }),
+          apply(tr, value) {
+            const meta = tr.getMeta(formattingMarksKey)
+            if (typeof meta === 'boolean') {
+              return meta
+                ? { on: true, set: buildAll(tr.doc) }
+                : { on: false, set: DecorationSet.empty }
+            }
+            if (!value.on || !tr.docChanged) return value
+            let set = value.set.map(tr.mapping, tr.doc)
+            for (const [from, to] of changedRanges(tr)) {
+              /* Remove before add, so overlapping ranges can't double up —
+                 but remove only what genuinely lives INSIDE the range.
+                 `find()` returns everything that *touches* it, boundaries
+                 included, and a paragraph's node decoration ends exactly on
+                 the block boundary the range starts at. Removing those and
+                 not regenerating them cost the blocks either side of every
+                 edit their ¶ — measurably: 91 paragraph marks over 76 blocks
+                 became 90 over 77 after a single Enter. */
+              set = set.remove(set.find(from, to).filter((d) => d.from < to && d.to > from))
+              set = set.add(tr.doc, markDecorations(tr.doc, from, to))
+            }
+            return { on: true, set }
+          },
+        },
+        props: {
+          decorations(state) { return formattingMarksKey.getState(state)?.set },
+        },
+      }),
+    ]
+  },
+  addCommands() {
+    return {
+      /* The toggle is a metadata-only transaction: no steps, so it can never
+         land in the undo stack or mark the document dirty. */
+      setFormattingMarks: (on) => ({ tr, dispatch }) => {
+        if (dispatch) dispatch(tr.setMeta(formattingMarksKey, !!on).setMeta('addToHistory', false))
+        return true
+      },
+      toggleFormattingMarks: () => ({ state, chain }) =>
+        chain().setFormattingMarks(!formattingMarksKey.getState(state)?.on).run(),
+    }
   },
 })
 
@@ -538,7 +694,7 @@ export const TABLE_EXTENSIONS = [
 /* The Wave-6 set: shared with the test harness too. */
 export const WAVE6_EXTENSIONS = [TableOfContents]
 
-export function createEditor(element, { onUpdate, onSelection, onRemoteImagesBlocked, content = WELCOME, spellcheck = true } = {}) {
+export function createEditor(element, { onUpdate, onSelection, onRemoteImagesBlocked, content = WELCOME, spellcheck = true, formattingMarks = false } = {}) {
   let instance // assigned below; editorProps handlers only run after construction
   instance = new Editor({
     element,
@@ -550,6 +706,7 @@ export function createEditor(element, { onUpdate, onSelection, onRemoteImagesBlo
       Link.configure({ openOnClick: false, autolink: true }),
       Placeholder.configure({ placeholder: 'Begin…' }),
       OfflineImage,
+      FormattingMarks.configure({ initial: formattingMarks }),
       ...FORMATTING_EXTENSIONS,
       ...WAVE3_EXTENSIONS,
       ...TABLE_EXTENSIONS,

@@ -4,6 +4,42 @@ All notable changes to `write` are recorded here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is
 [SemVer](https://semver.org/), pre-1.0.
 
+## [Unreleased]
+
+Two polish passes driven by using the app: Session 29's typography and
+navigation work, and Session 30's formatting marks.
+
+### Added
+
+- **Formatting marks** — Word's ¶ toggle. Shows a dot for every space, an
+  arrow for every tab, a pilcrow at the end of every paragraph, and ↵ at a
+  line break. `Ctrl+Shift+8` (Word's own shortcut) or **¶ Marks** in the
+  Commander; the setting is remembered. Marks are a view overlay only: they
+  never enter the document, a copy never picks them up, and they don't print.
+- **Anchored zoom with a read-out** — `Ctrl+=` / `Ctrl+-` / `Ctrl+0`, and
+  Ctrl+scroll now zooms around the pointer instead of the page origin.
+- **Eight more typefaces**, bringing the bundled library to 21 families, and
+  a **Specimen** template that exercises every feature in running text.
+
+### Changed
+
+- **Page view now renders the document's real `.docx` typography** rather than
+  the room's reading typography, so its page breaks predict Word's. Flow view
+  is unchanged — it stays the draft view.
+- **Tab behaves the way Word's Tab behaves** — three actions depending on
+  where the caret sits (first-line indent, block indent, or a real tab
+  character), all of which round-trip through `.docx`.
+- **The chrome ducks the moment you engage** with the page, rather than after
+  48px of scrolling.
+
+### Fixed
+
+- Scrolling no longer grabs and stretches at the page edges (an accidental
+  nested scroll container).
+- Modals no longer chain their scrolling to the document behind them.
+- The accent rule no longer bleeds across the gap between pages.
+- The top-left hover corner that summons the wordmark now actually works.
+
 ## [0.1.1] — 2026-08-02
 
 A security and compliance pass done before making the repository public.

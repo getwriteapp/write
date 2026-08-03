@@ -41,6 +41,19 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     localStorage.setItem('write:spellcheck', spellcheck ? '1' : '0')
     editor?.view.dom.setAttribute('spellcheck', String(spellcheck))
   }
+  /* Session 30: formatting marks — Word's ¶ toggle. A view preference like
+     spellcheck (persisted, app-wide, never part of the document), so a doc
+     opened with marks on shows them and the .docx never hears about it. */
+  let formattingMarks = $state(localStorage.getItem('write:marks') === '1')
+  function toggleFormattingMarks() {
+    formattingMarks = !formattingMarks
+    localStorage.setItem('write:marks', formattingMarks ? '1' : '0')
+    editor?.commands.setFormattingMarks(formattingMarks)
+    showToast(formattingMarks ? '¶ marks shown' : '¶ marks hidden')
+    // the pilcrow occupies real width at the end of a line, so a block can
+    // gain a line when marks come on — Page view has to re-measure
+    queueMeasure()
+  }
   // Wave 4: header/footer text + page numbers — same "app-wide default for
   // new docs, document's own on open" pattern as pageSize/orientation/margin.
   // Rendered as read-only preview bands on the page-sheet; edited via the
@@ -1275,6 +1288,9 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     if (mod && (e.key === '=' || e.key === '+')) { e.preventDefault(); applyZoom(zoomPct + 10) }
     if (mod && e.key === '-') { e.preventDefault(); applyZoom(zoomPct - 10) }
     if (mod && e.key === '0') { e.preventDefault(); applyZoom(100) }
+    /* Show/hide formatting marks — Word's own Ctrl+Shift+8. The shifted `8`
+       reports as `*` on most layouts, so accept both. */
+    if (mod && e.shiftKey && (e.key === '8' || e.key === '*')) { e.preventDefault(); toggleFormattingMarks() }
     // cycle rooms with Ctrl/Cmd + \
     if (mod && e.key === '\\') {
       e.preventDefault()
@@ -1297,10 +1313,17 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     editor = createEditor(host, {
       content: last?.html || WELCOME,
       spellcheck,
+      formattingMarks,
       onUpdate: () => { saved = false; touched = true; recount(); markTyping(); scheduleAutosave(); queueMeasure(); refreshTableState() },
       onSelection: () => { updateBubble(); litParagraph(); updateCaret() },
       onRemoteImagesBlocked: noteRemoteImages,
     })
+    /* Dev-only handle. Three sessions running now have had to reverse-engineer
+       a way to reach ProseMirror from the automation harness (synthetic key
+       events don't reach its handlers; the view isn't reachable from the DOM).
+       `import.meta.env.DEV` is a literal at build time, so Vite drops this
+       whole branch from the production bundle — it cannot ship. */
+    if (import.meta.env.DEV) window.__write = { get editor() { return editor } }
     editor.on('focus', updateCaret)
     editor.on('blur', updateCaret)
     {
@@ -1655,6 +1678,10 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
         </div>
         <button class="seg-ghost" class:on={barOpen} onclick={() => toggleBar()} title="Formatting bar (Ctrl+/)">Format</button>
         <button class="seg-ghost" class:on={spellcheck} onclick={toggleSpellcheck} title="Spell check (native)">Spelling</button>
+        <button
+          class="seg-ghost" class:on={formattingMarks} onclick={toggleFormattingMarks}
+          title="Formatting marks — spaces, tabs, paragraphs (Ctrl+Shift+8)"
+        >¶ Marks</button>
         {#if view === 'flow'}
           <div class="seg">
             <button class:on={flowWidth === 'narrow'} onclick={() => applyFlowWidth('narrow')}>Narrow</button>
