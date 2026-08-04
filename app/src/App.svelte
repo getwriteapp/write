@@ -499,27 +499,35 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     const rects = []
     for (let n = walker.nextNode(); n; n = walker.nextNode()) {
       if (!n.data) continue
+      /* Which paragraph owns this line. Widow/orphan control is a rule about
+         a PARAGRAPH, not about a top-level block, and the two are only the
+         same thing for plain body text: one `<ul>` holds many paragraphs, and
+         "the last line" of the list is not "the last line" of the item being
+         broken. Carrying the owner through lets the rule stay per-paragraph
+         wherever it is applied. */
+      const owner = n.parentElement?.closest('p, h1, h2, h3, li, blockquote, pre, td, th') || el
       const r = document.createRange()
       r.selectNodeContents(n)
       for (const rect of r.getClientRects()) {
-        if (rect.height > 0.5 && rect.width > 0) rects.push(rect)
+        if (rect.height > 0.5 && rect.width > 0) rects.push({ rect, owner })
       }
     }
-    rects.sort((a, b) => a.top - b.top || a.left - b.left)
+    rects.sort((a, b) => a.rect.top - b.rect.top || a.rect.left - b.rect.left)
     const lines = []
-    for (const r of rects) {
+    for (const { rect: r, owner } of rects) {
       const cur = lines[lines.length - 1]
       if (cur && r.top < cur.rawBottom - 1) {
         cur.rawBottom = Math.max(cur.rawBottom, r.bottom)
         cur.rawLeft = Math.min(cur.rawLeft, r.left)
       } else {
-        lines.push({ rawTop: r.top, rawBottom: r.bottom, rawLeft: r.left })
+        lines.push({ rawTop: r.top, rawBottom: r.bottom, rawLeft: r.left, owner })
       }
     }
     return lines.map((l) => ({
       top: (l.rawTop - base) / z,       // layout px, relative to the block
       bottom: (l.rawBottom - base) / z,
       rawTop: l.rawTop, rawBottom: l.rawBottom, rawLeft: l.rawLeft, // viewport px
+      owner: l.owner,                   // the paragraph this line belongs to
     }))
   }
 
@@ -535,12 +543,24 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     return hit ? hit.pos : null
   }
 
-  // the spacer set currently pushed into the editor, as a cheap identity
-  // string — so an unchanged pagination doesn't dispatch a transaction
+  /* The spacer set last pushed into the editor, as a cheap identity string, so
+     an unchanged pagination doesn't dispatch a transaction.
+
+     The memo is checked against what the editor ACTUALLY holds, never against
+     itself alone. A signature describes what we want; it says nothing about
+     what survived. Replacing the document (`setContent`, opening a file, a
+     template) destroys every decoration — and if the new content paginates the
+     same way, the freshly computed signature is byte-identical to the stale
+     one, so a self-comparing memo concludes "nothing changed" and never puts
+     the spacers back. That is exactly how it failed: the same document loaded
+     twice in a row lost all nine of its line breaks and ran text through nine
+     desk gaps, with the engine having computed all nine correctly. */
   let lastSpacerSig = ''
   function applySpacers(list) {
     const sig = list.map((s) => `${s.pos}:${Math.round(s.height)}`).join('|')
-    if (sig === lastSpacerSig) return
+    let liveCount = 0
+    editor && pageSpacerKey.getState(editor.state)?.find().forEach(() => liveCount++)
+    if (sig === lastSpacerSig && liveCount === list.length) return
     lastSpacerSig = sig
     if (!editor) return
     const decos = list.map((s) =>
@@ -716,17 +736,66 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
          The loop runs over every line, so one paragraph can span as many
          pages as it needs. */
       const lines = lineBoxes(el)
+      if (!lines.length) continue
       // if even its first line won't fit here, the whole block moves first
-      if (lines.length && top + lines[0].bottom > capacity + OVERHANG_SLOP && i > pageStartIdx) {
+      if (top + lines[0].bottom > capacity + OVERHANG_SLOP && i > pageStartIdx) {
         breakBefore(i)
         capacity = pageStartY + g.contentH
       }
-      for (let j = 1; j < lines.length; j++) {
-        if (top + lines[j].bottom <= capacity + OVERHANG_SLOP) continue
+
+      // first line of `lines` that is on the page currently being filled — the
+      // page's opening line can never be pushed anywhere, so a break is only
+      // ever looked for after it
+      let pageFirstLine = 0
+      const firstOverflow = (from) => {
+        for (let j = from; j < lines.length; j++) {
+          if (top + lines[j].bottom > capacity + OVERHANG_SLOP) return j
+        }
+        return -1
+      }
+      // the run of lines belonging to the same paragraph as line j
+      const paraStart = (j) => { let k = j; while (k > 0 && lines[k - 1].owner === lines[j].owner) k--; return k }
+      const paraEnd = (j) => { let k = j; while (k < lines.length - 1 && lines[k + 1].owner === lines[j].owner) k++; return k }
+
+      for (;;) {
+        let j = firstOverflow(pageFirstLine + 1)
+        if (j < 0) break
+
+        /* Word's widow/orphan control, which is on by default in Word and is
+           most of what makes a broken paragraph look deliberate rather than
+           chopped: never leave a single line of a paragraph alone on either
+           side of a break. `j` is the first line that moves to the next page,
+           so the lines staying behind are [max(pageFirstLine, paraStart) .. j-1]
+           and the lines going over are [j .. paraEnd]. */
+        const pStart = paraStart(j)
+        const pEnd = paraEnd(j)
+        const floor = Math.max(pageFirstLine, pStart)
+        // widow: only the paragraph's LAST line would go over — take two
+        if (j === pEnd && j - 1 > floor) j -= 1
+        // orphan: only ONE line of the paragraph would stay behind — send it
+        // over with the rest, which for a paragraph that starts the block
+        // means moving the whole block down
+        if (j - floor === 1) {
+          if (pStart === 0 && pageFirstLine === 0 && i > pageStartIdx) {
+            // `breakBefore` sets pageStartIdx = i, so this can run at most
+            // once per block — no way to loop here
+            breakBefore(i)
+            capacity = pageStartY + g.contentH
+            continue
+          }
+          // a later paragraph inside the same block can simply break at its
+          // own first line instead
+          if (pStart > pageFirstLine) j = pStart
+          // otherwise there is no better break available — take the orphan
+        }
+
         const pos = posAtLineStart(lines[j])
-        if (pos === null) break // can't locate it — leave the block whole
+        if (pos === null) break // can't locate it — leave the rest whole
         breakBeforeLine(pos, top + lines[j].top, i)
         capacity = pageStartY + g.contentH
+        // j > pageFirstLine always (every branch above preserves it), so this
+        // strictly advances and the loop is guaranteed to terminate
+        pageFirstLine = j
       }
     }
 

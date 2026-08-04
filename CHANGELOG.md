@@ -6,8 +6,9 @@ All notable changes to `write` are recorded here. Format loosely follows
 
 ## [Unreleased]
 
-Two polish passes driven by using the app: Session 29's typography and
-navigation work, and Session 30's formatting marks.
+Three passes driven by using the app: Session 29's typography and navigation
+work, Session 30's formatting marks, and Session 31's real pagination — Page
+view now breaks pages between lines, the way a word processor is supposed to.
 
 ### Added
 
@@ -18,6 +19,10 @@ navigation work, and Session 30's formatting marks.
   paragraph happened to end — and a paragraph longer than a whole page finally
   works at all. Tables and images are still moved whole rather than split, so a
   page break never falls inside one.
+- **Widow and orphan control**, on by default as it is in Word: a page break
+  never leaves a single line of a paragraph stranded on its own, at the bottom
+  of one page or the top of the next. It either carries an extra line over or
+  moves the whole paragraph down.
 - **Formatting marks** — Word's ¶ toggle. Shows a dot for every space, an
   arrow for every tab, a pilcrow at the end of every paragraph, and ↵ at a
   line break. `Ctrl+Shift+8` (Word's own shortcut) or **¶ Marks** in the
