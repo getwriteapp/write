@@ -1449,8 +1449,21 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   <button class="whisper wordmark" onclick={() => toggleCommander()} title="Rooms & recents (Ctrl+K)">write</button>
 </div>
 
+  <!-- Page view's sheets are `position: absolute`, so a document whose last
+       page is short (nearly every document — pages rarely fill exactly) still
+       leaves .editor-host's own auto height sized to the FLOWING content, not
+       to the full physical page. Nothing paints in-flow past where the text
+       actually ends, so main's desk-gray background — which fills exactly
+       .editor-host's box — ran out before the last sheet visually did,
+       showing white (the body underneath) below a sparse last page. This
+       min-height, computed from the same pageRects the sheets are drawn
+       from, is what makes .editor-host's box (and hence main's background)
+       always reach the true bottom of the last sheet. Brett's screenshot. -->
 <main bind:this={mainEl}>
-  <div class="editor-host" class:custom-caret={caretVisible} bind:this={host}>
+  <div
+    class="editor-host" class:custom-caret={caretVisible} bind:this={host}
+    style={view === 'page' && pageRects.length ? `min-height:${pageRects[pageRects.length - 1].top + pageRects[pageRects.length - 1].height}px` : ''}
+  >
     <div class="caret" class:show={caretVisible} bind:this={caretEl}></div>
     {#if view === 'page'}
       <!-- Desk showing between sheets, painted ABOVE the text. Page breaks are

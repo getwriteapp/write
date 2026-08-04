@@ -67,7 +67,11 @@ body[data-view="page"] .ProseMirror p { margin: 0 0 10.667px; } /* 8pt after */
 [data-view="page"] main {
   background: var(--desk);
   align-items: flex-start;
-  padding: 7vh 24px 22vh;
+  /* Session 30: trimmed alongside Flow's — this is chrome breathing room
+     above the sheet, not the page's own margin (that's --page-my, on
+     .editor-host below, and is untouched: it has to stay the real 1in/etc.
+     so Page view keeps telling the truth about where Word will break). */
+  padding: 5vh 24px 22vh;
   transition: background-color 0.45s ease;
 }
 [data-view="page"] body::before { opacity: 0; } /* hide the room wash on the desk */

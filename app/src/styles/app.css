@@ -689,7 +689,13 @@ main {
   min-height: 100vh;
   display: flex;
   justify-content: center;
-  padding: 9vh 24px 20vh;
+  /* 9vh (Session 25) was sized to leave room for a permanently-visible top
+     bar; the Bar has been a hover overlay since that same session, and both
+     it and the wordmark are `position: fixed`, entirely independent of this
+     padding — so none of it is actually reserved for chrome. Session 30:
+     Brett felt the headroom above the first line was still too generous even
+     with that accounted for. 6vh (54px on a 900px window, was 81px). */
+  padding: 6vh 24px 20vh;
 }
 .editor-host {
   position: relative; /* anchors the custom caret overlay in both views */

@@ -31,6 +31,8 @@ navigation work, and Session 30's formatting marks.
   character), all of which round-trip through `.docx`.
 - **The chrome ducks the moment you engage** with the page, rather than after
   48px of scrolling.
+- **Trimmed the empty space above the first line of text**, in both views —
+  neither the Bar nor the wordmark actually need it reserved.
 
 ### Fixed
 
@@ -41,6 +43,11 @@ navigation work, and Session 30's formatting marks.
   up crossing the gap between sheets, with a line of it hidden behind the
   edge of the paper. The sheet holding an oversized block now grows to hold
   it, so every word stays on the page and visible.
+- **The desk background behind the pages no longer turns white partway down
+  a short last page.** The page sheets are drawn as an overlay, positioned
+  independently of the actual text; a document whose last page isn't full
+  (nearly all of them) left nothing painting that background as far down as
+  the sheet itself went.
 - Scrolling no longer grabs and stretches at the page edges (an accidental
   nested scroll container).
 - Modals no longer chain their scrolling to the document behind them.
