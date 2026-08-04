@@ -432,7 +432,10 @@ body[data-focus="on"] .bar-zone { display: none; }
   padding: 6px 10px;
   background: var(--card);
   border: 1px solid var(--hairline);
-  border-radius: 12px;
+  /* 4px, not the 12px every dashboard has used since 2020 — Brett's call,
+     chosen live against 8/3/0 in the chrome lab (Session 32). Crisp reads as
+     considered; the old radius plus Geist above was the "generic SaaS" tell. */
+  border-radius: 4px;
   box-shadow: var(--card-shadow);
   opacity: 0;
   pointer-events: none;
@@ -498,7 +501,7 @@ body.typing .bar-zone.menu-open .bar {
   color: var(--soft);
   background: transparent;
   border: 1px solid var(--hairline);
-  border-radius: 7px;
+  border-radius: 3px;
   padding: 3px 4px;
   max-width: 118px;
   cursor: pointer;
@@ -530,7 +533,7 @@ body.typing .bar-zone.menu-open .bar {
   max-height: min(52vh, 420px);
   overflow-y: auto;
   padding: 5px;
-  border-radius: 12px;
+  border-radius: 4px;
   border: 1px solid var(--hairline);
   background: var(--card);
   backdrop-filter: blur(14px) saturate(1.3);
@@ -557,7 +560,7 @@ body.typing .bar-zone.menu-open .bar {
   font-size: 16px;
   line-height: 1.35;
   padding: 5px 9px;
-  border-radius: 7px;
+  border-radius: 3px;
   cursor: pointer;
 }
 .font-row.sel {
@@ -612,9 +615,15 @@ body.typing .bar-zone.menu-open .bar {
   width: 26px; height: 24px;
   cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
+  /* Chromium gives a plain <button> a small default corner radius of its own
+     (no rule here ever overrode it) — invisible on the end buttons, since
+     they get explicit radii below, but the middle ones (Centre, Right/outdent)
+     kept it, so a "square" segmented control had two soft corners nobody
+     authored. */
+  border-radius: 0;
 }
-.bar-seg button:first-child { border-radius: 7px 0 0 7px; }
-.bar-seg button:last-child { border-radius: 0 7px 7px 0; }
+.bar-seg button:first-child { border-radius: 3px 0 0 3px; }
+.bar-seg button:last-child { border-radius: 0 3px 3px 0; }
 .bar-seg button + button { border-left: none; }
 .bar-seg button.on { color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, transparent); }
 .bar-seg button:disabled { opacity: 0.35; cursor: default; }
@@ -631,7 +640,7 @@ body.typing .bar-zone.menu-open .bar {
   font-size: 11px;
   letter-spacing: 0.02em;
   padding: 3px 9px;
-  border-radius: 7px;
+  border-radius: 3px;
   cursor: default;
   opacity: 0.5;
   transition: color 0.14s ease, border-color 0.14s ease, opacity 0.14s ease;

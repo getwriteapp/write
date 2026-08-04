@@ -4,7 +4,7 @@ All notable changes to `write` are recorded here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is
 [SemVer](https://semver.org/), pre-1.0.
 
-## [Unreleased]
+## [0.2.0] — 2026-08-04
 
 Three passes driven by using the app: Session 29's typography and navigation
 work, Session 30's formatting marks, and Session 31's real pagination — Page
@@ -45,6 +45,17 @@ view now breaks pages between lines, the way a word processor is supposed to.
   48px of scrolling.
 - **Trimmed the empty space above the first line of text**, in both views —
   neither the Bar nor the wordmark actually need it reserved.
+- **The chrome's own typeface and corners.** The UI font (Bar, Commander,
+  whispers) was Geist — Vercel's typeface, and about as close to "made by an
+  AI startup in 2023" as a font gets. It's now Atkinson Hyperlegible, drawn by
+  the Braille Institute to make letters as distinct from one another as
+  possible; real character instead of optimised neutrality, and the kindest
+  face here on tired eyes. The Bar's corners went from 12px to 4px (buttons
+  7px to 3px) — the geometric-sans-plus-12px-radius-plus-soft-shadow
+  combination is the house style of every dashboard since 2020, and the
+  radius change moves the register further than the font swap does on its
+  own. Document typography is unaffected either way — this is only the app's
+  own furniture.
 
 ### Fixed
 
@@ -132,5 +143,6 @@ downloadable.
 First release. Real `.docx` open and save, images, six rooms, the Commander,
 Flow and Page views, focus mode, autosave and recents. Windows only.
 
+[0.2.0]: https://github.com/getwriteapp/write/releases/tag/v0.2.0
 [0.1.1]: https://github.com/getwriteapp/write/releases/tag/v0.1.1
 [0.1.0]: https://github.com/getwriteapp/write/releases/tag/v0.1.0

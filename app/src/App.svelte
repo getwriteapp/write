@@ -974,19 +974,25 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     if (barScrollHidden) barShownAtY = y
   }
 
-  /* The typeface library. Every family here ships with the app — no network
-     call has ever been made for type and none ever will be. Grouped by voice
-     rather than listed flat, because thirteen names in one column is a wall.
+  /* The typeface library — 21 families. Every one ships with the app; no
+     network call has ever been made for type and none ever will be. Grouped by
+     voice rather than listed flat, because 21 names in one column is a wall.
      Each is a deliberate pick, not a dump of what Fontsource happens to have:
        Serif  — Literata (screen-first book face) · Source Serif (Adobe's
                 workhorse) · EB Garamond (the classic old-style, for anything
-                that wants to feel printed) · Lora (contemporary, brushed
-                contrast) · Newsreader (editorial warmth) · Playfair Display
-                (high-contrast — a title face, not a body face)
-       Sans   — Geist · Inter (the neutral workhorse) · IBM Plex Sans
+                that wants to feel printed) · Crimson Pro (old-style, lighter
+                colour on the page) · Lora (contemporary, brushed contrast) ·
+                Newsreader (editorial warmth)
+       Slab   — Roboto Slab (sturdy, neutral) · Bitter (contrasty slab that
+                still sets as body text)
+       Sans   — Geist · Inter (the neutral workhorse) · Work Sans · Libre
+                Franklin (a Franklin Gothic descendant) · Archivo (grotesque,
+                slightly condensed) · Manrope (geometric, soft) · IBM Plex Sans
                 (humanist, slightly technical) · Atkinson Hyperlegible (drawn
                 by the Braille Institute for maximum letter distinction —
                 genuinely the kindest face here for tired eyes)
+       Display— Playfair Display (high-contrast) · Fraunces (soft, wonky
+                old-style). Title faces, not body faces.
        Type-  — iA Writer Quattro (the app's own voice) · JetBrains Mono
        writer   (warmer, rounder mono) · Geist Mono (tight and neutral) */
   const FONT_GROUPS = [

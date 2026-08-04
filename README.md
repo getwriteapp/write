@@ -4,7 +4,7 @@
 
 **A quiet, beautiful word processor. Start from silence; go up into rich text.**
 
-*Lightweight · cross-platform · free forever · GPL-3.0*
+*Lightweight · offline · free forever · GPL-3.0*
 
 </div>
 
@@ -22,6 +22,20 @@ The "lightweight word processor" category has a genuine gap: nothing in it is be
 
 See [`PROJECT.md`](PROJECT.md) for the full design philosophy, competitive analysis, and decision log.
 
+## Getting it
+
+Download the installer from the [latest
+release](https://github.com/getwriteapp/write/releases/latest) — a 4.4 MB
+`.exe`, no account, no telemetry, no bundled anything.
+
+**Windows only for now.** The codebase is cross-platform and the build targets
+for macOS and Linux are configured, but no macOS or Linux binary has ever been
+produced or tested, so it would be dishonest to list them. Building from source
+on those platforms should work; nobody has confirmed it.
+
+Release binaries aren't code-signed yet, so Windows SmartScreen will warn on
+first run — check the SHA-256 against the release notes before installing.
+
 ## Rooms
 
 A *room* is more than a theme — it sets the light (palette), the voice (typeface), and the temperature of the work. Six ship built in:
@@ -37,19 +51,76 @@ A *room* is more than a theme — it sets the light (palette), the voice (typefa
 
 Cycle them with `Ctrl/⌘ + \`.
 
-## Features (v0.1)
+## Features
 
-- **Real `.docx` open and save** — documents round-trip through Microsoft Word and back with structure intact (headings, lists, quotes, code, links, images), verified by an automated 18-fixture round-trip suite
-- **Images** — paste or drag-drop PNG/JPEG/GIF into the page; embedded right in the document and in the exported `.docx`
-- Real rich-text editing (bold, italic, underline, strikethrough, headings, lists, quotes, links) on a ProseMirror/Tiptap core
-- Six built-in rooms with instant switching; your choice is remembered
-- **The Commander** (`Ctrl/⌘ K`) — a summonable surface for rooms, recents, views, and file actions; no persistent chrome
-- **Flow and Page views** — an endless quiet column, or a real paper sheet with margins and page-break guides (Letter/A4); printing is correctly paginated either way
-- **Focus mode** — dims everything except the paragraph you're in (`F11` or `Ctrl/⌘ + Enter`)
-- Selection toolbar that appears on demand and vanishes when you're done
-- Auto-save that never asks; recent files; a quiet guard before unsaved work is replaced
-- Drag a `.docx` from your file manager onto the window to open it
-- Chrome that fades while you type; live word count and reading time
+### The document
+
+- **Real `.docx` open and save** — documents round-trip through Microsoft Word
+  and back with structure intact, on a `.docx` reader and writer built for this
+  app rather than a generic converter. Verified by an automated **65-fixture
+  round-trip suite** that runs on every commit.
+- **Rich text that survives the trip** — headings, lists, quotes, code, links,
+  bold/italic/underline/strikethrough, text colour and highlight, alignment,
+  line spacing, indentation, font family and size. Everything the app can set,
+  Word can read; everything Word sets, the app can read back.
+- **Tables** — insert, add and delete rows and columns, merge and split cells,
+  toggle a header row that repeats across pages. Column widths, merged cells
+  and repeating headers all round-trip.
+- **Images** — paste or drag-drop PNG/JPEG/GIF into the page; embedded in the
+  document and in the exported `.docx`, byte for byte.
+- **Table of contents** — a snapshot of your headings, refreshed on demand,
+  exported as a genuine Word TOC field that Word will keep up to date.
+- **Headers, footers and page numbers** — each independently left/centre/right
+  aligned; page numbers are a live Word `PAGE` field, not typed-in text.
+- **Word's real Tab** — three different things depending on where the caret
+  sits, exactly as Word does it: a first-line indent at the start of a block, a
+  block indent across a selection, a real tab character anywhere else. All
+  three are distinct concepts in the `.docx`, and all three round-trip.
+- **Five templates** to start from — Letter, Meeting Notes, Resume, Report, and
+  a Specimen that exercises every feature in the app in one running document.
+
+### The page
+
+- **Flow and Page views** — an endless quiet column for drafting, or real
+  discrete paper sheets with true margins for seeing what Word will see.
+- **Page view paginates the way Word does.** Pages break *between lines*, not
+  just between paragraphs: a paragraph too long for the space left is split at
+  the right line and continued on the next sheet. **Widow and orphan control**
+  is on by default, so a single line is never stranded alone on either side of
+  a break. Page view also renders the document's real exported typography
+  rather than the room's reading typography — so the breaks it shows you are
+  the breaks Word will produce.
+- **Page setup** — Letter or A4, portrait or landscape, narrow/normal/wide
+  margins, and insertable manual page breaks (`Ctrl/⌘ Shift Enter`). A
+  document's own page settings drive the view when you open it.
+- **Zoom** that anchors where you point (`Ctrl/⌘ =` / `-` / `0`, or
+  Ctrl+scroll), with a read-out that fades away.
+- **Formatting marks** — Word's ¶ toggle (`Ctrl/⌘ Shift 8`): a dot for every
+  space, an arrow for every tab, a pilcrow at each paragraph, ↵ at a line
+  break. Purely a view overlay — the marks never enter the document, never
+  survive a copy, and never print.
+
+### The room
+
+- **Six built-in rooms** (palette + typeface + measure) with instant switching;
+  your choice is remembered. Flow view adds narrow/normal/wide column widths.
+- **Twenty-one bundled typefaces** — six serif, two slab, eight sans, two
+  display, three typewriter — in a menu that previews each face live in your
+  own document as you arrow through it, and restores on Escape.
+- **Focus mode** — dims everything except the paragraph you're in (`F11` or
+  `Ctrl/⌘ Enter`).
+- **Chrome that gets out of the way** — the toolbar and wordmark duck the
+  moment you engage with the page and return when you reach for them. A
+  selection toolbar appears on demand and vanishes when you're done.
+- Live word count and reading time, in a whisper at the corner.
+
+### The everyday
+
+- **Find & replace** (`Ctrl/⌘ F`) in a quiet bar rather than a dialog.
+- **Native spell check**, toggleable.
+- Auto-save that never asks; ten recent files; a quiet guard before unsaved
+  work is replaced.
+- Drag a `.docx` or an image from your file manager onto the window to open it.
 - **Fully offline, and built so it can't quietly stop being true** — every font
   ships inside the app, and `write` makes no network requests at runtime. A
   document that points an image at someone else's server has that image left
@@ -59,23 +130,43 @@ Cycle them with `Ctrl/⌘ + \`.
   the request. There's a [test suite](app/tests/sanitize-probe.mjs) that fails
   if either lock comes loose.
 
+Known differences from Word, stated plainly rather than buried: a table or an
+image taller than the space left on a page is moved to the next page whole
+rather than split across the break (text paragraphs *do* split); headers and
+footers are in the exported `.docx` but don't yet appear when printing directly
+from the app; and TOC page numbers are computed by Word on open rather than
+cached at export. [`PROJECT.md`](PROJECT.md) documents the full fidelity list.
+
 ## Keyboard
 
 | Shortcut | Action |
 |----------|--------|
 | `Ctrl/⌘ B` / `I` / `U` | Bold / Italic / Underline |
 | `Ctrl/⌘ K` | The Commander — rooms, recents, views, file actions |
+| `Ctrl/⌘ /` | Show or pin the formatting bar |
 | `Ctrl/⌘ \` | Cycle rooms |
 | `F11` or `Ctrl/⌘ Enter` | Toggle focus mode |
 | `Ctrl/⌘ S` | Save (`.docx` by default) |
 | `Ctrl/⌘ O` | Open (`.docx`, `.html`, `.txt`) |
+| `Ctrl/⌘ F` | Find & replace |
+| `Ctrl/⌘ Shift V` | Paste without formatting |
+| `Ctrl/⌘ Shift Enter` | Insert a page break |
+| `Ctrl/⌘ Shift 8` | Show or hide formatting marks (¶) |
+| `Ctrl/⌘ =` / `-` / `0` | Zoom in / out / reset to 100% |
+| `Tab` / `Shift Tab` | Indent — first-line, block, or a tab character (see above) |
 | `Esc` | Exit focus / close surfaces |
 
 ## Tech
 
-- **[Tauri 2](https://tauri.app)** (Rust) shell — a **~3.5 MB** binary (~1.3 MB installer), using the system webview instead of bundling Chromium
+- **[Tauri 2](https://tauri.app)** (Rust) shell — a **6.6 MB** binary (**4.4 MB**
+  installer), using the system webview instead of bundling Chromium. Roughly
+  half of that is the twenty-one bundled typefaces, which is the price of never
+  making a network request for type.
 - **[Svelte 5](https://svelte.dev)** + **[Vite](https://vite.dev)** frontend
 - **[Tiptap](https://tiptap.dev)** / ProseMirror editor core
+- The `.docx` reader and writer are this project's own, over
+  [fflate](https://github.com/101arrowz/fflate) and
+  [fast-xml-parser](https://github.com/NaturalIntelligence/fast-xml-parser)
 - Fonts are all SIL Open Font License, safe to bundle with a GPL app
 - No dependency is copyleft — everything upstream is MIT, Apache-2.0, or OFL
 
@@ -88,6 +179,9 @@ npm run dev          # browser dev server at localhost:5173
 npm run tauri dev    # the real desktop app (hot-reloaded)
 npm run tauri build  # produce installers for the current OS
 ```
+
+On Windows, `.\dev.ps1` from the repo root does the second of those without
+the `cd`.
 
 Requires Node 20+ and a Rust toolchain (`rustup`). On Windows you also need the WebView2 runtime (preinstalled on Windows 11) and the MSVC build tools.
 
@@ -109,10 +203,8 @@ enforced in code rather than promised:
 | exhaust your machine | archive decompression is capped before anything is inflated |
 
 Found a way around one of them? See [SECURITY.md](SECURITY.md) — please report
-it privately rather than opening an issue.
-
-Release binaries are not code-signed yet, so Windows will warn on first run.
-Verify the SHA-256 against the checksum in the release notes.
+it privately rather than opening an issue. It also covers verifying a release
+binary, which isn't code-signed yet.
 
 ## Design prototypes
 

@@ -18,8 +18,15 @@ app/tests/out/
 
 # the build diary — working notes for an audience of one, split out of
 # PROJECT.md at publish. Deliberately never committed; PROJECT.md sections
-# 1-16 carry the reasoning that's worth reading.
+# 1-17 carry the reasoning that's worth reading.
 SESSIONS.md
+
+# session-to-session orientation, and the running punch list. Same reasoning as
+# SESSIONS.md: written for an audience of one, not for someone arriving at the
+# repo. Untracked at launch (Session 32) — CHANGELOG.md is the public record of
+# what changed, PROJECT.md the public record of why.
+HANDOFF.md
+buildnotes.md
 
 # personal test documents at the repo root
 /*.docx

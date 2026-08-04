@@ -16,7 +16,15 @@
    ============================================================ */
 
 :root {
-  --ui-font: 'Geist Variable', -apple-system, 'Segoe UI', sans-serif;
+  /* Was Geist — Vercel's typeface, and about as "shipped by an AI startup in
+     2023" as a font can read. Atkinson Hyperlegible was drawn by the Braille
+     Institute to make letters as distinct from one another as possible; real
+     character instead of optimised neutrality, and the kindest face here on
+     tired eyes. Brett's call, chosen live against eight others across two
+     rounds (see the chrome labs, Session 32) — Libre Franklin was the first
+     pick but didn't hold up once it was live in the app. Already bundled as a
+     document typeface — costs nothing. */
+  --ui-font: 'Atkinson Hyperlegible', -apple-system, 'Segoe UI', sans-serif;
   --mono: 'Geist Mono Variable', ui-monospace, 'Cascadia Mono', monospace;
 }
 

@@ -67,7 +67,7 @@ first run. Check the SHA-256 against the checksum published in the release
 notes before installing:
 
 ```bash
-sha256sum write_0.1.1_x64-setup.exe
+sha256sum write_<version>_x64-setup.exe
 ```
 
 ## Running the security tests
