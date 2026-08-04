@@ -111,6 +111,25 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   }
   let pageStyleEl
   let pageGapStyleEl
+  /* Three features inject a <style> into the head (page setup, the page-break
+     padding, focus dimming) because ProseMirror strips foreign classes off its
+     own nodes. Each one is claimed by NAME rather than freshly created, so a
+     component remount can't orphan the previous one in the head with its rules
+     still live. That is not hypothetical: a hot reload resets these module
+     variables, and a leaked page-break stylesheet keeps pushing blocks around
+     while the next measurement — which starts by clearing what it thinks is
+     its own stylesheet — computes sheet positions from a layout it isn't
+     controlling. It looks exactly like a pagination bug, and it cost time in
+     Session 30 before the cause was clear. */
+  function claimStyleEl(name) {
+    let el = document.head.querySelector(`style[data-write="${name}"]`)
+    if (!el) {
+      el = document.createElement('style')
+      el.setAttribute('data-write', name)
+      document.head.appendChild(el)
+    }
+    return el
+  }
 
   // zoom: scales the document view only (never the app chrome) via CSS zoom
   // on <main>. Standardized CSS zoom (Chrome 128+) leaves layout reads like
@@ -253,7 +272,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   }
   const MARGIN_IN = { narrow: '0.5in', normal: '1in', wide: '1.5in' }
   function syncPageStyle() {
-    if (!pageStyleEl) { pageStyleEl = document.createElement('style'); document.head.appendChild(pageStyleEl) }
+    if (!pageStyleEl) pageStyleEl = claimStyleEl('page')
     const size = pageSize === 'a4' ? 'A4' : 'letter'
     const orient = orientation === 'landscape' ? ' landscape' : ''
     const marginIn = MARGIN_IN[margin] || '1in'
@@ -435,7 +454,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     const firstH = g.my + g.contentH + jmy // page 0's height when it has a successor
     const midH = jmy + g.contentH + jmy    // every later non-final page
 
-    if (!pageGapStyleEl) { pageGapStyleEl = document.createElement('style'); document.head.appendChild(pageGapStyleEl) }
+    if (!pageGapStyleEl) pageGapStyleEl = claimStyleEl('page-breaks')
     pageGapStyleEl.textContent = ''
 
     const children = [...pm.children]
@@ -454,15 +473,41 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     let pageStartIdx = 0 // the block that opens the page being filled; it can
                          // never be pushed further down (there is nowhere left
                          // to push it to, and trying would loop forever)
+    /* How much taller than `contentH` each page actually turned out, and the
+       running total. A block taller than a page can't be moved down (nothing
+       would hold it there either), so its page genuinely holds more than a
+       page of content — and that surplus has to be given back to the SHEET,
+       or the paper stops describing the text.
+
+       Without this, one over-tall block silently broke pagination for the
+       whole rest of the document. `marginNeeded` below is clamped at 0
+       (correctly — a block can't be pushed UP), so once content sat lower
+       than its page's ideal start, every later break asked for a negative
+       offset, got 0, and injected nothing: the sheets carried on being drawn
+       at their ideal positions while the text ran free below them. Measured
+       on a Specimen with one 1083px paragraph (page capacity 864px): ZERO
+       padding rules injected across 8 pages, and a perfectly ordinary
+       197px list four blocks later had a line of itself buried behind a desk
+       gap. That was Brett's screenshot. */
+    const pageExtras = []
+    let extraTotal = 0
 
     const breakBefore = (idx) => {
       const naturalTop = children[idx].offsetTop
+      // close the page being left: what did it actually consume? Everything
+      // beyond capacity is a block that could not be held, and the sheet grows
+      // to cover it so no text is ever stranded on the desk (or, worse, hidden
+      // behind the gap mask painted over it).
+      pageExtras[pageIndex] = Math.max(0, naturalTop - pageStartY - g.contentH)
+      extraTotal += pageExtras[pageIndex]
       pageIndex++
       // where page k's first text lands in .ProseMirror space (whose origin
       // sits g.my below sheet 0's top): every page before k has a successor,
       // so its displayed bottom margin is jmy; page k's displayed top margin
       // is jmy too (k ≥ 1 here, so it always has a predecessor)
-      const desiredY = firstH + (pageIndex - 1) * midH + pageIndex * PAGE_GAP + jmy - g.my
+      // + extraTotal: every page closed so far may have grown past contentH,
+      // and this page's content starts that much further down the screen
+      const desiredY = firstH + (pageIndex - 1) * midH + pageIndex * PAGE_GAP + jmy - g.my + extraTotal
       const marginNeeded = Math.max(0, desiredY - naturalTop - cumMargin)
       // padding-top, not margin-top: adjacent vertical margins collapse in
       // CSS (two touching margins become one, sized to the larger — not the
@@ -518,17 +563,24 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
           && el.offsetHeight <= g.contentH) breakBefore(i)
     }
 
+    // the final page closes at the last block's bottom rather than at a break,
+    // so it needs the same surplus treatment (a document ENDING in an over-tall
+    // block would otherwise run off the last sheet)
+    const lastEl = children[children.length - 1]
+    if (lastEl) pageExtras[pageIndex] = Math.max(0, lastEl.offsetTop + lastEl.offsetHeight - pageStartY - g.contentH)
+
     // scoped to screen only: these margins are a visual illusion for the
     // editor surface, not something print's own @page pagination should see
     pageGapStyleEl.textContent = rules.length ? `@media screen{${rules.join('')}}` : ''
 
     const pages = pageIndex + 1
     // variable sheet heights: full margins on the document's outer edges,
-    // compact ones at every junction (a lone page is exactly nominal pageH)
+    // compact ones at every junction (a lone page is exactly nominal pageH),
+    // plus any surplus from a block too tall for the page to hold
     const rects = []
     let rectTop = 0
     for (let i = 0; i < pages; i++) {
-      const h = (i === 0 ? g.my : jmy) + g.contentH + (i === pages - 1 ? g.my : jmy)
+      const h = (i === 0 ? g.my : jmy) + g.contentH + (pageExtras[i] || 0) + (i === pages - 1 ? g.my : jmy)
       rects.push({ top: rectTop, height: h, n: i })
       rectTop += h + PAGE_GAP
     }
@@ -558,7 +610,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     if (!n || n.nodeType !== 1) return
     const idx = [...root.children].indexOf(n) + 1 // :nth-child is 1-based
     if (idx < 1) return
-    if (!litStyleEl) { litStyleEl = document.createElement('style'); document.head.appendChild(litStyleEl) }
+    if (!litStyleEl) litStyleEl = claimStyleEl('focus-dim')
     litStyleEl.textContent = `body[data-focus="on"] .ProseMirror > *:nth-child(${idx}){opacity:1}`
   }
 

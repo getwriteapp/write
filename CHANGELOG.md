@@ -34,6 +34,13 @@ navigation work, and Session 30's formatting marks.
 
 ### Fixed
 
+- **A paragraph, table or image too tall to fit one page no longer breaks
+  pagination for the rest of the document.** Such a block can't be moved to
+  the next sheet — nothing would hold it there either — but the pages after it
+  were still being drawn as though it had fitted, so text further down ended
+  up crossing the gap between sheets, with a line of it hidden behind the
+  edge of the paper. The sheet holding an oversized block now grows to hold
+  it, so every word stays on the page and visible.
 - Scrolling no longer grabs and stretches at the page edges (an accidental
   nested scroll container).
 - Modals no longer chain their scrolling to the document behind them.
