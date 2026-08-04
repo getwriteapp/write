@@ -1,6 +1,6 @@
 <script>
   import { onMount, onDestroy, tick } from 'svelte'
-  import { createEditor, WELCOME, insertImageFiles, bytesToDataUrl, IMAGE_EXT_MIME, findReplaceKey, markPastePlain, countRemoteImages } from './lib/editor.js'
+  import { createEditor, WELCOME, insertImageFiles, bytesToDataUrl, IMAGE_EXT_MIME, findReplaceKey, markPastePlain, countRemoteImages, pageSpacerKey, pageSpacerDOM } from './lib/editor.js'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
   import { ROOMS, DEFAULT_ROOM } from './lib/rooms.js'
   import { fileBridge, isTauri, DOC_EXT_RE } from './lib/bridge.js'
@@ -366,6 +366,23 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   function queueMeasure() {
     requestAnimationFrame(() => requestAnimationFrame(measurePages))
   }
+  /* Repagination while TYPING is debounced; everything else measures at once.
+
+     A full measure costs ~23ms on a nine-page document, and profiling says
+     essentially all of it is the two forced full-document relayouts either
+     side of the natural-layout reading (8.6ms + 12.4ms) — the line-level
+     measurement itself is 0.3ms a block. That cost is not new (the old
+     block-only engine cleared and rewrote the same stylesheet, forcing the
+     same two relayouts); it was simply never on the keystroke path's
+     conscience before. Running it per keystroke is what would make a long
+     document feel heavy, so the typing path waits for a pause instead. Word
+     repaginates in the background for exactly this reason, and at this delay
+     the breaks settle before the eye leaves the word just typed. */
+  let measureTimer
+  function queueMeasureSoon() {
+    clearTimeout(measureTimer)
+    measureTimer = setTimeout(() => requestAnimationFrame(measurePages), 90)
+  }
   /* Re-measure once a newly-requested typeface has actually arrived.
      @font-face is lazy: the file is only fetched when something on screen
      first asks for that family, and every face this app ships is
@@ -443,10 +460,108 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   function isPageBreakEl(el) {
     return !!el?.getAttribute && el.getAttribute('data-type') === 'pageBreak'
   }
+
+  /* ---- Session 31: line-level pagination ----
+     A block may be cut BETWEEN its own lines only if everything in it is text.
+     An image or a table cannot be sliced, and a paragraph built around one is
+     safer moved whole — so those keep the block-granular behaviour that has
+     always been here. Everything else (paragraphs, headings, lists,
+     blockquotes) can now break mid-block, the way Word does. */
+  function isSplittable(el) {
+    if (!el || isPageBreakEl(el)) return false
+    return !el.querySelector('img, table, [data-type="pageBreak"], [data-type="tableOfContents"]')
+  }
+
+  /* The visual line boxes of a block, in .ProseMirror's own UNZOOMED layout
+     space — the same space offsetTop reports in, so the two can be added.
+
+     Three traps live in here, all of them paid for the hard way:
+     1. Rects are collected from TEXT NODES, never from a range over the block
+        itself. A range spanning element content also yields those elements'
+        own border boxes — for a list, every `<li>` box — which are not lines,
+        are full-width, and (on a block carrying injected page padding) extend
+        straight through the desk gap. Clustering those in with real line rects
+        made a list look like one line per item and put its break in the wrong
+        place. Text nodes yield one rect per line fragment and nothing else.
+     2. Even then it is one rect per FRAGMENT, not per line. A bold run, a
+        link, or (with formatting marks on) every single space is its own
+        fragment on the same line, so rects still have to be clustered back
+        into lines by vertical overlap before they mean anything.
+     3. Rect geometry is scaled by CSS zoom; offsetTop is not (see the zoom
+        Gotcha). Intra-block offsets are therefore divided by the zoom factor
+        and added to the block's own offsetTop — keeping the division INSIDE
+        one block, so any rounding error stays bounded to that block instead of
+        accumulating down the whole document. */
+  function lineBoxes(el) {
+    const z = zoomPct / 100
+    const base = el.getBoundingClientRect().top
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+    const rects = []
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      if (!n.data) continue
+      const r = document.createRange()
+      r.selectNodeContents(n)
+      for (const rect of r.getClientRects()) {
+        if (rect.height > 0.5 && rect.width > 0) rects.push(rect)
+      }
+    }
+    rects.sort((a, b) => a.top - b.top || a.left - b.left)
+    const lines = []
+    for (const r of rects) {
+      const cur = lines[lines.length - 1]
+      if (cur && r.top < cur.rawBottom - 1) {
+        cur.rawBottom = Math.max(cur.rawBottom, r.bottom)
+        cur.rawLeft = Math.min(cur.rawLeft, r.left)
+      } else {
+        lines.push({ rawTop: r.top, rawBottom: r.bottom, rawLeft: r.left })
+      }
+    }
+    return lines.map((l) => ({
+      top: (l.rawTop - base) / z,       // layout px, relative to the block
+      bottom: (l.rawBottom - base) / z,
+      rawTop: l.rawTop, rawBottom: l.rawBottom, rawLeft: l.rawLeft, // viewport px
+    }))
+  }
+
+  /* The document position of a line's first character. Only ever asked for
+     lines after a block's first, so the coordinate always sits on a soft-wrap
+     boundary — where the end of one line and the start of the next are the
+     SAME document position, which is what makes the ±1px aim harmless. */
+  function posAtLineStart(line) {
+    const hit = editor?.view.posAtCoords({
+      left: line.rawLeft + 0.5,
+      top: (line.rawTop + line.rawBottom) / 2,
+    })
+    return hit ? hit.pos : null
+  }
+
+  // the spacer set currently pushed into the editor, as a cheap identity
+  // string — so an unchanged pagination doesn't dispatch a transaction
+  let lastSpacerSig = ''
+  function applySpacers(list) {
+    const sig = list.map((s) => `${s.pos}:${Math.round(s.height)}`).join('|')
+    if (sig === lastSpacerSig) return
+    lastSpacerSig = sig
+    if (!editor) return
+    const decos = list.map((s) =>
+      Decoration.widget(s.pos, pageSpacerDOM(s.height), { side: -1, marks: [], key: `pg-${s.pos}-${Math.round(s.height)}` }))
+    // metadata-only: no steps, so it can never reach the undo stack, mark the
+    // document dirty, or (since the doc doesn't change) re-enter measurePages
+    editor.view.dispatch(
+      editor.state.tr.setMeta(pageSpacerKey, DecorationSet.create(editor.state.doc, decos)).setMeta('addToHistory', false))
+  }
   function measurePages() {
-    if (view !== 'page' || !host) { pageRects = []; lastMeasuredPages = null; if (pageGapStyleEl) pageGapStyleEl.textContent = ''; return }
+    // Flow view has no pages, so it must have no line spacers either — leaving
+    // them behind would put page-sized holes in a continuous document
+    const clearPaging = () => {
+      pageRects = []
+      lastMeasuredPages = null
+      if (pageGapStyleEl) pageGapStyleEl.textContent = ''
+      applySpacers([])
+    }
+    if (view !== 'page' || !host) { clearPaging(); return }
     const pm = host.querySelector('.ProseMirror')
-    if (!pm) { pageRects = []; lastMeasuredPages = null; if (pageGapStyleEl) pageGapStyleEl.textContent = ''; return }
+    if (!pm) { clearPaging(); return }
     const g = geom()
     // compact-junction display geometry (see JUNCTION_MY): trimmed vertical
     // margins where sheets meet; capacity (g.contentH) is untouched
@@ -455,7 +570,19 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     const midH = jmy + g.contentH + jmy    // every later non-final page
 
     if (!pageGapStyleEl) pageGapStyleEl = claimStyleEl('page-breaks')
-    pageGapStyleEl.textContent = ''
+    /* Measure the NATURAL layout: both kinds of injected space are taken out
+       first — the block padding by clearing these rules, the line spacers by
+       hiding them. Deliberately NOT by subtracting their known heights
+       arithmetically, even though that would save a reflow: every pagination
+       bug this project has had was an arithmetic error about its own injected
+       offsets, and measuring from a clean layout is the one approach that
+       cannot inherit them. The spacers stay in the document as decorations —
+       only their display is suppressed, so this costs no transaction. */
+    pageGapStyleEl.textContent = '.page-spacer{display:none}'
+    // hiding the spacers shortens the document, and Chromium's scroll
+    // anchoring will compensate — restore the scroll position afterwards so a
+    // measurement never moves the page under the writer
+    const scrollBefore = window.scrollY
 
     const children = [...pm.children]
     const rules = []
@@ -492,12 +619,19 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     const pageExtras = []
     let extraTotal = 0
 
-    const breakBefore = (idx) => {
-      const naturalTop = children[idx].offsetTop
-      // close the page being left: what did it actually consume? Everything
-      // beyond capacity is a block that could not be held, and the sheet grows
-      // to cover it so no text is ever stranded on the desk (or, worse, hidden
-      // behind the gap mask painted over it).
+    // line-level breaks, collected as {pos, height} and pushed into the editor
+    // as widget decorations once the walk is done (see applySpacers)
+    const spacers = []
+
+    /* Close the page being filled and open the next one at `naturalTop`,
+       returning the gap that has to be inserted there to carry content down
+       to the new sheet. Shared by both kinds of break — a block boundary and
+       a line boundary differ only in how that gap gets applied. */
+    const openPageAt = (naturalTop) => {
+      // what did the page being left actually consume? Everything beyond
+      // capacity is something that could not be split or moved, and the sheet
+      // grows to cover it so no text is ever stranded on the desk (or, worse,
+      // hidden behind the gap mask painted over it).
       pageExtras[pageIndex] = Math.max(0, naturalTop - pageStartY - g.contentH)
       extraTotal += pageExtras[pageIndex]
       pageIndex++
@@ -508,16 +642,27 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
       // + extraTotal: every page closed so far may have grown past contentH,
       // and this page's content starts that much further down the screen
       const desiredY = firstH + (pageIndex - 1) * midH + pageIndex * PAGE_GAP + jmy - g.my + extraTotal
-      const marginNeeded = Math.max(0, desiredY - naturalTop - cumMargin)
+      const needed = Math.max(0, desiredY - naturalTop - cumMargin)
+      cumMargin += needed
+      pageStartY = naturalTop
+      return needed
+    }
+
+    const breakBefore = (idx) => {
+      const needed = openPageAt(children[idx].offsetTop)
       // padding-top, not margin-top: adjacent vertical margins collapse in
       // CSS (two touching margins become one, sized to the larger — not the
       // sum), so a margin-top here would silently lose up to the previous
       // sibling's own margin-bottom, landing content short of its page-2+
       // target by that amount. Padding never collapses with anything.
-      rules.push(`.ProseMirror>*:nth-child(${idx + 1}){padding-top:${marginNeeded}px}`)
-      cumMargin += marginNeeded
-      pageStartY = naturalTop
+      rules.push(`.ProseMirror>*:nth-child(${idx + 1}){padding-top:${needed}px}`)
       pageStartIdx = idx
+    }
+
+    // break INSIDE a block, before the line whose natural top is `naturalTop`
+    const breakBeforeLine = (pos, naturalTop, blockIdx) => {
+      spacers.push({ pos, height: openPageAt(naturalTop) })
+      pageStartIdx = blockIdx
     }
 
     for (let i = 0; i < children.length; i++) {
@@ -527,40 +672,62 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
         if (i + 1 < children.length) breakBefore(i + 1)
         continue
       }
-      /* Where does this block belong? Two questions, in order.
+      /* Where does this block belong?
 
-         Until Session 27 only the first was asked — "does the block START
-         below the capacity line?" — and when it did, the break snapped to
-         whichever boundary was nearer, this block or the one before it. That
-         rounding compares where blocks BEGIN, which says nothing about where
-         the previous one ENDS: a paragraph starting just above the line and
-         running well past it stayed put and rendered straight off the bottom
-         of its sheet, through the desk gap, and over the next page's top
-         edge. That was Brett's screenshot, and it contradicted this view's
-         own stated contract — page breaks fall on block boundaries, so a
-         page holds whole blocks. Asking the second question makes the
-         contract true: a block that does not FIT is moved down entire.
+         Until Session 27 the only question asked was "does the block START
+         below the capacity line?", which says nothing about where it ENDS: a
+         paragraph starting just above the line and running past it stayed put
+         and rendered off the bottom of its sheet, through the desk gap, and
+         over the next page's top edge. Session 27 added the second question
+         and moved such a block down entire — correct, but it made pages end
+         where the text allowed rather than where the paper did (~11% more
+         pages, measured over 3000 synthetic documents), and a paragraph
+         taller than a page had nowhere to go at all.
 
-         The cost is honest and worth naming: pages now end where the text
-         allows rather than where the paper does, so a page can finish a
-         paragraph short of its bottom margin (~11% more pages than the old
-         cram-and-overhang behaviour, measured over 3000 synthetic
-         documents). Word splits paragraphs across pages and we don't, so
-         screen page counts can differ from the exported .docx's — the
-         documented Tier-4 limit, now applied consistently instead of
-         intermittently. */
+         Session 31 asks the real question instead: where does this block's
+         own TEXT cross the line? A block of pure text is now cut between its
+         own lines, which is what Word does and what makes a page actually
+         fill. Blocks that cannot be cut — anything holding an image or a
+         table — keep the Session 27 move-it-whole rule, and a page break
+         still never falls inside one of those. */
       const el = children[i]
       const top = el.offsetTop
-      const capacity = pageStartY + g.contentH
+      let capacity = pageStartY + g.contentH
+
       // 1. starts past the page — it belongs to the next one
-      if (top >= capacity) { breakBefore(i); continue }
-      // 2. starts here but ends past the page — move it down whole, unless it
-      //    is taller than a page can ever be (nothing holds it, and pushing it
-      //    along would only repeat the overhang one sheet later), or it is
-      //    this page's opening block (there is nowhere left to push it to)
-      if (i > pageStartIdx
-          && top + el.offsetHeight > capacity + OVERHANG_SLOP
-          && el.offsetHeight <= g.contentH) breakBefore(i)
+      if (top >= capacity) { breakBefore(i); capacity = pageStartY + g.contentH }
+      // 2. fits where it is — nothing to decide
+      if (top + el.offsetHeight <= capacity + OVERHANG_SLOP) continue
+
+      if (!isSplittable(el)) {
+        // 3a. can't be cut: move it down whole, unless it is taller than a
+        //     page can ever be (nothing holds it, and pushing it along would
+        //     only repeat the overhang one sheet later) or it opens this page
+        //     (there is nowhere left to push it to)
+        if (i > pageStartIdx && el.offsetHeight <= g.contentH) breakBefore(i)
+        continue
+      }
+
+      /* 3b. cut it between its own lines. The lines are measured ONCE, from
+         the natural layout, and stay valid for every break made here: a
+         spacer inserted at a line boundary shifts the lines below it but
+         never re-wraps them, so their natural tops keep describing the block
+         (measured — that property is what this whole mechanism rests on).
+         The loop runs over every line, so one paragraph can span as many
+         pages as it needs. */
+      const lines = lineBoxes(el)
+      // if even its first line won't fit here, the whole block moves first
+      if (lines.length && top + lines[0].bottom > capacity + OVERHANG_SLOP && i > pageStartIdx) {
+        breakBefore(i)
+        capacity = pageStartY + g.contentH
+      }
+      for (let j = 1; j < lines.length; j++) {
+        if (top + lines[j].bottom <= capacity + OVERHANG_SLOP) continue
+        const pos = posAtLineStart(lines[j])
+        if (pos === null) break // can't locate it — leave the block whole
+        breakBeforeLine(pos, top + lines[j].top, i)
+        capacity = pageStartY + g.contentH
+      }
     }
 
     // the final page closes at the last block's bottom rather than at a break,
@@ -570,8 +737,11 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     if (lastEl) pageExtras[pageIndex] = Math.max(0, lastEl.offsetTop + lastEl.offsetHeight - pageStartY - g.contentH)
 
     // scoped to screen only: these margins are a visual illusion for the
-    // editor surface, not something print's own @page pagination should see
+    // editor surface, not something print's own @page pagination should see.
+    // Writing this also drops the `.page-spacer{display:none}` measuring rule.
     pageGapStyleEl.textContent = rules.length ? `@media screen{${rules.join('')}}` : ''
+    applySpacers(spacers)
+    if (window.scrollY !== scrollBefore) window.scrollTo({ top: scrollBefore, behavior: 'instant' })
 
     const pages = pageIndex + 1
     // variable sheet heights: full margins on the document's outer edges,
@@ -1366,7 +1536,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
       content: last?.html || WELCOME,
       spellcheck,
       formattingMarks,
-      onUpdate: () => { saved = false; touched = true; recount(); markTyping(); scheduleAutosave(); queueMeasure(); refreshTableState() },
+      onUpdate: () => { saved = false; touched = true; recount(); markTyping(); scheduleAutosave(); queueMeasureSoon(); refreshTableState() },
       onSelection: () => { updateBubble(); litParagraph(); updateCaret() },
       onRemoteImagesBlocked: noteRemoteImages,
     })
@@ -1375,7 +1545,14 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
        events don't reach its handlers; the view isn't reachable from the DOM).
        `import.meta.env.DEV` is a literal at build time, so Vite drops this
        whole branch from the production bundle — it cannot ship. */
-    if (import.meta.env.DEV) window.__write = { get editor() { return editor } }
+    if (import.meta.env.DEV) {
+      window.__write = {
+        get editor() { return editor },
+        // enough to build and push a DecorationSet from a test script
+        pm: { Decoration, DecorationSet },
+        keys: { findReplaceKey },
+      }
+    }
     editor.on('focus', updateCaret)
     editor.on('blur', updateCaret)
     {
@@ -1423,6 +1600,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   function clearTyping() { if (typing) { typing = false; document.body.classList.remove('typing') } }
 
   onDestroy(() => {
+    clearTimeout(measureTimer)
     editor?.destroy()
     window.removeEventListener('keydown', onKey)
     window.removeEventListener('scroll', updateBubble)

@@ -11,6 +11,13 @@ navigation work, and Session 30's formatting marks.
 
 ### Added
 
+- **Page view now breaks pages between lines, like Word.** A paragraph too long
+  for the space left on a page is split at the right line and continued on the
+  next sheet, instead of being moved to the next page whole. Pages fill
+  properly now — around 99–100% of the page rather than stopping wherever a
+  paragraph happened to end — and a paragraph longer than a whole page finally
+  works at all. Tables and images are still moved whole rather than split, so a
+  page break never falls inside one.
 - **Formatting marks** — Word's ¶ toggle. Shows a dot for every space, an
   arrow for every tab, a pilcrow at the end of every paragraph, and ↵ at a
   line break. `Ctrl+Shift+8` (Word's own shortcut) or **¶ Marks** in the

@@ -425,6 +425,65 @@ export const FormattingMarks = Extension.create({
   },
 })
 
+/* ---- Session 31: line-level page breaks ----
+   A page break that falls INSIDE a paragraph can't be a margin on a block —
+   there is no block boundary there. It is a widget decoration: an empty span
+   sitting at the document position of the first character of the line that
+   must move to the next page, sized to exactly the gap that carries it there.
+
+   Why `display: inline-block; width: 100%` and not `display: block`: a
+   block-level child of a `<p>` splits its inline content into anonymous block
+   boxes, and `text-indent` applies to the first line of EACH of them — so a
+   paragraph with a first-line indent would get re-indented after every page
+   break. A full-width inline-block can't fit beside the text, so it still
+   takes a line of its own, but the paragraph stays a single block container
+   and the indent stays on the real first line only. Measured both ways.
+
+   The property this whole feature rests on: inserting one of these at a
+   natural line boundary does NOT re-wrap the text. The line before it already
+   ended there and the line after it already started there, so every wrap point
+   in the block is unchanged and the gap is exactly the height requested —
+   verified at 80%, 100% and 130% zoom, with and without a first-line indent.
+
+   Like FindReplace, the plugin owns nothing but the DecorationSet; the policy
+   (where the breaks go) lives in measurePages() in App.svelte. */
+export const pageSpacerKey = new PluginKey('pageSpacers')
+export const PageSpacers = Extension.create({
+  name: 'pageSpacers',
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: pageSpacerKey,
+        state: {
+          init: () => DecorationSet.empty,
+          apply(tr, old) {
+            const next = tr.getMeta(pageSpacerKey)
+            return next !== undefined ? next : old.map(tr.mapping, tr.doc)
+          },
+        },
+        props: {
+          decorations(state) { return pageSpacerKey.getState(state) },
+        },
+      }),
+    ]
+  },
+})
+
+/* The spacer element itself. `user-select: none` so dragging a selection
+   across a page break doesn't paint a full-width highlight down the margin of
+   one sheet and the top of the next; contentEditable false so the DOM the
+   caret can reach never includes it. */
+export function pageSpacerDOM(height) {
+  return () => {
+    const el = document.createElement('span')
+    el.className = 'page-spacer'
+    el.setAttribute('aria-hidden', 'true')
+    el.contentEditable = 'false'
+    el.style.height = `${height}px`
+    return el
+  }
+}
+
 /* ---- Wave 3: paste as plain text (Ctrl+Shift+V) ----
    Paste events carry no modifier-key info, so App.svelte's keydown handler
    calls markPastePlain() on Ctrl+Shift+V (without preventDefault, so the
@@ -541,8 +600,9 @@ export const FORMATTING_EXTENSIONS = [
   ParagraphFormat,
 ]
 
-/* The Wave-3 document-furniture set: shared with the test harness too. */
-export const WAVE3_EXTENSIONS = [PageBreak, FindReplace]
+/* The Wave-3 document-furniture set: shared with the test harness too.
+   PageSpacers adds no schema — it is a pure view layer, like FindReplace. */
+export const WAVE3_EXTENSIONS = [PageBreak, FindReplace, PageSpacers]
 
 /* ---- Wave 6: table of contents ----
    A snapshot, not a live-bound view: entries are captured from the

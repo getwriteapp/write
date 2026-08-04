@@ -125,6 +125,23 @@ body[data-view="page"] { overflow-x: auto; }
 }
 @media print { .page-gap { display: none !important; } }
 
+/* A line-level page break (Session 31): an empty inline-block that takes a
+   full line of its own and carries the rest of the paragraph to the next
+   sheet. `width: 100%` is what forces it onto its own line; `vertical-align:
+   top` keeps its box from being lifted by the line's baseline. Its height is
+   set per-instance by measurePages. See the PageSpacers note in editor.js for
+   why this is an inline-block and not a block. */
+.page-spacer {
+  display: inline-block;
+  width: 100%;
+  vertical-align: top;
+  user-select: none;
+  pointer-events: none;
+}
+/* Print paginates through @page from the real document flow — the on-screen
+   break geometry must not reach it. */
+@media print { .page-spacer { display: none !important; } }
+
 .page-sheet {
   position: absolute;
   left: 0; right: 0;
