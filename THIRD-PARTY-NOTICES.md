@@ -68,12 +68,15 @@ in its `node_modules/<package>/LICENSE`.
 | Nunito Sans | © 2016 The Nunito Sans Project Authors |
 | Playfair Display | © 2017 The Playfair Display Project Authors |
 | Poppins | © 2020 The Poppins Project Authors |
+| Reddit Mono | © 2020-2023 Reddit, Inc. |
 | Source Sans 3 | © Google Inc. |
 | Source Serif 4 | © Google Inc. |
 | Space Grotesk | © 2020 The Space Grotesk Project Authors |
 | Work Sans | © 2019 The Work Sans Project Authors |
 
-Full licence for each: `app/node_modules/@fontsource-variable/<slug>/LICENSE`
+Full licence for each: `app/node_modules/@fontsource-variable/<slug>/LICENSE`, or
+`app/node_modules/@fontsource/<slug>/LICENSE` for statically-weighted families
+(Poppins, Reddit Mono).
 (or `@fontsource/<slug>` for the static families).
 
 ### The one Apache-2.0 exception

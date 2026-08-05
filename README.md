@@ -43,7 +43,7 @@ A *room* is more than a theme — it sets the light (palette), the voice (typefa
 | Room | Feel | Typeface |
 |------|------|----------|
 | **Linen** | White silence, one rust cursor — the default | Nunito Sans |
-| **Cobalt** | White silence, one cobalt cursor | iA Writer Quattro |
+| **Cobalt** | White silence, one cobalt cursor | Reddit Mono |
 | **Dawn** | Blush morning light, rose caret | Petrona |
 | **Paper** | Cream and ink, a printed book | Source Serif 4 |
 | **Slate** | Cool dark, sea-glass caret | Geist |

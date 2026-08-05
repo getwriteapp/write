@@ -21,6 +21,8 @@ import '@fontsource/poppins/latin-400.css'
 import '@fontsource/poppins/latin-400-italic.css'
 import '@fontsource/poppins/latin-700.css'
 import '@fontsource/poppins/latin-700-italic.css'
+import '@fontsource/reddit-mono/latin-400.css'
+import '@fontsource/reddit-mono/latin-700.css'
 import './styles/fonts.css'
 
 import './styles/rooms.css'

@@ -71,7 +71,16 @@
    iA's. Font, sizing and every other value untouched -- only the accent and
    caret moved, from iA Writer's own #0D99FF to a muted, denim-adjacent
    #3E6FA6 that stays clear of both Slate's teal and Air's retired indigo.
-   No longer :root/default -- Linen is. ---------- */
+   No longer :root/default -- Linen is.
+
+   Body font moved to Reddit Mono (font search + l-glyph comparison in this
+   session): the one candidate whose lowercase l is a flat, unflagged top with
+   a curved tail at the base only -- the exact construction Quattro's own l
+   uses, confirmed by rendering both glyphs from their real font files. Every
+   other tailed-l mono tried (Inconsolata, Recursive, iA Writer's own Duo and
+   Mono siblings included) also has a flag or notch at the top; Reddit Mono
+   doesn't. No italic style ships for it, so italic text renders synthetically
+   slanted -- same tradeoff already accepted for Poppins and Space Grotesk. ---------- */
 [data-room="cobalt"] {
   --bg: #FFFFFF;
   --ink: #1B1B1B;
@@ -83,7 +92,7 @@
   --hairline: #ECECEA;
   --card: rgba(255, 255, 255, 0.92);
   --card-shadow: 0 2px 6px rgba(0,0,0,0.05), 0 12px 36px rgba(0,0,0,0.09);
-  --body-font: 'iA Writer Quattro S', 'IBM Plex Sans', -apple-system, sans-serif;
+  --body-font: 'Reddit Mono', 'IBM Plex Sans', -apple-system, sans-serif;
   --body-size: 19px;
   --body-leading: 1.72;
   --measure: 33em;

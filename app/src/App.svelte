@@ -999,8 +999,9 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
                 Grotesk (monospace-derived proportions, no italic exists)
        Display— Playfair Display (high-contrast) · Fraunces (soft, wonky
                 old-style). Title faces, not body faces.
-       Type-  — iA Writer Quattro (the app's own voice) · JetBrains Mono
-       writer   (warmer, rounder mono) · Geist Mono (tight and neutral) */
+       Type-  — Reddit Mono (Cobalt's own voice) · iA Writer Quattro
+       writer   (the original app voice) · JetBrains Mono (warmer, rounder
+                mono) · Geist Mono (tight and neutral) */
   const FONT_GROUPS = [
     { name: 'Room Default', items: [{ label: 'Room default', value: '' }] },
     { name: 'Serif', items: [
@@ -1036,6 +1037,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
       { label: 'Fraunces', value: "'Fraunces Variable', Georgia, serif" },
     ] },
     { name: 'Typewriter', items: [
+      { label: 'Reddit Mono', value: "'Reddit Mono', monospace" },
       { label: 'iA Writer Quattro', value: "'iA Writer Quattro S', monospace" },
       { label: 'JetBrains Mono', value: "'JetBrains Mono Variable', ui-monospace, monospace" },
       { label: 'Geist Mono', value: "'Geist Mono Variable', monospace" },

@@ -166,7 +166,8 @@ export const TEMPLATES = [
 <p style="font-family: 'Playfair Display Variable', Georgia, serif"><strong>Playfair Display.</strong> High contrast, sharp hairlines, a transitional face in the English tradition. Beautiful large and punishing small — set a title in it and a paragraph in something else.</p>
 <p style="font-family: 'Fraunces Variable', Georgia, serif"><strong>Fraunces.</strong> A soft, wobbly old-style with deliberate quirks — it is drawn to have personality rather than to disappear. Excellent for a cover or a heading, and a lot of character to live with across a whole page.</p>
 <h3>Typewriter — even rhythm</h3>
-<p style="font-family: 'iA Writer Quattro S', monospace"><strong>iA Writer Quattro.</strong> The app's own voice: a duospace face, where most letters share a width but the narrow ones do not, so it keeps a typewriter's rhythm while staying readable as prose.</p>
+<p style="font-family: 'Reddit Mono', monospace"><strong>Reddit Mono.</strong> Cobalt's voice: a flat, unflagged top on every ascender and a small curved tail at the base, so it keeps a typewriter's rhythm without a serif's texture. No italic ships for it, so slanted text here is synthetic.</p>
+<p style="font-family: 'iA Writer Quattro S', monospace"><strong>iA Writer Quattro.</strong> A duospace face, where most letters share a width but the narrow ones do not, so it keeps a typewriter's rhythm while staying readable as prose.</p>
 <p style="font-family: 'JetBrains Mono Variable', ui-monospace, monospace"><strong>JetBrains Mono.</strong> A true monospace drawn for code, with tall lowercase and clearly distinguished characters. In a document it reads as deliberate and a little mechanical.</p>
 <p style="font-family: 'Geist Mono Variable', monospace"><strong>Geist Mono.</strong> Tighter and more neutral than JetBrains Mono — the same plainness as Geist, in fixed widths.</p>
 <h3>A third-level heading</h3>

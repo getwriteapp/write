@@ -12,6 +12,7 @@
 /* Word family name → the app's CSS stack (everything here ships bundled). */
 const WORD_TO_CSS = {
   'ia writer quattro s': "'iA Writer Quattro S', monospace",
+  'reddit mono': "'Reddit Mono', monospace",
   'literata': "'Literata Variable', serif",
   'source serif 4': "'Source Serif 4 Variable', serif",
   'newsreader': "'Newsreader Variable', serif",
