@@ -127,7 +127,11 @@ view now breaks pages between lines, the way a word processor is supposed to.
   arrow there instead — a plain element paints `::after` reliably, which is
   exactly why the typeface button's own arrow (a `<button>`, never a form
   control in the same sense) worked correctly on the first attempt. All
-  three arrows now 14px, up from the original 9px.
+  three arrows now 14px, up from the original 9px. Size and Spacing's own
+  box height was also 2px shorter than the typeface button's the whole time
+  (24px vs. an implicit ~22px) — never matched, just not obvious until the
+  arrow work put all three controls under closer visual comparison. `height:
+  24px` added to `.bar-select` to match exactly.
 - **The chrome's own typeface and corners.** The UI font (Bar, Commander,
   whispers) was Geist — Vercel's typeface, and about as close to "made by an
   AI startup in 2023" as a font gets. Tried live against seventeen other
