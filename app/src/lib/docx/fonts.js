@@ -32,6 +32,11 @@ const WORD_TO_CSS = {
   'crimson pro': "'Crimson Pro Variable', Garamond, serif",
   'fraunces': "'Fraunces Variable', Georgia, serif",
   'libre franklin': "'Libre Franklin Variable', -apple-system, sans-serif",
+  'figtree': "'Figtree Variable', -apple-system, sans-serif",
+  'source sans 3': "'Source Sans 3 Variable', -apple-system, sans-serif",
+  'nunito sans': "'Nunito Sans Variable', -apple-system, sans-serif",
+  'poppins': "'Poppins', -apple-system, sans-serif",
+  'space grotesk': "'Space Grotesk Variable', -apple-system, sans-serif",
 }
 
 /* CSS stack → Word family name: first family, quotes stripped, and the

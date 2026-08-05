@@ -5,7 +5,7 @@ import { mount } from 'svelte'
    declared in fonts-extra.css with latin + latin-ext faces only. Fontsource's
    own per-family CSS pulls every script it publishes — Cyrillic, Greek,
    Vietnamese, symbols — which was ~1.5 MB of glyphs this app never renders.
-   The two STATIC families are imported here via their own latin-only per-subset
+   The STATIC families are imported here via their own latin-only per-subset
    files (Fontsource ships those for static families; it does not for variable
    ones, hence fonts-extra.css). iA Writer Quattro lives in fonts.css. */
 import './styles/fonts-extra.css'
@@ -17,6 +17,10 @@ import '@fontsource/atkinson-hyperlegible/latin-400.css'
 import '@fontsource/atkinson-hyperlegible/latin-400-italic.css'
 import '@fontsource/atkinson-hyperlegible/latin-700.css'
 import '@fontsource/atkinson-hyperlegible/latin-700-italic.css'
+import '@fontsource/poppins/latin-400.css'
+import '@fontsource/poppins/latin-400-italic.css'
+import '@fontsource/poppins/latin-700.css'
+import '@fontsource/poppins/latin-700-italic.css'
 import './styles/fonts.css'
 
 import './styles/rooms.css'

@@ -21,7 +21,7 @@ Two of these obligations are easy to miss and worth stating plainly:
 ## Typefaces
 
 Every typeface `write` ships is licensed under the **SIL Open Font License,
-Version 1.1** (<https://scripts.sil.org/OFL>).
+Version 1.1** (<https://scripts.sil.org/OFL>), with one exception noted below.
 
 ### Bundled directly
 
@@ -48,18 +48,44 @@ in its `node_modules/<package>/LICENSE`.
 
 | Typeface | Copyright |
 |---|---|
+| Archivo | © 2020 The Archivo Project Authors |
+| Atkinson Hyperlegible | © 2020 Braille Institute of America, Inc. |
+| Bitter | © 2011 The Bitter Project Authors |
+| Crimson Pro | © 2018 The Crimson Pro Project Authors |
 | EB Garamond | © 2017 The EB Garamond Project Authors |
+| Figtree | © 2022 The Figtree Project Authors |
+| Fraunces | © 2020 The Fraunces Project Authors |
 | Geist | © 2024 The Geist Project Authors |
 | Geist Mono | © 2024 The Geist Project Authors |
+| IBM Plex Sans | © 2019 IBM Corp. |
 | Inter | © 2016 The Inter Project Authors |
 | JetBrains Mono | © 2020 The JetBrains Mono Project Authors |
+| Libre Franklin | © 2020 The Libre Franklin Project Authors |
 | Literata | © 2017 The Literata Project Authors |
 | Lora | © 2011 The Lora Project Authors |
+| Manrope | © 2019 The Manrope Project Authors |
 | Newsreader | © 2020 The Newsreader Project Authors |
+| Nunito Sans | © 2016 The Nunito Sans Project Authors |
 | Playfair Display | © 2017 The Playfair Display Project Authors |
+| Poppins | © 2020 The Poppins Project Authors |
+| Source Sans 3 | © Google Inc. |
 | Source Serif 4 | © Google Inc. |
-| Atkinson Hyperlegible | © 2020 Braille Institute of America, Inc. |
-| IBM Plex Sans | © 2019 IBM Corp. |
+| Space Grotesk | © 2020 The Space Grotesk Project Authors |
+| Work Sans | © 2019 The Work Sans Project Authors |
+
+Full licence for each: `app/node_modules/@fontsource-variable/<slug>/LICENSE`
+(or `@fontsource/<slug>` for the static families).
+
+### The one Apache-2.0 exception
+
+**Roboto Slab** is licensed under the **Apache License, Version 2.0**, not
+OFL — unlike almost every other typeface here, including the rest of the
+Google-published faces on this page. The original Roboto family has shipped
+under Apache since its release; Roboto Slab inherited that rather than the
+OFL its later Google Fonts siblings use. Apache-2.0 doesn't carry OFL's
+"travel with the binary" requirement, but the full text is still bundled at
+`app/node_modules/@fontsource-variable/roboto-slab/LICENSE` for anyone who
+goes looking.
 
 ---
 

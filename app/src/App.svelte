@@ -974,7 +974,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     if (barScrollHidden) barShownAtY = y
   }
 
-  /* The typeface library — 21 families. Every one ships with the app; no
+  /* The typeface library — 26 families. Every one ships with the app; no
      network call has ever been made for type and none ever will be. Grouped by
      voice rather than listed flat, because 21 names in one column is a wall.
      Each is a deliberate pick, not a dump of what Fontsource happens to have:
@@ -990,7 +990,12 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
                 slightly condensed) · Manrope (geometric, soft) · IBM Plex Sans
                 (humanist, slightly technical) · Atkinson Hyperlegible (drawn
                 by the Braille Institute for maximum letter distinction —
-                genuinely the kindest face here for tired eyes)
+                genuinely the kindest face here for tired eyes) · Figtree
+                (soft geometric, the app's own chrome face) · Source Sans 3
+                (Adobe's body-copy workhorse) · Nunito Sans (rounded terminals,
+                a register the library didn't have) · Poppins (the one true
+                geometric here — circular bowls, single-story a) · Space
+                Grotesk (monospace-derived proportions, no italic exists)
        Display— Playfair Display (high-contrast) · Fraunces (soft, wonky
                 old-style). Title faces, not body faces.
        Type-  — iA Writer Quattro (the app's own voice) · JetBrains Mono
@@ -1018,6 +1023,11 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
       { label: 'Manrope', value: "'Manrope Variable', -apple-system, sans-serif" },
       { label: 'Plex Sans', value: "'IBM Plex Sans', sans-serif" },
       { label: 'Atkinson Hyperlegible', value: "'Atkinson Hyperlegible', -apple-system, sans-serif" },
+      { label: 'Figtree', value: "'Figtree Variable', -apple-system, sans-serif" },
+      { label: 'Source Sans 3', value: "'Source Sans 3 Variable', -apple-system, sans-serif" },
+      { label: 'Nunito Sans', value: "'Nunito Sans Variable', -apple-system, sans-serif" },
+      { label: 'Poppins', value: "'Poppins', -apple-system, sans-serif" },
+      { label: 'Space Grotesk', value: "'Space Grotesk Variable', -apple-system, sans-serif" },
     ] },
     { name: 'Display', items: [
       { label: 'Playfair Display', value: "'Playfair Display Variable', Georgia, serif" },
@@ -1236,7 +1246,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     queueMeasure()
     /* And again once the document's own typefaces have arrived. A document can
        name families that have never been painted before — the Specimen alone
-       uses twenty-one — and @font-face fetches each only at first use. So the
+       uses twenty-six — and @font-face fetches each only at first use. So the
        next-frame measurement above runs against FALLBACK metrics, the real
        faces land a moment later, every one of those blocks changes height, and
        the page breaks (and the desk-gap masks drawn from them) are left

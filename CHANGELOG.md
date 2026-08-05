@@ -32,6 +32,17 @@ view now breaks pages between lines, the way a word processor is supposed to.
   Ctrl+scroll now zooms around the pointer instead of the page origin.
 - **Eight more typefaces**, bringing the bundled library to 21 families, and
   a **Specimen** template that exercises every feature in running text.
+- **Five more sans, added the same session as the chrome refresh below**:
+  Figtree (already the app's own chrome face, now a document option too),
+  Source Sans 3 (Adobe's body-copy workhorse — the library had nothing with
+  that lineage), Nunito Sans (the library's first rounded-terminal sans),
+  Poppins (the one true geometric face — circular bowls, single-story a,
+  unlike the geometric-leaning grotesques already in), and Space Grotesk
+  (monospace-derived proportions carried into a proportional face; has no
+  italic design at all, so Word slants it synthetically like it does Manrope
+  and Roboto Slab). Chosen from fourteen candidates shown as running prose
+  rather than toolbar chrome, since paragraph readability and toolbar
+  compactness are different questions. Bundled library: 21 → 26.
 
 ### Changed
 
@@ -44,21 +55,36 @@ view now breaks pages between lines, the way a word processor is supposed to.
 - **The chrome ducks the moment you engage** with the page, rather than after
   48px of scrolling.
 - **Trimmed the empty space above the first line of text**, in both views —
-  neither the Bar nor the wordmark actually need it reserved.
+  neither the Bar nor the wordmark actually need it reserved. Page view's cut
+  again, and switched from a viewport-relative unit to a flat one: 5vh sat on
+  top of the page's own real 96px top margin, and vh meant that gap grew on a
+  taller monitor for no reason. The real margin (--page-my, 1in by default)
+  is untouched — that part is supposed to look like an inch of white space,
+  since it's what Word will actually do.
 - **The chrome's own typeface and corners.** The UI font (Bar, Commander,
   whispers) was Geist — Vercel's typeface, and about as close to "made by an
-  AI startup in 2023" as a font gets. It's now Atkinson Hyperlegible, drawn by
-  the Braille Institute to make letters as distinct from one another as
-  possible; real character instead of optimised neutrality, and the kindest
-  face here on tired eyes. The Bar's corners went from 12px to 4px (buttons
-  7px to 3px) — the geometric-sans-plus-12px-radius-plus-soft-shadow
-  combination is the house style of every dashboard since 2020, and the
-  radius change moves the register further than the font swap does on its
-  own. Document typography is unaffected either way — this is only the app's
+  AI startup in 2023" as a font gets. Tried live against seventeen other
+  candidates across three rounds (Libre Franklin and Atkinson Hyperlegible
+  both had a turn as the pick before this one); landed on Figtree, a soft
+  geometric grotesque built explicitly for product UI — calmer than Geist at
+  the same sizes, without reaching for Atkinson's more editorial letterforms.
+  Newly bundled (`@fontsource-variable/figtree`, latin + latin-ext, normal
+  weight only — chrome text is never italic). The Bar's corners went from
+  12px to 4px (buttons 7px to 3px) — the geometric-sans-plus-12px-radius-
+  plus-soft-shadow combination is the house style of every dashboard since
+  2020, and the radius change moves the register further than the font swap
+  does on its own. Document typography is unaffected either way — this is
+  only the app's
   own furniture.
 
 ### Fixed
 
+- **The alignment and indent buttons' middle corners.** `.bar-seg`'s shared
+  button rule never set its own `border-radius`, so the first and last
+  buttons in each group were explicitly squared off while the ones between
+  them (Centre; the second of the indent pair) kept the browser's own default
+  button rounding — a "square" control with two corners nobody had authored.
+  Spotted by eye once the radius shrank enough to make it obvious.
 - **A paragraph, table or image too tall to fit one page no longer breaks
   pagination for the rest of the document.** Such a block can't be moved to
   the next sheet — nothing would hold it there either — but the pages after it
