@@ -288,26 +288,57 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     localStorage.setItem('write:view', v)
     queueMeasure()
   }
+  /* Page setup changes the sheet's WIDTH, and .editor-host animates that width
+     over 300ms (pages.css `transition: width 0.3s ease`). queueMeasure waits
+     two animation frames — about 30ms — so the breaks were being computed from
+     a page barely a tenth of the way through resizing: every block wrapped to
+     an intermediate width, every height wrong, and the spacers left describing
+     a layout that no longer existed a quarter of a second later. That is
+     Brett's landscape screenshot — measured here as 18 text lines running
+     straight through the desk gaps, plus two phantom pages (10 breaks where
+     the settled layout wants 8). Worst for orientation, which moves the width
+     furthest (816px → 1056px on Letter), but page size and margin re-wrap the
+     document the same way and were only ever milder versions of it.
+
+     So: measure when the width actually settles, using the transition's own
+     end rather than a guessed delay. The immediate pass stays — most of the
+     reflow is visible at once and the page should not look frozen — and a
+     timeout backs it up, because a transition that changes nothing (already
+     landscape, or reduced-motion) fires no transitionend at all. */
+  let pageResizeTimer
+  function measureAfterPageResize() {
+    queueMeasure()
+    if (!host) return
+    clearTimeout(pageResizeTimer)
+    const settled = (e) => {
+      if (e && e.propertyName !== 'width') return
+      clearTimeout(pageResizeTimer)
+      host.removeEventListener('transitionend', settled)
+      measurePages()
+    }
+    host.addEventListener('transitionend', settled)
+    pageResizeTimer = setTimeout(settled, 420) // > the 300ms transition
+  }
   function applyPageSize(s) {
     pageSize = s
     document.body.setAttribute('data-page-size', s)
     localStorage.setItem('write:pageSize', s)
     syncPageStyle()
-    queueMeasure()
+    measureAfterPageResize()
   }
   function applyOrientation(o) {
     orientation = o
     document.body.setAttribute('data-orientation', o)
     localStorage.setItem('write:orientation', o)
     syncPageStyle()
-    queueMeasure()
+    measureAfterPageResize()
   }
   function applyMargin(m) {
     margin = m
     document.body.setAttribute('data-margin', m)
     localStorage.setItem('write:margin', m)
     syncPageStyle()
-    queueMeasure()
+    measureAfterPageResize()
   }
   const MARGIN_IN = { narrow: '0.5in', normal: '1in', wide: '1.5in' }
   function syncPageStyle() {
@@ -1871,6 +1902,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
 
   onDestroy(() => {
     clearTimeout(measureTimer)
+    clearTimeout(pageResizeTimer)
     clearInterval(ageTimer)
     editor?.destroy()
     window.removeEventListener('keydown', onKey)
