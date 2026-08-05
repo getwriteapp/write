@@ -4,33 +4,54 @@
    setContent() path a .docx import uses — no separate machinery. */
 
 export const TEMPLATES = [
+  /* Session 35: these four were bare skeletons — a single stub line per
+     section, which told you where to type but nothing about what belongs
+     there. They now carry enough scaffolding to be worth starting from: the
+     shape of a real document, and placeholder prose that says what each part
+     is FOR rather than just naming it. Deliberately still plain — Brett:
+     "a little sprucing up a little, not fancy". No decoration, no colour, no
+     clever layout; every one of them is ordinary text a person can overwrite
+     without first dismantling someone else's design. */
   {
     id: 'letter',
     label: 'Letter',
     note: 'A formal letter, ready to address',
     html: `
-<p>Your Name<br>Your Address<br>City, State ZIP</p>
+<p>Your Name<br>Your Address<br>City, State ZIP<br>your@email.com</p>
 <p>${new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-<p>Recipient Name<br>Recipient Address<br>City, State ZIP</p>
+<p>Recipient Name<br>Their Title<br>Organisation<br>Their Address<br>City, State ZIP</p>
 <p>Dear [Name],</p>
-<p>Begin the body of your letter here.</p>
+<p>Say why you are writing in the first sentence. A letter that makes its reader hunt for the point has already spent the goodwill it needed.</p>
+<p>Give the detail here — the background, the specifics, the thing you are asking for. Keep one idea to a paragraph; it is easier to answer a letter you can skim.</p>
+<p>Close by saying plainly what happens next, and who does it. If you are asking for something, ask for it here in as many words.</p>
 <p>Sincerely,</p>
-<p>Your Name</p>
+<p><br><br>Your Name</p>
 `,
   },
   {
     id: 'meeting-notes',
     label: 'Meeting Notes',
-    note: 'Attendees, agenda, action items',
+    note: 'Attendees, agenda, decisions, action items',
     html: `
 <h1>Meeting Notes</h1>
-<p>Date: · Attendees:</p>
+<p><strong>Date:</strong> ${new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}<br><strong>Present:</strong> <br><strong>Apologies:</strong> </p>
 <h2>Agenda</h2>
-<ul><li><p>Topic one</p></li><li><p>Topic two</p></li></ul>
-<h2>Notes</h2>
-<p>Write as you go.</p>
+<ol>
+  <li><p>First item</p></li>
+  <li><p>Second item</p></li>
+</ol>
+<h2>Discussion</h2>
+<p>Write as you go — what was said, and by whom where it matters. Notes taken during a meeting are for the people who were not in it.</p>
+<h2>Decisions</h2>
+<ul>
+  <li><p>What was decided, stated as a decision rather than a discussion.</p></li>
+</ul>
 <h2>Action Items</h2>
-<ul><li><p>Owner — task</p></li></ul>
+<ul>
+  <li><p><strong>Owner</strong> — the task, and the date it is due.</p></li>
+</ul>
+<h2>Next Meeting</h2>
+<p>Date, time, and anything that has to be ready before it.</p>
 `,
   },
   {
@@ -39,14 +60,23 @@ export const TEMPLATES = [
     note: 'Experience, education, skills',
     html: `
 <h1>Your Name</h1>
-<p>Email · Phone · City</p>
+<p>City · your@email.com · (000) 000-0000 · your-site.com</p>
+<p>One line on what you do and what you are looking for. Specific beats broad: the reader is deciding, in about six seconds, whether to keep reading.</p>
+<hr>
 <h2>Experience</h2>
-<p><strong>Role — Company</strong><br>Dates</p>
-<ul><li><p>What you did and its impact.</p></li></ul>
+<p><strong>Most Recent Role</strong> — Company, City<br>Month Year – Present</p>
+<ul>
+  <li><p>Lead with the outcome, not the duty. What changed because you were there?</p></li>
+  <li><p>Put a number on it wherever one honestly exists.</p></li>
+</ul>
+<p><strong>Previous Role</strong> — Company, City<br>Month Year – Month Year</p>
+<ul>
+  <li><p>Two or three lines is plenty for anything older than the current job.</p></li>
+</ul>
 <h2>Education</h2>
-<p><strong>Degree — School</strong><br>Dates</p>
+<p><strong>Degree</strong> — School, City<br>Year</p>
 <h2>Skills</h2>
-<p>Skill, skill, skill.</p>
+<p><strong>Core:</strong> the things you would be hired for.<br><strong>Tools:</strong> the things you work in daily.</p>
 `,
   },
   {
@@ -55,14 +85,23 @@ export const TEMPLATES = [
     note: 'Title, sections, a table of contents',
     html: `
 <h1>Report Title</h1>
-<p>A one-line summary of what this report covers.</p>
-<div data-type="tableOfContents" data-entries='[{"level":2,"text":"Introduction"},{"level":2,"text":"Findings"},{"level":2,"text":"Conclusion"}]'></div>
-<h2>Introduction</h2>
-<p>Set up the problem or question.</p>
+<p>Your Name · ${new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+<p>One or two sentences on what this report covers and who it is for. If a reader stops after this paragraph, it should still have been worth writing.</p>
+<div data-type="tableOfContents" data-entries='[{"level":2,"text":"Summary"},{"level":2,"text":"Background"},{"level":2,"text":"Findings"},{"level":2,"text":"Recommendations"}]'></div>
+<h2>Summary</h2>
+<p>The conclusions first, in a paragraph. Most people read this section and nothing else, so write it as though it were the whole report.</p>
+<h2>Background</h2>
+<p>What prompted this, and what question it set out to answer. Enough context that the findings below land without further explanation.</p>
 <h2>Findings</h2>
-<p>What you learned.</p>
-<h2>Conclusion</h2>
-<p>What it means and what's next.</p>
+<h3>First finding</h3>
+<p>State it plainly, then support it. One finding to a subheading keeps the argument traceable.</p>
+<h3>Second finding</h3>
+<p>Include the results that complicate the story as well as the ones that confirm it.</p>
+<h2>Recommendations</h2>
+<ol>
+  <li><p>What to do, who does it, and by when.</p></li>
+  <li><p>Order these by what you would do first if you could only do one.</p></li>
+</ol>
 `,
   },
   {
