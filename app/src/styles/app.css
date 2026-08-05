@@ -665,6 +665,11 @@ body.typing .bar-zone.menu-open .bar {
 .bar-seg button + button { border-left: none; }
 .bar-seg button.on { color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, transparent); }
 .bar-seg button:disabled { opacity: 0.35; cursor: default; }
+/* Segmented buttons carrying a WORD rather than a glyph. The 26px box above is
+   sized for the alignment arrows; the page-numbers Header/Footer toggle put
+   whole words in those boxes, so both labels overflowed and painted on top of
+   each other. Text buttons size to their own content instead. */
+.bar-seg.seg-text button { width: auto; min-width: 26px; padding: 0 10px; }
 
 /* Reset: inert (dimmed, no pointer) until the selection actually carries
    Bar-owned formatting, then it lights up. It stays mounted in both states so

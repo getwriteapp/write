@@ -1098,7 +1098,20 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     font: (v) => (v ? editor.chain().focus().setFontFamily(v).run() : editor.chain().focus().unsetFontFamily().run()),
     size: (v) => (v ? editor.chain().focus().setFontSize(v).run() : editor.chain().focus().unsetFontSize().run()),
     color: (v) => (v ? editor.chain().focus().setColor(v).run() : editor.chain().focus().unsetColor().run()),
-    highlight: (v) => (v ? editor.chain().focus().setHighlight({ color: v }).run() : editor.chain().focus().unsetHighlight().run()),
+    /* Applying a highlight drops the selection, unlike every other Bar command.
+       A highlight is judged by looking at it, and the selection tint sits on
+       top of the very colour being chosen — so leaving the text selected hides
+       the only thing the click was asking about. Collapsing to the end of the
+       run reveals the result and leaves the caret where the eye already is.
+       Marks don't move positions, so `to` is read before the chain runs and is
+       still valid after. */
+    highlight: (v) => {
+      const to = editor.state.selection.to
+      const chain = editor.chain().focus()
+      ;(v ? chain.setHighlight({ color: v }) : chain.unsetHighlight())
+        .setTextSelection(to)
+        .run()
+    },
     align: (v) => editor.chain().focus().setTextAlign(v).run(),
     lineHeight: (v) => (v ? editor.chain().focus().setLineHeight(v).run() : editor.chain().focus().unsetLineHeight().run()),
     indent: () => editor.chain().focus().indent().run(),
@@ -1257,6 +1270,19 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     requestAnimationFrame(queueMeasure)
   }
 
+  /* Park a freshly-loaded document at its first line.
+     setContent replaces the whole doc, and ProseMirror maps the old selection
+     through that replacement — which lands it at the END of the new content.
+     A plain focus() then scrolls there, so opening a template or a file threw
+     the reader at the last page of a document they hadn't read yet (worst with
+     the Specimen, which runs past three pages). Focusing 'start' fixes the
+     caret; the window scroll is reset explicitly because the page wrapper, not
+     the editor element, is what actually scrolls here. */
+  function focusTop() {
+    editor.commands.focus('start')
+    window.scrollTo({ top: 0, behavior: 'instant' })
+  }
+
   // ---- Wave 6: templates ----
   // "＋ New" stays instant-blank (the fast path); templates are an explicit
   // alternate start, same discard-guard rule as New/Open/drop.
@@ -1265,7 +1291,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     editor.commands.setContent(t.html)
     docName = 'Untitled'; saved = true; touched = false; recount()
     commanderOpen = false
-    editor.commands.focus()
+    focusTop()
     queueMeasure()
     /* And again once the document's own typefaces have arrived. A document can
        name families that have never been painted before — the Specimen alone
@@ -1479,7 +1505,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   function newDoc() { guardThen(doNewDoc) }
   function doNewDoc() {
     editor.commands.clearContent()
-    editor.commands.focus()
+    focusTop()
     docName = 'Untitled'; saved = true; touched = false; recount()
     commanderOpen = false
   }
@@ -1488,7 +1514,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     editor.commands.setContent(html)
     docName = name; saved = true; touched = false; recount()
     commanderOpen = false
-    editor.commands.focus()
+    focusTop()
     // a document's own page settings (read back from .docx sectPr) take over
     // the current view — the app-wide localStorage prefs are for new/blank
     // documents, not a signal to override what's actually in the file
@@ -2013,7 +2039,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
             class="room-card"
             class:selected={room === r.id}
             data-room={r.id}
-            onclick={() => { applyRoom(r.id); }}
+            onclick={() => { applyRoom(r.id); commanderOpen = false }}
           >
             <span class="rc-swatch"><span class="rc-aa">Aa</span></span>
             <span class="rc-meta">
@@ -2096,7 +2122,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
             {pageNumbers.enabled ? '● Page numbers' : '○ Page numbers'}
           </button>
           {#if pageNumbers.enabled}
-            <span class="seg bar-seg" title="Where">
+            <span class="seg bar-seg seg-text" title="Where">
               <button class:on={pageNumbers.place === 'header'} onclick={() => setPageNumbers({ place: 'header' })}>Header</button>
               <button class:on={pageNumbers.place === 'footer'} onclick={() => setPageNumbers({ place: 'footer' })}>Footer</button>
             </span>

@@ -773,7 +773,12 @@ export function createEditor(element, { onUpdate, onSelection, onRemoteImagesBlo
       ...WAVE6_EXTENSIONS,
     ],
     content,
-    autofocus: 'end',
+    /* 'start', not 'end'. Autofocusing the end of the document puts the caret
+       past the last paragraph and ProseMirror scrolls it into view, so the app
+       opened by flinging itself to the bottom of the welcome page and sitting
+       there -- the first thing a writer saw was the end of someone else's text.
+       A word processor opens at the top of the page. */
+    autofocus: 'start',
     onUpdate: ({ editor }) => onUpdate?.(editor),
     onSelectionUpdate: ({ editor }) => onSelection?.(editor),
     editorProps: {
