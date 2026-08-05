@@ -4,6 +4,49 @@ All notable changes to `write` are recorded here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is
 [SemVer](https://semver.org/), pre-1.0.
 
+## [Unreleased]
+
+Session 35: Cobalt's default typeface, then a full pass through Brett's
+`ISSUES.md` punch list. Not yet version-bumped or tagged — see HANDOFF.md.
+
+### Changed
+
+- **Cobalt's body font is now Reddit Mono, not iA Writer Quattro.** Brett
+  wanted candidates for the Typewriter category and specifically for
+  Cobalt's default. Quattro's lowercase *l* turned out to have an unusual
+  construction — a flat, unflagged top with a curved tail at the base only —
+  confirmed by rendering the real glyphs from the font files rather than by
+  description. Reddit Mono was the one true match found across roughly 29
+  candidates checked.
+- **Ctrl+S now saves silently once a document has a file**, instead of
+  reopening the Save dialog every time. Save As moved to the Commander
+  alone. The document name in the status line is click-to-rename. A live
+  save-state indicator sits beside it (Draft / Saving… / Edited / Saved *n*
+  ago). Autosave still never touches the file on disk — only the internal
+  draft store — so opening someone else's `.docx` and closing it again can
+  never silently degrade it.
+- **The tray icon is gone.** It never minimized to it and the badge's only
+  behavior was re-showing a window that was never hidden.
+- **The formatting Bar is sized to its own contents** instead of roughly
+  half the window width regardless of how much was in it.
+- **Letter, Meeting Notes, Resume and Report templates** now carry the shape
+  of a real document with placeholder prose explaining what each section is
+  for, rather than a single stub line per section.
+
+### Fixed
+
+- The app no longer opens by scrolling itself to the bottom of the page.
+  Opening a template or a file no longer does either.
+- Applying a highlight no longer leaves the text selected over its own
+  color.
+- The page-numbers Header/Footer control no longer overlaps its own labels.
+- Picking a room now closes the Commander, like every other action in it.
+- **Switching between portrait and landscape (or page size, or margin) no
+  longer runs text through the page-gap band or clips it at the sheet
+  join.** The page sheet animates its width over 300ms and pagination was
+  being measured a tenth of the way into that animation; it now measures
+  once the resize actually settles.
+
 ## [0.2.3] — 2026-08-05
 
 Session 34: two room typefaces re-picked, judged side by side rather than by
