@@ -9,8 +9,16 @@
    The docx modules are imported dynamically so the editor bundle stays lean.
 
    Contract with App.svelte:
-     save(name, { html, json, pageSettings }) → { name, path? } | null
-     open() → { name, html, messages?, pageSettings? } | null  */
+     saveAs(name, { html, json, pageSettings }) → { name, path? } | null
+     saveTo(path, { html, json, pageSettings }) → { name, path } | null
+     open() → { name, html, messages?, pageSettings? } | null
+
+   saveAs always asks; saveTo never does. The split is what makes a real
+   Ctrl+S possible: the Rust side widens the fs scope to a path the moment the
+   user picks it in a dialog (or drops the file on the window), and that grant
+   lasts the session — so writing back to a path the user already chose needs
+   no second dialog and no new permission. A path the frontend invented still
+   fails, because it was never granted. */
 
 /* Tauri v2 detection: `window.__TAURI__` only exists when `withGlobalTauri`
    is enabled (off by default), so check `__TAURI_INTERNALS__` — the IPC bridge
@@ -58,11 +66,18 @@ async function fromDocxBytes(bytes) {
    put the choice back in the webview's hands and undo the whole arrangement
    — so if you ever need a new file operation, add a command over there. */
 
-async function tauriSave(name, { html, json, pageSettings }) {
+async function tauriSaveAs(name, payload) {
   const { invoke } = await import('@tauri-apps/api/core')
   const path = await invoke('pick_document_to_save', { defaultName: `${name}.docx` })
   if (!path) return null
+  return tauriSaveTo(path, payload)
+}
 
+/* Write to an already-granted path, no dialog. Only ever called with a path
+   that came back out of tauriSaveAs or tauriOpen — i.e. one the user picked
+   and Rust scoped. The extension still decides the writer, so a document
+   opened as .html keeps saving as .html. */
+async function tauriSaveTo(path, { html, json, pageSettings }) {
   if (ext(path) === 'docx') {
     const { writeFile } = await import('@tauri-apps/plugin-fs')
     await writeFile(path, await toDocxBytes(json, pageSettings))
@@ -85,15 +100,20 @@ async function tauriOpenPath(path) {
   if (ext(path) === 'docx') {
     const { readFile } = await import('@tauri-apps/plugin-fs')
     const { html, messages, pageSettings } = await fromDocxBytes(await readFile(path))
-    return { name: baseName(path), html, messages, pageSettings }
+    return { name: baseName(path), path, html, messages, pageSettings }
   }
   const { readTextFile } = await import('@tauri-apps/plugin-fs')
   const raw = await readTextFile(path)
-  return { name: baseName(path), html: ext(path) === 'txt' ? textToHtml(raw) : raw }
+  return { name: baseName(path), path, html: ext(path) === 'txt' ? textToHtml(raw) : raw }
 }
 
 /* ---- browser fallback (dev preview) ---- */
 
+/* A browser cannot write back to a file it handed out — every save is a fresh
+   download. The returned `path` is therefore a marker, not a real location:
+   it exists so the dev preview exercises the same bound/unbound state machine
+   the native app does. Nothing ever reads it back; webSaveTo just downloads
+   again under the same name. */
 async function webSave(name, { json, pageSettings }) {
   const bytes = await toDocxBytes(json, pageSettings)
   const blob = new Blob([bytes], {
@@ -103,8 +123,10 @@ async function webSave(name, { json, pageSettings }) {
   const a = document.createElement('a')
   a.href = url; a.download = `${name}.docx`; a.click()
   URL.revokeObjectURL(url)
-  return { name }
+  return { name, path: `web:${name}.docx` }
 }
+
+const webSaveTo = (path, payload) => webSave(baseName(path), payload)
 
 function webOpen() {
   return new Promise((resolve) => {
@@ -146,7 +168,10 @@ export const isTauri = inTauri
 export const DOC_EXT_RE = /\.(docx|html?|txt)$/i
 
 export const fileBridge = {
-  save: (name, payload) => (inTauri ? tauriSave(name, payload) : webSave(name, payload)),
+  /* always asks where */
+  saveAs: (name, payload) => (inTauri ? tauriSaveAs(name, payload) : webSave(name, payload)),
+  /* never asks — path must be one the user already chose */
+  saveTo: (path, payload) => (inTauri ? tauriSaveTo(path, payload) : webSaveTo(path, payload)),
   open: () => (inTauri ? tauriOpen() : webOpen()),
   /* drag-drop entry points: a native path (Tauri) or a File (browser) */
   openPath: (path) => tauriOpenPath(path),

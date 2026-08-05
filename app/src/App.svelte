@@ -146,9 +146,48 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   let dropHint = $state(false)
   let unlistenDragDrop = null
 
+  /* ---- file binding & save state ----
+     `filePath` is the document's home on disk, or null if it has never had
+     one. It is only ever set from a path the user picked in a native dialog
+     (or dropped on the window), because those are the only paths Rust has
+     widened the fs scope to — see bridge.js. Once bound, Ctrl+S writes there
+     silently; unbound, Ctrl+S is Save As.
+
+     Autosave (below) deliberately does NOT touch the file. write's .docx
+     export is a re-render from the editor's own model rather than a patch of
+     the original, so every write costs whatever the importer couldn't model.
+     Doing that on a timer would quietly degrade someone's document just for
+     opening it. The disk changes when the writer says so; the draft store
+     catches everything in between. */
+  let filePath = $state(null)
+  let fileSavedAt = $state(0)  // when the FILE last matched the editor
+  let savingFile = $state(false)
   // discard guard: edits since the doc last touched a real file (save/open/new)
-  let touched = false
+  let touched = $state(false)
   let confirmState = $state(null) // { action } → quiet "unsaved changes" surface
+
+  /* Ticks so "Saved 2 min ago" ages on screen instead of freezing at the
+     moment of the save. 30s is under the smallest step relativeTime() can
+     show, so the label never skips a beat it should have shown. */
+  let clockTick = $state(0)
+  let ageTimer = null
+  const AGE_TICK_MS = 30000
+
+  const saveState = $derived(
+    savingFile ? 'saving'
+    : !filePath ? 'draft'
+    : touched ? 'edited'
+    : 'saved'
+  )
+  const saveLabel = $derived.by(() => {
+    clockTick // re-read on each tick so the relative time stays honest
+    switch (saveState) {
+      case 'saving': return 'Saving…'
+      case 'edited': return 'Edited'
+      case 'saved': return `Saved ${store.relativeTime(fileSavedAt)}`
+      default: return touched ? 'Draft' : 'Not saved yet'
+    }
+  })
 
   /* While the Commander or the discard guard is up, the page behind them must
      hold still. `overscroll-behavior: contain` on the Commander stops the
@@ -1290,6 +1329,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   function doUseTemplate(t) {
     editor.commands.setContent(t.html)
     docName = 'Untitled'; saved = true; touched = false; recount()
+    filePath = null; fileSavedAt = 0 // a template is a new document, not the old file
     commanderOpen = false
     focusTop()
     queueMeasure()
@@ -1478,23 +1518,107 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   }
 
   // ---- explicit file actions ----
+  const filePayload = () => ({
+    html: editor.getHTML(),
+    json: editor.getJSON(),
+    pageSettings: { pageSize, orientation, margin, header, footer, pageNumbers },
+  })
+
+  /* Ctrl+S. Silent once the document has a home — the whole point of the
+     rework. Only a document that has never been anywhere asks where to go,
+     and then only once. */
   async function saveDoc() {
+    if (!filePath) return saveDocAs()
+    return writeFileTo(filePath)
+  }
+
+  /* Save As always asks, even when the document already has a home. It is the
+     only way to give one a new one, and it lives in the Commander alone. */
+  async function saveDocAs() {
     persist()
+    savingFile = true
     try {
-      const res = await fileBridge.save(docName, { html: editor.getHTML(), json: editor.getJSON(), pageSettings: { pageSize, orientation, margin, header, footer, pageNumbers } })
-      if (res?.name) { docName = res.name; touched = false; persist(); showToast('Saved'); return true }
+      const res = await fileBridge.saveAs(docName, filePayload())
+      if (res?.name) return bindSaved(res)
     } catch (err) {
-      console.error('[write] save failed:', err)
+      console.error('[write] save-as failed:', err)
       showToast('Save failed')
+    } finally {
+      savingFile = false
+    }
+    return false // cancelled at the dialog, or failed — either way, not saved
+  }
+
+  async function writeFileTo(path) {
+    persist()
+    savingFile = true
+    try {
+      const res = await fileBridge.saveTo(path, filePayload())
+      if (res?.name) return bindSaved(res)
+    } catch (err) {
+      /* The grant is per-session, so a path from a previous run — or one whose
+         file has since moved — can legitimately be refused. Falling back to
+         Save As turns a dead end into the question the user can answer. */
+      console.error('[write] save failed:', err)
+      filePath = null
+      showToast('That file is no longer available — choose where to save')
+      savingFile = false
+      return saveDocAs()
+    } finally {
+      savingFile = false
     }
     return false
   }
+
+  /* ---- renaming, from the status line ----
+     Click the name and type. Renaming never touches the disk: a document
+     already living in a file keeps that file, untouched, under its old name,
+     and the rename unbinds it so the next Ctrl+S asks where the newly-named
+     version should go. The alternative — renaming the file underneath the
+     user — is a filesystem move that no dialog asked for. */
+  let renaming = $state(false)
+  let renameDraft = $state('')
+  let renameInputEl = $state(null)
+
+  function startRename() {
+    renameDraft = docName
+    renaming = true
+  }
+  function commitRename() {
+    if (!renaming) return
+    renaming = false
+    const next = renameDraft.trim().replace(/[\\/:*?"<>|]/g, '').slice(0, 120)
+    if (!next || next === docName) return
+    const wasBound = !!filePath
+    docName = next
+    persist()
+    if (wasBound) {
+      filePath = null
+      fileSavedAt = 0
+      touched = true
+      showToast('Renamed — Ctrl+S to save it under the new name')
+    }
+  }
+  $effect(() => {
+    if (renaming && renameInputEl) { renameInputEl.focus(); renameInputEl.select() }
+  })
+
+  function bindSaved({ name, path }) {
+    docName = name
+    filePath = path ?? null
+    touched = false
+    fileSavedAt = Date.now()
+    persist()
+    showToast('Saved')
+    return true
+  }
+
   function openDoc() { guardThen(doOpenDoc) }
   async function doOpenDoc() {
     try {
       const res = await fileBridge.open()
       if (res?.html) {
-        loadInto(res.html, res.name || 'Untitled', res.pageSettings)
+        loadInto(res.html, res.name || 'Untitled', res.pageSettings, res.path)
         noteImportMessages(res.messages)
       }
     } catch (err) {
@@ -1507,12 +1631,19 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     editor.commands.clearContent()
     focusTop()
     docName = 'Untitled'; saved = true; touched = false; recount()
+    filePath = null; fileSavedAt = 0 // a blank page has never been anywhere
     commanderOpen = false
   }
-  function loadInto(html, name, pageSettings) {
+  /* `path` binds the document to the file it came from, so the next Ctrl+S
+     writes straight back to it. Everything that replaces the document without
+     one (templates, New) must clear the binding, or the new text would
+     silently overwrite the old document's file. */
+  function loadInto(html, name, pageSettings, path = null) {
     const remoteImages = countRemoteImages(html)
     editor.commands.setContent(html)
     docName = name; saved = true; touched = false; recount()
+    filePath = path ?? null
+    fileSavedAt = path ? Date.now() : 0 // on disk and identical, as of now
     commanderOpen = false
     focusTop()
     // a document's own page settings (read back from .docx sectPr) take over
@@ -1528,6 +1659,8 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     measureWhenFontReady()
     noteRemoteImages(remoteImages)
   }
+  /* A recent is a draft out of localStorage, not a file — it has no path, so
+     it deliberately loads unbound. Ctrl+S on one asks where to put it. */
   function openRecent(entry) {
     guardThen(() => loadInto(entry.html, entry.name))
   }
@@ -1537,7 +1670,9 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     try {
       const res = await read()
       if (res?.html) {
-        loadInto(res.html, res.name || 'Untitled', res.pageSettings)
+        /* A real OS drop is scoped by Rust exactly like a dialog pick, so a
+           dropped document binds and saves back to where it came from. */
+        loadInto(res.html, res.name || 'Untitled', res.pageSettings, res.path)
         noteImportMessages(res.messages)
       }
     } catch (err) {
@@ -1706,6 +1841,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     // paint timing, and rAF itself can be throttled in a backgrounded tab.
     syncPageLeading() // best-effort now; redone below once the real font lands
     document.fonts?.ready?.then(() => { syncPageLeading(); measurePages() })
+    ageTimer = setInterval(() => { clockTick++ }, AGE_TICK_MS)
     window.addEventListener('keydown', onKey)
     window.addEventListener('scroll', updateBubble, { passive: true })
     window.addEventListener('scroll', onDocScroll, { passive: true })
@@ -1735,6 +1871,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
 
   onDestroy(() => {
     clearTimeout(measureTimer)
+    clearInterval(ageTimer)
     editor?.destroy()
     window.removeEventListener('keydown', onKey)
     window.removeEventListener('scroll', updateBubble)
@@ -2006,7 +2143,8 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     <div class="commander confirm-card" role="dialog" aria-modal="true" tabindex="-1" aria-label="Unsaved changes">
       <p class="confirm-text">This page has changes not yet saved to a file.</p>
       <div class="cmd-actions confirm-actions">
-        <button onclick={confirmSaveFirst}>⤓ Save…</button>
+        <!-- silent when the document already has a file; asks only if it doesn't -->
+        <button onclick={confirmSaveFirst}>⤓ {filePath ? 'Save' : 'Save…'}</button>
         <button class="confirm-discard" onclick={confirmDiscard}>Discard</button>
         <button onclick={() => (confirmState = null)}>Cancel</button>
       </div>
@@ -2019,7 +2157,24 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   <span class="dot" class:unsaved={!saved}></span>{words.toLocaleString()} words · {readMin} min
 </span>
 <span class="whisper hint">
-  <b>{docName}</b> · <b>Ctrl K</b> rooms &amp; recents · <b>Ctrl \</b> cycle rooms · <b>Ctrl↵</b> focus
+  {#if renaming}
+    <input
+      class="name-input"
+      bind:this={renameInputEl}
+      bind:value={renameDraft}
+      onblur={commitRename}
+      onkeydown={(e) => {
+        e.stopPropagation()
+        if (e.key === 'Enter') { e.preventDefault(); commitRename() }
+        else if (e.key === 'Escape') { e.preventDefault(); renaming = false }
+      }}
+      aria-label="Document name"
+    />
+  {:else}
+    <button class="doc-name" onclick={startRename} title="Click to rename">{docName}</button>
+  {/if}
+  <span class="save-state" data-state={saveState}>{saveLabel}</span>
+  · <b>Ctrl K</b> rooms &amp; recents · <b>Ctrl \</b> cycle rooms · <b>Ctrl↵</b> focus
 </span>
 
 <!-- ============ The Commander: summonable rooms + recents ============ -->
@@ -2145,7 +2300,9 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
       <div class="cmd-actions">
         <button onclick={newDoc}>＋ New</button>
         <button onclick={openDoc}>↥ Open…</button>
-        <button onclick={saveDoc}>⤓ Save…</button>
+        <!-- Save As only. Plain saving is Ctrl+S, which no longer asks
+             anything once the document has a home. -->
+        <button onclick={saveDocAs}>⤓ Save As…</button>
         <button onclick={insertPageBreak} title="Insert a manual page break (Ctrl+Shift+Enter)">↡ Page Break</button>
         <button onclick={insertTable} title="Insert a 3×3 table with a header row">▦ Table</button>
         <button onclick={insertToc} title="Insert a table of contents from the document's headings">≡ Contents</button>

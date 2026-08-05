@@ -131,6 +131,35 @@ body::before {
 .hint { bottom: 20px; left: 28px; color: var(--faint); }
 .hint b { color: var(--soft); font-weight: 500; }
 
+/* The document name, click-to-rename. A button rather than a div so it is
+   reachable by keyboard and announced as an action, styled back down to look
+   like the rest of the whisper. */
+.doc-name {
+  font: inherit; letter-spacing: inherit;
+  color: var(--soft); font-weight: 500;
+  background: none; border: 0; padding: 0;
+  border-bottom: 1px solid transparent;
+  cursor: text;
+}
+.doc-name:hover { color: var(--ink); border-bottom-color: var(--faint); }
+.doc-name:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+.name-input {
+  font: inherit; letter-spacing: inherit;
+  color: var(--ink);
+  background: none;
+  border: 0; border-bottom: 1px solid var(--accent);
+  padding: 0; margin: 0;
+  width: 14ch;
+  outline: none;
+}
+/* Save state sits right beside the name, per Brett. Colour carries the state
+   so it can be read without reading: accent while work is outstanding, quiet
+   grey once the file matches what's on screen. */
+.save-state { margin-left: 8px; color: var(--faint); }
+.save-state[data-state="edited"],
+.save-state[data-state="saving"] { color: var(--accent); }
+.save-state[data-state="draft"] { color: var(--faint); }
+
 /* chrome fades while typing */
 body.typing .whisper { opacity: 0.05; }
 
