@@ -104,9 +104,9 @@ Cycle them with `Ctrl/⌘ + \`.
 
 - **Six built-in rooms** (palette + typeface + measure) with instant switching;
   your choice is remembered. Flow view adds narrow/normal/wide column widths.
-- **Twenty-six bundled typefaces** — six serif, two slab, thirteen sans, two
-  display, three typewriter — in a menu that previews each face live in your
-  own document as you arrow through it, and restores on Escape.
+- **Twenty-eight bundled typefaces** — seven serif, two slab, thirteen sans,
+  two display, four typewriter — in a menu that previews each face live in
+  your own document as you arrow through it, and restores on Escape.
 - **Focus mode** — dims everything except the paragraph you're in (`F11` or
   `Ctrl/⌘ Enter`).
 - **Chrome that gets out of the way** — the toolbar and wordmark duck the
@@ -160,7 +160,7 @@ cached at export. [`PROJECT.md`](PROJECT.md) documents the full fidelity list.
 
 - **[Tauri 2](https://tauri.app)** (Rust) shell — a **7.4 MB** binary (**5.1 MB**
   installer), using the system webview instead of bundling Chromium. Roughly
-  half of that is the twenty-six bundled typefaces, which is the price of never
+  half of that is the twenty-eight bundled typefaces, which is the price of never
   making a network request for type.
 - **[Svelte 5](https://svelte.dev)** + **[Vite](https://vite.dev)** frontend
 - **[Tiptap](https://tiptap.dev)** / ProseMirror editor core
