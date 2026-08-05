@@ -66,6 +66,7 @@ in its `node_modules/<package>/LICENSE`.
 | Manrope | © 2019 The Manrope Project Authors |
 | Newsreader | © 2020 The Newsreader Project Authors |
 | Nunito Sans | © 2016 The Nunito Sans Project Authors |
+| Petrona | © 2019 The Petrona Project Authors |
 | Playfair Display | © 2017 The Playfair Display Project Authors |
 | Poppins | © 2020 The Poppins Project Authors |
 | Reddit Mono | © 2020-2023 Reddit, Inc. |
@@ -76,8 +77,7 @@ in its `node_modules/<package>/LICENSE`.
 
 Full licence for each: `app/node_modules/@fontsource-variable/<slug>/LICENSE`, or
 `app/node_modules/@fontsource/<slug>/LICENSE` for statically-weighted families
-(Poppins, Reddit Mono).
-(or `@fontsource/<slug>` for the static families).
+(Atkinson Hyperlegible, IBM Plex Sans, Poppins, Reddit Mono).
 
 ### The one Apache-2.0 exception
 
