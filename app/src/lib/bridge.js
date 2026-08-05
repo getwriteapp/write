@@ -144,13 +144,23 @@ function webOpen() {
 
 /* Shared by the file input and window drag-drop (which hands us a File). */
 function webOpenFile(file) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const name = file.name.replace(/\.[^.]+$/, '')
     const reader = new FileReader()
+    reader.onerror = () => reject(reader.error || new Error('could not read that file'))
     if (ext(file.name) === 'docx') {
+      /* importDocx throws on a file that isn't really a .docx, or that trips
+         the zip-bomb cap. The throw used to happen inside this async onload,
+         where nothing was listening: it escaped as an unhandled rejection and
+         the promise never settled, so openDroppedDoc's `await` hung forever
+         and the user got no "Open failed" — just a drop that did nothing. */
       reader.onload = async () => {
-        const { html, messages, pageSettings } = await fromDocxBytes(new Uint8Array(reader.result))
-        resolve({ name, html, messages, pageSettings })
+        try {
+          const { html, messages, pageSettings } = await fromDocxBytes(new Uint8Array(reader.result))
+          resolve({ name, html, messages, pageSettings })
+        } catch (err) {
+          reject(err)
+        }
       }
       reader.readAsArrayBuffer(file)
     } else {
@@ -166,6 +176,16 @@ function webOpenFile(file) {
 export const isTauri = inTauri
 
 export const DOC_EXT_RE = /\.(docx|html?|txt)$/i
+
+/* The pre-2007 binary Word format, matched only so it can be refused out loud.
+   `.docx` is a zip of XML; `.doc` is an OLE compound binary with nothing in
+   common with it, so opening one means a second parser for one of the most
+   heavily exploited file formats there is — every mainstream open-source
+   reader for it has carried a buffer-overflow CVE, and none of the zip-bomb
+   caps in import.js would transfer. Matching on the extension alone is the
+   point: we never read the file, so nothing here widens the filesystem scope
+   to a format we're going to decline anyway. */
+export const LEGACY_DOC_RE = /\.doc$/i
 
 export const fileBridge = {
   /* always asks where */

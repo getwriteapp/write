@@ -137,6 +137,13 @@ footers are in the exported `.docx` but don't yet appear when printing directly
 from the app; and TOC page numbers are computed by Word on open rather than
 cached at export. [`PROJECT.md`](PROJECT.md) documents the full fidelity list.
 
+`write` opens `.docx`, `.html`, and `.txt`. It does **not** open `.doc` — the
+old binary Word 97–2003 format. That isn't an oversight to be fixed by a
+filter: `.docx` is a zip of XML, `.doc` is an OLE compound binary from a
+different era, and reading it means a second parser with nothing in common
+with the first. If you have `.doc` files, Word or LibreOffice will convert
+them to `.docx` in one step, and `write` will open them from there.
+
 ## Keyboard
 
 | Shortcut | Action |

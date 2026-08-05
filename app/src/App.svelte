@@ -3,7 +3,7 @@
   import { createEditor, WELCOME, insertImageFiles, bytesToDataUrl, IMAGE_EXT_MIME, findReplaceKey, markPastePlain, countRemoteImages, pageSpacerKey, pageSpacerDOM } from './lib/editor.js'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
   import { ROOMS, DEFAULT_ROOM } from './lib/rooms.js'
-  import { fileBridge, isTauri, DOC_EXT_RE } from './lib/bridge.js'
+  import { fileBridge, isTauri, DOC_EXT_RE, LEGACY_DOC_RE } from './lib/bridge.js'
   import { TEMPLATES } from './lib/templates.js'
   import * as store from './lib/store.js'
 
@@ -265,10 +265,13 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     measureWhenFontReady(getComputedStyle(document.body).getPropertyValue('--body-font'))
   }
 
-  function showToast(text) {
+  /* `ms` is here for the rare message that asks the reader to go and do
+     something elsewhere — 1400ms is right for "Saved", and far too quick to
+     read an instruction through once. */
+  function showToast(text, ms = 1400) {
     toast = text
     clearTimeout(toastTimer)
-    toastTimer = setTimeout(() => { toast = '' }, 1400)
+    toastTimer = setTimeout(() => { toast = '' }, ms)
   }
 
   function setFocus(on) {
@@ -306,18 +309,34 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
      timeout backs it up, because a transition that changes nothing (already
      landscape, or reduced-motion) fires no transitionend at all. */
   let pageResizeTimer
+  let pageResizeSettle = null
   function measureAfterPageResize() {
     queueMeasure()
     if (!host) return
     clearTimeout(pageResizeTimer)
+    /* Drop the previous listener before adding another: two orientation
+       changes in quick succession would otherwise leave the first one
+       registered, measuring against a size nobody asked about any more. */
+    if (pageResizeSettle) host.removeEventListener('transitionend', pageResizeSettle)
     const settled = (e) => {
       if (e && e.propertyName !== 'width') return
       clearTimeout(pageResizeTimer)
       host.removeEventListener('transitionend', settled)
+      pageResizeSettle = null
       measurePages()
     }
+    pageResizeSettle = settled
     host.addEventListener('transitionend', settled)
-    pageResizeTimer = setTimeout(settled, 420) // > the 300ms transition
+    /* The failsafe exists for the case where no width transition runs at all
+       — reduced motion, or a change that leaves the width alone — and it must
+       NOT stand in for one that is merely late. It used to call `settled`,
+       which unregistered the listener: on a machine loaded enough that the
+       300ms animation overran 420ms of wall clock, that measured mid-flight
+       and then threw away the one signal that would have corrected it, so the
+       text stayed wrapped for a width the page no longer had and ran straight
+       through the page-gap band. Measure hopefully here; let a real, late
+       transitionend have the last word. */
+    pageResizeTimer = setTimeout(() => measurePages(), 420) // > the 300ms transition
   }
   function applyPageSize(s) {
     pageSize = s
@@ -1711,12 +1730,22 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
       showToast('Open failed')
     }
   }
+  /* A dropped .doc used to land in silence: no error, no hint, nothing — it
+     matches neither DOC_EXT_RE nor the image list, so both drop handlers fell
+     straight through to their quiet return. The format isn't coming (see
+     LEGACY_DOC_RE), and the least we owe someone holding one is the sentence
+     that gets them unstuck. */
+  function noteLegacyDoc() {
+    showToast('Word 97–2003 .doc isn’t supported — open it in Word or LibreOffice and “Save As” .docx', 5200)
+  }
+
   async function handleDroppedPaths(paths, position) {
     const docPath = paths.find((p) => DOC_EXT_RE.test(p))
     if (docPath) {
       guardThen(() => openDroppedDoc(() => fileBridge.openPath(docPath)))
       return
     }
+    if (paths.some((p) => LEGACY_DOC_RE.test(p))) return noteLegacyDoc()
     const imgPaths = paths.filter((p) => IMAGE_EXT_MIME[extOf(p)])
     if (!imgPaths.length) return
     try {
@@ -1773,6 +1802,11 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     if (docFile) {
       e.preventDefault()
       guardThen(() => openDroppedDoc(() => fileBridge.openFile(docFile)))
+      return
+    }
+    if (files.some((f) => LEGACY_DOC_RE.test(f.name))) {
+      e.preventDefault()
+      noteLegacyDoc()
       return
     }
     // images dropped outside the editor surface (the editor handles its own)
@@ -1903,6 +1937,8 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   onDestroy(() => {
     clearTimeout(measureTimer)
     clearTimeout(pageResizeTimer)
+    // the resize listener now outlives its timer, so it needs tearing down too
+    if (host && pageResizeSettle) host.removeEventListener('transitionend', pageResizeSettle)
     clearInterval(ageTimer)
     editor?.destroy()
     window.removeEventListener('keydown', onKey)
