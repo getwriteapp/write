@@ -4,11 +4,13 @@ All notable changes to `write` are recorded here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is
 [SemVer](https://semver.org/), pre-1.0.
 
-## [0.2.0] — 2026-08-04
+## [0.2.1] — 2026-08-05
 
-Three passes driven by using the app: Session 29's typography and navigation
-work, Session 30's formatting marks, and Session 31's real pagination — Page
-view now breaks pages between lines, the way a word processor is supposed to.
+Four passes driven by using the app: Session 29's typography and navigation
+work, Session 30's formatting marks, Session 31's real pagination — Page view
+now breaks pages between lines, the way a word processor is supposed to — and
+Session 32's chrome and visual-identity pass: a new default room, a real app
+icon and tray icon, and the typeface library's growth to 26 faces.
 
 ### Added
 
@@ -240,6 +242,6 @@ downloadable.
 First release. Real `.docx` open and save, images, six rooms, the Commander,
 Flow and Page views, focus mode, autosave and recents. Windows only.
 
-[0.2.0]: https://github.com/getwriteapp/write/releases/tag/v0.2.0
+[0.2.1]: https://github.com/getwriteapp/write/releases/tag/v0.2.1
 [0.1.1]: https://github.com/getwriteapp/write/releases/tag/v0.1.1
 [0.1.0]: https://github.com/getwriteapp/write/releases/tag/v0.1.0
