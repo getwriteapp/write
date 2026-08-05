@@ -115,7 +115,14 @@ view now breaks pages between lines, the way a word processor is supposed to.
   standing in for a listbox (so names can render in their own face and
   arrow keys can preview live — see the Session 27 note), which drew nothing
   at all until now. Same glyph vocabulary as the rest of the Bar's icons,
-  not an SVG asset.
+  not an SVG asset. Went a step further once the first pass was up: Size and
+  Spacing's own native arrows were a different shape (the browser's own
+  chevron) from the new triangle, and both read as too small once sitting
+  next to each other. Stripped the native arrows (`appearance: none`,
+  confirmed `::after` genuinely renders on a `<select>` in this Chromium
+  build before relying on it — support for pseudo-elements on native form
+  controls has historically been inconsistent across engines) and drew the
+  identical ▾ on all three, bigger on all three.
 - **The chrome's own typeface and corners.** The UI font (Bar, Commander,
   whispers) was Geist — Vercel's typeface, and about as close to "made by an
   AI startup in 2023" as a font gets. Tried live against seventeen other

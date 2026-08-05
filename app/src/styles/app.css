@@ -489,15 +489,33 @@ body.typing .bar-zone.menu-open .bar {
 }
 
 .bar-select {
+  position: relative;
   font: inherit;
   font-size: 12px;
   color: var(--soft);
   background: transparent;
   border: 1px solid var(--hairline);
   border-radius: 3px;
-  padding: 3px 4px;
+  padding: 3px 20px 3px 4px;
   max-width: 118px;
   cursor: pointer;
+  /* Size and Spacing are real <selects>; strip the native arrow so the
+     ::after triangle below is the only one drawn -- confirmed ::after
+     actually renders on a <select> in this Chromium/WebView2 build before
+     relying on it (support for pseudo-elements on native form controls has
+     historically been inconsistent across engines). */
+  appearance: none;
+  -webkit-appearance: none;
+}
+.bar-select::after {
+  content: "▾";
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: var(--soft);
+  pointer-events: none;
 }
 .bar-select:hover { color: var(--ink); }
 .bar-select option { color: #1a1a1a; background: #fff; }
@@ -529,7 +547,7 @@ body.typing .bar-zone.menu-open .bar {
   right: 7px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 9px;
+  font-size: 12px;
   color: var(--soft);
   pointer-events: none;
 }
