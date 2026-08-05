@@ -103,7 +103,13 @@
   --hairline: #EFE2E4;
   --card: rgba(255, 252, 251, 0.85);
   --card-shadow: 0 2px 8px rgba(120, 50, 80, 0.05), 0 14px 44px rgba(120, 50, 80, 0.09);
-  --body-font: 'Source Serif 4 Variable', Georgia, serif;
+  /* Petrona (Session 34, Brett: "a much softer serif for Dawn"). Landed on
+     this after a side-by-side specimen against Fraunces, Alegreya and
+     Vollkorn — Petrona's low-contrast curves and big x-height read quieter
+     and more restrained than Fraunces' deliberate wonkiness, which is what
+     Dawn's "blush morning light" wants. New to the bundle (see fonts-extra.css
+     and docx/fonts.js); it wasn't one of the 26 before this session. */
+  --body-font: 'Petrona Variable', Georgia, serif;
   --body-size: 19px;
   --body-leading: 1.75;
   --measure: 35em;
@@ -125,7 +131,17 @@
   --hairline: #E5DBC5;
   --card: rgba(250, 246, 237, 0.9);
   --card-shadow: 0 2px 6px rgba(80, 60, 20, 0.06), 0 12px 40px rgba(80, 60, 20, 0.10);
-  --body-font: 'Literata Variable', Georgia, serif;
+  /* Source Serif 4 over Literata (Session 34, Brett: "tighten and harden up" —
+     "more newspaper-like than print-book-like"). Literata's glyph box is
+     unusually tall, which is what made Paper the loosest room (see the
+     highlight-clipping note in HANDOFF's Gotchas — that floor was built
+     around Literata specifically). Compared against Literata, PT Serif,
+     Noticia Text, Merriweather and Libre Baskerville in a side-by-side
+     specimen; Source Serif 4's opsz axis tightens proportions and raises
+     contrast at larger sizes, which is the literal mechanism for "tighten
+     and harden." Reused from Dawn's old slot rather than a fresh bundle —
+     already proven working in this app. */
+  --body-font: 'Source Serif 4 Variable', Georgia, serif;
   --body-size: 18.5px;
   --body-leading: 1.72;
   --measure: 34em;

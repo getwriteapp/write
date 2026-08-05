@@ -4,6 +4,24 @@ All notable changes to `write` are recorded here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is
 [SemVer](https://semver.org/), pre-1.0.
 
+## [0.2.3] — 2026-08-05
+
+Session 34: two room typefaces re-picked, judged side by side rather than by
+description — see the specimen pages in `assets/`.
+
+### Changed
+
+- **Dawn's body font is now Petrona, not Fraunces.** Brett wanted "a much
+  softer serif." Petrona's low-contrast curves and big x-height read quieter
+  and more restrained than Fraunces' deliberate wonkiness — a better match
+  for "blush morning light." New to the bundle: 27 typefaces now.
+- **Paper's body font is now Source Serif 4, not Literata.** Brett wanted it
+  "tightened and hardened up... more newspaper-like than print-book-like."
+  Literata's unusually tall glyph box was what made Paper the loosest room to
+  begin with. Source Serif 4's `opsz` axis tightens proportions and raises
+  contrast at larger sizes — the literal mechanism for the ask. Reused from
+  Dawn's old slot rather than a fresh bundle addition.
+
 ## [0.2.2] — 2026-08-05
 
 Session 33: per-room highlighter palettes.

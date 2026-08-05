@@ -37,6 +37,7 @@ const WORD_TO_CSS = {
   'nunito sans': "'Nunito Sans Variable', -apple-system, sans-serif",
   'poppins': "'Poppins', -apple-system, sans-serif",
   'space grotesk': "'Space Grotesk Variable', -apple-system, sans-serif",
+  'petrona': "'Petrona Variable', Georgia, serif",
 }
 
 /* CSS stack → Word family name: first family, quotes stripped, and the

@@ -974,7 +974,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     if (barScrollHidden) barShownAtY = y
   }
 
-  /* The typeface library — 26 families. Every one ships with the app; no
+  /* The typeface library — 27 families. Every one ships with the app; no
      network call has ever been made for type and none ever will be. Grouped by
      voice rather than listed flat, because 21 names in one column is a wall.
      Each is a deliberate pick, not a dump of what Fontsource happens to have:
@@ -982,7 +982,8 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
                 workhorse) · EB Garamond (the classic old-style, for anything
                 that wants to feel printed) · Crimson Pro (old-style, lighter
                 colour on the page) · Lora (contemporary, brushed contrast) ·
-                Newsreader (editorial warmth)
+                Newsreader (editorial warmth) · Petrona (Session 34 — soft,
+                low-contrast curves, a big x-height; Dawn's room default)
        Slab   — Roboto Slab (sturdy, neutral) · Bitter (contrasty slab that
                 still sets as body text)
        Sans   — Geist · Inter (the neutral workhorse) · Work Sans · Libre
@@ -1009,6 +1010,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
       { label: 'Crimson Pro', value: "'Crimson Pro Variable', Garamond, serif" },
       { label: 'Lora', value: "'Lora Variable', Georgia, serif" },
       { label: 'Newsreader', value: "'Newsreader Variable', serif" },
+      { label: 'Petrona', value: "'Petrona Variable', Georgia, serif" },
     ] },
     { name: 'Slab', items: [
       { label: 'Roboto Slab', value: "'Roboto Slab Variable', Rockwell, serif" },

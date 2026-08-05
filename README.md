@@ -44,8 +44,8 @@ A *room* is more than a theme — it sets the light (palette), the voice (typefa
 |------|------|----------|
 | **Linen** | White silence, one rust cursor — the default | Nunito Sans |
 | **Cobalt** | White silence, one cobalt cursor | iA Writer Quattro |
-| **Dawn** | Blush morning light, rose caret | Source Serif 4 |
-| **Paper** | Cream and ink, a printed book | Literata |
+| **Dawn** | Blush morning light, rose caret | Petrona |
+| **Paper** | Cream and ink, a printed book | Source Serif 4 |
 | **Slate** | Cool dark, sea-glass caret | Geist |
 | **Noir** | Midnight serif, amber caret — writing at 1 a.m. | Newsreader |
 
