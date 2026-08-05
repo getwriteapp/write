@@ -1840,10 +1840,12 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
         </div>
       {/if}
     </span>
-    <select class="bar-select bar-size" value={barState.size} onchange={(e) => barRun('size', e.target.value)} title="Size">
-      <option value="">Size</option>
-      {#each BAR_SIZES as s}<option value={s}>{s.replace('pt', '')}</option>{/each}
-    </select>
+    <span class="select-wrap">
+      <select class="bar-select bar-size" value={barState.size} onchange={(e) => barRun('size', e.target.value)} title="Size">
+        <option value="">Size</option>
+        {#each BAR_SIZES as s}<option value={s}>{s.replace('pt', '')}</option>{/each}
+      </select>
+    </span>
     <span class="bar-sep"></span>
     <span class="bar-swatches" title="Text color">
       <button class="swatch swatch-none" class:on={!barState.color} onclick={() => barRun('color', '')} title="Default ink">A</button>
@@ -1873,10 +1875,12 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
       <button class:on={barState.align === 'right'} onclick={() => barRun('align', 'right')} title="Align right">⯇</button>
       <button class:on={barState.align === 'justify'} onclick={() => barRun('align', 'justify')} title="Justify">☰</button>
     </span>
-    <select class="bar-select bar-lh" value={barState.lineHeight} onchange={(e) => barRun('lineHeight', e.target.value)} title="Line spacing">
-      <option value="">Spacing</option>
-      {#each BAR_LINE_HEIGHTS as [v, label]}<option value={v}>{label}</option>{/each}
-    </select>
+    <span class="select-wrap">
+      <select class="bar-select bar-lh" value={barState.lineHeight} onchange={(e) => barRun('lineHeight', e.target.value)} title="Line spacing">
+        <option value="">Spacing</option>
+        {#each BAR_LINE_HEIGHTS as [v, label]}<option value={v}>{label}</option>{/each}
+      </select>
+    </span>
     <span class="seg bar-seg" title="Indent">
       <button onclick={() => barRun('outdent')} disabled={!barState.indent} title="Decrease indent">⇤</button>
       <button onclick={() => barRun('indent')} title="Increase indent">⇥</button>

@@ -489,7 +489,6 @@ body.typing .bar-zone.menu-open .bar {
 }
 
 .bar-select {
-  position: relative;
   font: inherit;
   font-size: 12px;
   color: var(--soft);
@@ -499,28 +498,31 @@ body.typing .bar-zone.menu-open .bar {
   padding: 3px 20px 3px 4px;
   max-width: 118px;
   cursor: pointer;
-  /* Size and Spacing are real <selects>; strip the native arrow so the
-     ::after triangle below is the only one drawn -- confirmed ::after
-     actually renders on a <select> in this Chromium/WebView2 build before
-     relying on it (support for pseudo-elements on native form controls has
-     historically been inconsistent across engines). */
+  /* Size and Spacing are real <selects>. appearance:none strips the native
+     arrow -- but a <select>'s own ::after computes correctly in the CSSOM
+     (getComputedStyle reports it) without Chromium actually PAINTING it;
+     generated content on native form controls is unreliable in practice
+     regardless of what computed style claims. The arrow lives on
+     .select-wrap below instead, an ordinary <span> wrapping the <select>,
+     which paints ::after the same as any other element. */
   appearance: none;
   -webkit-appearance: none;
-}
-.bar-select::after {
-  content: "▾";
-  position: absolute;
-  right: 7px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 12px;
-  color: var(--soft);
-  pointer-events: none;
 }
 .bar-select:hover { color: var(--ink); }
 .bar-select option { color: #1a1a1a; background: #fff; }
 .bar-size { max-width: 62px; }
 .bar-lh { max-width: 84px; }
+.select-wrap { position: relative; display: inline-flex; }
+.select-wrap::after {
+  content: "▾";
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: var(--soft);
+  pointer-events: none;
+}
 
 /* ---------- the typeface menu ----------
    A listbox rather than a native <select>: options rendered in their own
@@ -547,7 +549,7 @@ body.typing .bar-zone.menu-open .bar {
   right: 7px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 12px;
+  font-size: 14px;
   color: var(--soft);
   pointer-events: none;
 }
