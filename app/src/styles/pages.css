@@ -67,14 +67,16 @@ body[data-view="page"] .ProseMirror p { margin: 0 0 10.667px; } /* 8pt after */
 [data-view="page"] main {
   background: var(--desk);
   align-items: flex-start;
-  /* Session 32: cut again and switched from vh to a flat px value. This is
-     chrome breathing room above the sheet, not the page's own margin (that's
+  /* Chrome breathing room above the sheet, not the page's own margin (that's
      --page-my, on .editor-host below, and is untouched: it has to stay the
      real 1in/etc. so Page view keeps telling the truth about where Word will
-     break) -- the two were stacking, and neither the Bar nor the wordmark
-     (both position:fixed) need this reserved. vh also meant the gap grew on
-     a taller monitor for no reason; a flat value doesn't. */
-  padding: 28px 24px 22vh;
+     break). Cut twice in Session 32: 5vh -> 28px, then 28px -> 12px, the
+     second time because the Bar is a position:fixed overlay that visually
+     occupies part of this padding only while it's shown -- once it ducks
+     away, the full amount reads as bare empty space above the first line,
+     which is worse than it looks while the Bar is visible. Neither the Bar
+     nor the wordmark need any of it reserved. */
+  padding: 12px 24px 22vh;
   transition: background-color 0.45s ease;
 }
 [data-view="page"] body::before { opacity: 0; } /* hide the room wash on the desk */

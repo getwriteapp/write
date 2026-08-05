@@ -1001,7 +1001,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
        Type-  — iA Writer Quattro (the app's own voice) · JetBrains Mono
        writer   (warmer, rounder mono) · Geist Mono (tight and neutral) */
   const FONT_GROUPS = [
-    { name: 'Default', items: [{ label: 'Room default', value: '' }] },
+    { name: 'Room Default', items: [{ label: 'Room default', value: '' }] },
     { name: 'Serif', items: [
       { label: 'Literata', value: "'Literata Variable', serif" },
       { label: 'Source Serif', value: "'Source Serif 4 Variable', serif" },
