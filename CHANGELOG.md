@@ -4,10 +4,32 @@ All notable changes to `write` are recorded here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is
 [SemVer](https://semver.org/), pre-1.0.
 
-## [Unreleased]
+## [0.2.4] — 2026-08-06
 
-Session 35: Cobalt's default typeface, then a full pass through Brett's
-`ISSUES.md` punch list. Not yet version-bumped or tagged — see HANDOFF.md.
+Two sessions. **35:** Cobalt's default typeface, then a full pass through
+Brett's `ISSUES.md` punch list. **36:** a pre-launch compliance and security
+audit, one licensing gap it caught, and the two test tiers it showed were
+missing.
+
+### Added
+
+- **A component test tier** (`npm run test:unit` — Vitest + jsdom). The save
+  model reworked in Session 35 had until now been verified only by hand. Ten
+  tests drive real `Ctrl+S` key events against a real editor, covering the
+  routing decision that is the whole point of the rework — a document with a
+  file writes straight back to it, one without asks where — plus the expired-
+  grant fallback, rename unbinding, and both discard-guard paths.
+- **A real-browser test tier** (`npm run test:e2e` — Playwright). Pagination
+  needs actual layout, so no Node-only test could ever reach it; the
+  landscape bug fixed below shipped once for exactly that reason. Six tests
+  cover page counts, line-level splitting, page size and margins, and — the
+  one that matters — that switching to landscape re-measures only once the
+  300ms width animation has settled, with no text left overlapping a page
+  gap.
+- The `.docx` round-trip suite grew from 65 cases to 99: all five starter
+  templates now round-trip, and every one of the 28 bundled typefaces is
+  checked in both directions rather than the single font a fixture happened
+  to use.
 
 ### Changed
 
@@ -46,6 +68,31 @@ Session 35: Cobalt's default typeface, then a full pass through Brett's
   join.** The page sheet animates its width over 300ms and pagination was
   being measured a tenth of the way into that animation; it now measures
   once the resize actually settles.
+- **…and the same bug again, on a slow or busy machine.** Session 35's fix
+  waited for the resize to finish, with a 420ms timer as a backstop for the
+  case where no animation runs at all. But that backstop also *cancelled* the
+  wait: if the machine was loaded enough that the 300ms animation overran
+  420ms of wall clock, the app measured mid-flight and then discarded the one
+  signal that would have corrected it, leaving text wrapped for a width the
+  page no longer had. Found by the new browser tests failing intermittently
+  under load, and confirmed by forcing the animation to overrun — 11 of 178
+  rendered lines ran through the page-gap band before the fix, none after.
+  The backstop now measures without standing down the real one.
+- **Petrona was shipping without its licence notice.** The typeface has been
+  bundled since Session 34, but no entry ever reached
+  `THIRD-PARTY-NOTICES.md` — and the SIL Open Font License requires the
+  notice to travel with the binary. Found by a pre-launch audit that counted
+  the fonts on disk against the ones documented.
+- **Dropping a `.doc` file now says so.** The old binary Word 97–2003 format
+  isn't supported and isn't going to be — it has nothing structurally in
+  common with `.docx` — but until now dropping one did nothing at all: no
+  error, no hint. It now points at Word or LibreOffice to convert. The
+  limitation is stated plainly in the README too, rather than left to be
+  discovered.
+- A corrupt or truncated `.docx` dropped into the browser preview used to
+  hang forever with no message, because the importer's error escaped the
+  promise that was meant to carry it. It now reports "Open failed", as the
+  packaged app always did.
 
 ## [0.2.3] — 2026-08-05
 
