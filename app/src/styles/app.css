@@ -100,13 +100,6 @@ body::before {
   vertical-align: 1px;
   transition: background-color 0.45s ease;
 }
-[data-room="air"] .wordmark {
-  background: linear-gradient(135deg, #6E62E5, #E96A8D);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-[data-room="air"] .wordmark::after { background: linear-gradient(135deg, #6E62E5, #E96A8D); }
 [data-room="noir"] .wordmark, [data-room="slate"] .wordmark {
   font-family: var(--mono); font-weight: 500; letter-spacing: 0.02em;
 }
@@ -701,10 +694,12 @@ main {
   /* 9vh (Session 25) was sized to leave room for a permanently-visible top
      bar; the Bar has been a hover overlay since that same session, and both
      it and the wordmark are `position: fixed`, entirely independent of this
-     padding — so none of it is actually reserved for chrome. Session 30:
-     Brett felt the headroom above the first line was still too generous even
-     with that accounted for. 6vh (54px on a 900px window, was 81px). */
-  padding: 6vh 24px 20vh;
+     padding — so none of it is actually reserved for chrome. Session 30 cut
+     it to 6vh; Session 32 cut it again and switched to a flat px value, same
+     reasoning as Page view's own padding fix — this is Flow's actual
+     default view (see `view` state), so it's the first headroom anyone
+     sees, and vh meant it grew on a taller monitor for no reason. */
+  padding: 40px 24px 20vh;
 }
 .editor-host {
   position: relative; /* anchors the custom caret overlay in both views */

@@ -53,9 +53,27 @@ view now breaks pages between lines, the way a word processor is supposed to.
   hand.
 - **A real system tray icon**, not just artwork sitting unused: a
   right-click menu (Show write / Quit) and left-click brings the window
-  forward, the same gesture as clicking a taskbar entry. The window's close
-  button still quits the app as it always has — no minimize-to-tray
-  behavior was added alongside this, since that's a separate decision.
+  forward, the same gesture as clicking a taskbar entry. Follows Windows'
+  own light/dark setting live — the badge switches the moment you change
+  it in Settings, no restart needed. The window's close button still quits
+  the app as it always has — no minimize-to-tray behavior was added
+  alongside this, since that's a separate decision.
+- **A new default room, Linen**, replacing Quattro. Quattro's problem was
+  never the room itself — it was the resemblance: iA Writer's own typeface,
+  paired with iA Writer's own blue, as the very first thing a stranger saw.
+  Linen keeps the same "one colored cursor on white" discipline but is
+  entirely write's own: Nunito Sans, a rust caret, and genuinely neutral
+  grays everywhere else — the warmth lives only in the caret and accent,
+  not smeared across the whole palette the way Dawn's is. Chosen from four
+  candidates shown against the app's real room-card CSS, not a mockup.
+  Air is retired outright — the room with the least distinct point of
+  view, and the one that read closest to generic modern-app chrome
+  (indigo gradients, glass, Geist) rather than something particular to
+  this app. Quattro survives, recolored and renamed to **Cobalt** and
+  moved into Air's old slot in the room order: identical font and
+  everything else, only the accent and caret move, from iA's own
+  `#0D99FF` to a muted `#3E6FA6` that stays clear of both Slate's teal and
+  Air's retired indigo. Still six rooms.
 
 ### Changed
 
@@ -73,7 +91,16 @@ view now breaks pages between lines, the way a word processor is supposed to.
   top of the page's own real 96px top margin, and vh meant that gap grew on a
   taller monitor for no reason. The real margin (--page-my, 1in by default)
   is untouched — that part is supposed to look like an inch of white space,
-  since it's what Word will actually do.
+  since it's what Word will actually do. Flow view got the same treatment a
+  session later, having been missed the first time even though it's the
+  app's actual default view — 6vh flattened to 40px, for the same reason.
+- **The Bar's font menu now names the room's actual font**, instead of the
+  opaque literal string "Room default." The first group is titled "Default,"
+  matching Serif/Slab/Sans/Display/Typewriter, and the one item inside it
+  shows whichever face the current room is really set in — Nunito Sans in
+  Linen, iA Writer Quattro in Cobalt, and so on — read live from the room's
+  own `--body-font`, not a second hardcoded map that could drift out of sync
+  with rooms.css.
 - **The chrome's own typeface and corners.** The UI font (Bar, Commander,
   whispers) was Geist — Vercel's typeface, and about as close to "made by an
   AI startup in 2023" as a font gets. Tried live against seventeen other

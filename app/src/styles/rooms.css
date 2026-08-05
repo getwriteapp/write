@@ -27,15 +27,47 @@
   --mono: 'Geist Mono Variable', ui-monospace, 'Cascadia Mono', monospace;
 }
 
-/* ---------- Quattro — the iA homage. White silence, one blue cursor. ---------- */
-:root, [data-room="quattro"] {
+/* ---------- Linen — the new default. White silence, one rust cursor.
+   Replaces Quattro as default (Session 32): same "one colored cursor on
+   white" discipline Quattro always had, but the room itself -- not just its
+   accent -- is entirely write's own rather than iA Writer's. Nunito Sans
+   over three other sans candidates, chosen live against the same neutral
+   palette so the comparison was about the font, not the color (see the
+   chrome/room labs). Genuinely neutral grays throughout -- the warmth lives
+   ONLY in --caret/--accent/--sel, nowhere else, which is what separates this
+   from Dawn (where the warmth is the whole palette). */
+:root, [data-room="linen"] {
+  --bg: #FFFFFF;
+  --ink: #242321;
+  --soft: #8F8D87;
+  --faint: #DAD8D2;
+  --caret: #96502E;
+  --sel: rgba(184, 92, 56, 0.15);
+  --accent: #B85C38;
+  --hairline: #EFEEEA;
+  --card: rgba(255, 255, 255, 0.92);
+  --card-shadow: 0 2px 6px rgba(0,0,0,0.05), 0 12px 36px rgba(0,0,0,0.09);
+  --body-font: 'Nunito Sans Variable', -apple-system, sans-serif;
+  --body-size: 18.5px;
+  --body-leading: 1.76;
+  --measure: 35em;
+  --h1-size: 2.0em; --h1-weight: 650; --h1-track: -0.02em;
+  --wash: none;
+}
+
+/* ---------- Cobalt — was Quattro. Same duospace voice, a blue that isn't
+   iA's. Font, sizing and every other value untouched -- only the accent and
+   caret moved, from iA Writer's own #0D99FF to a muted, denim-adjacent
+   #3E6FA6 that stays clear of both Slate's teal and Air's retired indigo.
+   No longer :root/default -- Linen is. ---------- */
+[data-room="cobalt"] {
   --bg: #FFFFFF;
   --ink: #1B1B1B;
   --soft: #8F8F8C;
   --faint: #C8C8C5;
-  --caret: #2C82C9;
-  --sel: rgba(13, 153, 255, 0.16);
-  --accent: #0D99FF;
+  --caret: #2F5580;
+  --sel: rgba(62, 111, 166, 0.16);
+  --accent: #3E6FA6;
   --hairline: #ECECEA;
   --card: rgba(255, 255, 255, 0.92);
   --card-shadow: 0 2px 6px rgba(0,0,0,0.05), 0 12px 36px rgba(0,0,0,0.09);
@@ -45,28 +77,6 @@
   --measure: 33em;
   --h1-size: 1.38em; --h1-weight: 700; --h1-track: 0;
   --wash: none;
-}
-
-/* ---------- Air — fresh light. Gradient washes, glass, indigo. ---------- */
-[data-room="air"] {
-  --bg: #FAFAFC;
-  --ink: #17171C;
-  --soft: #7B7988;
-  --faint: #C2C0CE;
-  --caret: #6459C0;
-  --sel: rgba(110, 98, 229, 0.15);
-  --accent: #6E62E5;
-  --hairline: #E9E8F1;
-  --card: rgba(255, 255, 255, 0.78);
-  --card-shadow: 0 2px 8px rgba(40, 30, 120, 0.06), 0 16px 48px rgba(40, 30, 120, 0.10);
-  --body-font: 'Geist Variable', -apple-system, sans-serif;
-  --body-size: 18.5px;
-  --body-leading: 1.78;
-  --measure: 36em;
-  --h1-size: 2.25em; --h1-weight: 650; --h1-track: -0.035em;
-  --wash:
-    radial-gradient(900px 460px at 38% -8%, rgba(110, 98, 229, 0.09), transparent 64%),
-    radial-gradient(700px 420px at 88% -4%, rgba(233, 106, 141, 0.07), transparent 60%);
 }
 
 /* ---------- Dawn — blush morning light, rose caret, quiet serif. ---------- */

@@ -1001,7 +1001,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
        Type-  — iA Writer Quattro (the app's own voice) · JetBrains Mono
        writer   (warmer, rounder mono) · Geist Mono (tight and neutral) */
   const FONT_GROUPS = [
-    { name: '', items: [{ label: 'Room default', value: '' }] },
+    { name: 'Default', items: [{ label: 'Room default', value: '' }] },
     { name: 'Serif', items: [
       { label: 'Literata', value: "'Literata Variable', serif" },
       { label: 'Source Serif', value: "'Source Serif 4 Variable', serif" },
@@ -1130,7 +1130,23 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   // every open and cleared on close, and Svelte 5 flags a plain `let` for that
   let fontMenuEl = $state(null)
   let fontOriginal = ''
-  const fontLabel = (v) => BAR_FONTS.find((f) => f.value === v)?.label ?? 'Mixed'
+  /* The room's own body font, by name — reads the same --body-font custom
+     property applyRoom() already reads (right after setting data-room, so
+     it's never stale), rather than a second hardcoded room->label map that
+     could drift from rooms.css. `room` is referenced only to create the
+     reactive dependency; the actual value comes from the DOM.
+     Matches on the PRIMARY family only, not the whole stack — every room's
+     --body-font carries its own fallback chain (Dawn falls back through
+     Georgia, Cobalt through IBM Plex Sans, etc.) that doesn't byte-match the
+     generic single-fallback strings in BAR_FONTS, even though both name the
+     same family. */
+  const primaryFamily = (css) => String(css).split(',')[0].replace(/["']/g, '').trim()
+  const roomFontLabel = $derived.by(() => {
+    room
+    const family = primaryFamily(getComputedStyle(document.body).getPropertyValue('--body-font'))
+    return BAR_FONTS.find((f) => primaryFamily(f.value) === family)?.label ?? 'Default'
+  })
+  const fontLabel = (v) => (v ? BAR_FONTS.find((f) => f.value === v)?.label ?? 'Mixed' : roomFontLabel)
 
   // tick(), not requestAnimationFrame: focusing the menu and keeping the
   // selected row in view must happen as soon as Svelte has written the DOM,
@@ -1817,7 +1833,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
                 style="font-family: {f.value || 'var(--body-font)'}"
                 onmouseenter={() => previewFont(i)}
                 onmousedown={(e) => { e.preventDefault(); fontIdx = i; closeFontMenu(true) }}
-              >{f.label}</button>
+              >{f.value ? f.label : roomFontLabel}</button>
             {/each}
           {/each}
           <div class="font-menu-foot">↑↓ preview · ↵ keep · esc cancel</div>

@@ -45,8 +45,8 @@ body[data-view="page"] .ProseMirror p { margin: 0 0 10.667px; } /* 8pt after */
 
 /* per-room desk (behind the sheet) + paper (the sheet) + its shadow.
    Defined here so the room files stay about the writing surface. */
-[data-room="quattro"] { --desk: #EDEDEB; --paper: #FFFFFF; --paper-shadow: 0 1px 2px rgba(0,0,0,.05), 0 10px 28px rgba(0,0,0,.10); }
-[data-room="air"]     { --desk: #EDEDF3; --paper: #FFFFFF; --paper-shadow: 0 1px 2px rgba(40,30,120,.05), 0 10px 28px rgba(40,30,120,.11); }
+[data-room="linen"]   { --desk: #F0EEEA; --paper: #FFFFFF; --paper-shadow: 0 1px 2px rgba(90,60,40,.05), 0 10px 28px rgba(90,60,40,.09); }
+[data-room="cobalt"]  { --desk: #EDEDEB; --paper: #FFFFFF; --paper-shadow: 0 1px 2px rgba(0,0,0,.05), 0 10px 28px rgba(0,0,0,.10); }
 [data-room="dawn"]    { --desk: #EFE3E1; --paper: #FFFDFB; --paper-shadow: 0 1px 2px rgba(120,50,80,.05), 0 10px 28px rgba(120,50,80,.10); }
 [data-room="paper"]   { --desk: #E7DCC6; --paper: #FBF7EE; --paper-shadow: 0 1px 2px rgba(80,60,20,.06), 0 10px 28px rgba(80,60,20,.12); }
 [data-room="slate"]   { --desk: #141A21; --paper: #222A34; --paper-shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 32px rgba(0,0,0,.45); }

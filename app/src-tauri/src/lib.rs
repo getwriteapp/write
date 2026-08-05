@@ -26,7 +26,7 @@ use tauri::{
     image::Image,
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    DragDropEvent, Manager, WindowEvent,
+    DragDropEvent, Manager, Theme, WindowEvent,
 };
 use tauri_plugin_dialog::{DialogExt, FilePath};
 use tauri_plugin_fs::FsExt;
@@ -79,12 +79,25 @@ async fn pick_document_to_save(app: tauri::AppHandle, default_name: String) -> O
     grant(&app, picked)
 }
 
-/* The tray icon's own artwork -- a solid badge (white "w" on dark), not just
-   the glyph, so it stays legible against any taskbar colour without needing
-   to track the OS light/dark setting. Brett's call which of the two shipped
-   variants (see src-tauri/icons/tray/) is the real default; swap the byte
-   include below to try the light one. */
-const TRAY_ICON_BYTES: &[u8] = include_bytes!("../icons/tray/tray-dark-256.png");
+/* The tray icon's own artwork -- a solid badge (dark square/white "w", or
+   light square/black "w"), not just a bare glyph. It still follows Windows'
+   own light/dark setting, purely for visual harmony with the rest of the
+   taskbar's chrome -- not legibility, since a solid badge reads fine against
+   either taskbar colour on its own. */
+const TRAY_ICON_DARK: &[u8] = include_bytes!("../icons/tray/tray-dark-256.png");
+const TRAY_ICON_LIGHT: &[u8] = include_bytes!("../icons/tray/tray-light-256.png");
+const TRAY_ID: &str = "main-tray";
+
+fn tray_icon_for(theme: Theme) -> tauri::Result<Image<'static>> {
+    let bytes = match theme {
+        Theme::Dark => TRAY_ICON_DARK,
+        // Theme is #[non_exhaustive] (only Light/Dark exist today) -- an
+        // unknown future variant falls back to the light badge, same as a
+        // failed theme read does below.
+        _ => TRAY_ICON_LIGHT,
+    };
+    Image::from_bytes(bytes)
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -100,9 +113,17 @@ pub fn run() {
             let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show_item, &quit_item])?;
 
-            let icon = Image::from_bytes(TRAY_ICON_BYTES)?;
+            // Read the real starting theme rather than hardcoding a guess --
+            // falls back to the light badge only if the window/theme read
+            // itself fails, which in practice means the window doesn't
+            // exist yet.
+            let start_theme = app
+                .get_webview_window("main")
+                .and_then(|w| w.theme().ok())
+                .unwrap_or(Theme::Light);
+            let icon = tray_icon_for(start_theme)?;
 
-            TrayIconBuilder::new()
+            TrayIconBuilder::with_id(TRAY_ID)
                 .icon(icon)
                 .tooltip("write")
                 .menu(&menu)
@@ -149,6 +170,16 @@ pub fn run() {
                 let scope = window.app_handle().fs_scope();
                 for path in paths.iter().filter(|p| is_openable(p)) {
                     let _ = scope.allow_file(path);
+                }
+            }
+            // Windows fires this the moment the user flips Settings ->
+            // Personalization -> Colors, no restart needed -- the tray badge
+            // switches live to match.
+            if let WindowEvent::ThemeChanged(theme) = event {
+                if let Some(tray) = window.app_handle().tray_by_id(TRAY_ID) {
+                    if let Ok(icon) = tray_icon_for(*theme) {
+                        let _ = tray.set_icon(Some(icon));
+                    }
                 }
             }
         })

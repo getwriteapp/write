@@ -42,8 +42,8 @@ A *room* is more than a theme — it sets the light (palette), the voice (typefa
 
 | Room | Feel | Typeface |
 |------|------|----------|
-| **Quattro** | White silence, one blue cursor — the iA homage | iA Writer Quattro |
-| **Air** | Fresh light, glass, indigo gradient washes | Geist |
+| **Linen** | White silence, one rust cursor — the default | Nunito Sans |
+| **Cobalt** | White silence, one cobalt cursor | iA Writer Quattro |
 | **Dawn** | Blush morning light, rose caret | Source Serif 4 |
 | **Paper** | Cream and ink, a printed book | Literata |
 | **Slate** | Cool dark, sea-glass caret | Geist |
