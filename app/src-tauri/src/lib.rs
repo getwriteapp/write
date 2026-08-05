@@ -22,7 +22,12 @@
 
 use std::path::Path;
 
-use tauri::{DragDropEvent, Manager, WindowEvent};
+use tauri::{
+    image::Image,
+    menu::{Menu, MenuItem},
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    DragDropEvent, Manager, WindowEvent,
+};
 use tauri_plugin_dialog::{DialogExt, FilePath};
 use tauri_plugin_fs::FsExt;
 
@@ -74,6 +79,13 @@ async fn pick_document_to_save(app: tauri::AppHandle, default_name: String) -> O
     grant(&app, picked)
 }
 
+/* The tray icon's own artwork -- a solid badge (white "w" on dark), not just
+   the glyph, so it stays legible against any taskbar colour without needing
+   to track the OS light/dark setting. Brett's call which of the two shipped
+   variants (see src-tauri/icons/tray/) is the real default; swap the byte
+   include below to try the light one. */
+const TRAY_ICON_BYTES: &[u8] = include_bytes!("../icons/tray/tray-dark-256.png");
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -83,6 +95,49 @@ pub fn run() {
             pick_document_to_open,
             pick_document_to_save
         ])
+        .setup(|app| {
+            let show_item = MenuItem::with_id(app, "show", "Show write", true, None::<&str>)?;
+            let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show_item, &quit_item])?;
+
+            let icon = Image::from_bytes(TRAY_ICON_BYTES)?;
+
+            TrayIconBuilder::new()
+                .icon(icon)
+                .tooltip("write")
+                .menu(&menu)
+                .show_menu_on_left_click(false)
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "quit" => app.exit(0),
+                    "show" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    // left-click (not the menu, which is right-click on Windows)
+                    // brings the window back the same way clicking the taskbar
+                    // entry would -- the ordinary, expected gesture.
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        let app = tray.app_handle();
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                })
+                .build(app)?;
+
+            Ok(())
+        })
         .on_window_event(|window, event| {
             /* Dropping a file on the window is the user handing it over just
                as deliberately as the Open dialog is — but the paths are also

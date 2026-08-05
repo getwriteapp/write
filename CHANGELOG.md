@@ -43,6 +43,19 @@ view now breaks pages between lines, the way a word processor is supposed to.
   and Roboto Slab). Chosen from fourteen candidates shown as running prose
   rather than toolbar chrome, since paragraph readability and toolbar
   compactness are different questions. Bundled library: 21 → 26.
+- **A real app icon.** The placeholder "w|" is gone — replaced by a
+  hand-brushed lowercase "w", cropped and alpha-masked from the source
+  artwork so the corners are genuinely transparent rather than a
+  color-matched guess (verified by compositing onto a contrasting color and
+  confirming nothing showed through). Regenerated into every size and
+  format the app ships — `.ico`, `.icns`, every PNG size, Windows Store
+  tiles, Android and iOS — with Tauri's own icon generator, not resized by
+  hand.
+- **A real system tray icon**, not just artwork sitting unused: a
+  right-click menu (Show write / Quit) and left-click brings the window
+  forward, the same gesture as clicking a taskbar entry. The window's close
+  button still quits the app as it always has — no minimize-to-tray
+  behavior was added alongside this, since that's a separate decision.
 
 ### Changed
 

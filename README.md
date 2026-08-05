@@ -25,7 +25,7 @@ See [`PROJECT.md`](PROJECT.md) for the full design philosophy, competitive analy
 ## Getting it
 
 Download the installer from the [latest
-release](https://github.com/getwriteapp/write/releases/latest) — a 4.9 MB
+release](https://github.com/getwriteapp/write/releases/latest) — a 5.1 MB
 `.exe`, no account, no telemetry, no bundled anything.
 
 **Windows only for now.** The codebase is cross-platform and the build targets
@@ -158,7 +158,7 @@ cached at export. [`PROJECT.md`](PROJECT.md) documents the full fidelity list.
 
 ## Tech
 
-- **[Tauri 2](https://tauri.app)** (Rust) shell — a **7.0 MB** binary (**4.9 MB**
+- **[Tauri 2](https://tauri.app)** (Rust) shell — a **7.4 MB** binary (**5.1 MB**
   installer), using the system webview instead of bundling Chromium. Roughly
   half of that is the twenty-six bundled typefaces, which is the price of never
   making a network request for type.
