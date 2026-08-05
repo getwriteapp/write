@@ -22,12 +22,7 @@
 
 use std::path::Path;
 
-use tauri::{
-    image::Image,
-    menu::{Menu, MenuItem},
-    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    DragDropEvent, Manager, Theme, WindowEvent,
-};
+use tauri::{DragDropEvent, Manager, WindowEvent};
 use tauri_plugin_dialog::{DialogExt, FilePath};
 use tauri_plugin_fs::FsExt;
 
@@ -79,25 +74,12 @@ async fn pick_document_to_save(app: tauri::AppHandle, default_name: String) -> O
     grant(&app, picked)
 }
 
-/* The tray icon's own artwork -- a solid badge (dark square/white "w", or
-   light square/black "w"), not just a bare glyph. It still follows Windows'
-   own light/dark setting, purely for visual harmony with the rest of the
-   taskbar's chrome -- not legibility, since a solid badge reads fine against
-   either taskbar colour on its own. */
-const TRAY_ICON_DARK: &[u8] = include_bytes!("../icons/tray/tray-dark-256.png");
-const TRAY_ICON_LIGHT: &[u8] = include_bytes!("../icons/tray/tray-light-256.png");
-const TRAY_ID: &str = "main-tray";
-
-fn tray_icon_for(theme: Theme) -> tauri::Result<Image<'static>> {
-    let bytes = match theme {
-        Theme::Dark => TRAY_ICON_DARK,
-        // Theme is #[non_exhaustive] (only Light/Dark exist today) -- an
-        // unknown future variant falls back to the light badge, same as a
-        // failed theme read does below.
-        _ => TRAY_ICON_LIGHT,
-    };
-    Image::from_bytes(bytes)
-}
+/* No tray icon. write had one -- a themed badge with Show/Quit -- and it was
+   removed in Session 35 (Brett: "am not sure it is really serving us here").
+   It earned nothing: the app is a single ordinary window that the taskbar
+   already represents, it never minimised to the tray, and the badge's only
+   real behaviour was to re-show a window that was never hidden. The artwork
+   is gone with it (icons/tray/), as is the tray-icon Cargo feature. */
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -108,57 +90,6 @@ pub fn run() {
             pick_document_to_open,
             pick_document_to_save
         ])
-        .setup(|app| {
-            let show_item = MenuItem::with_id(app, "show", "Show write", true, None::<&str>)?;
-            let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show_item, &quit_item])?;
-
-            // Read the real starting theme rather than hardcoding a guess --
-            // falls back to the light badge only if the window/theme read
-            // itself fails, which in practice means the window doesn't
-            // exist yet.
-            let start_theme = app
-                .get_webview_window("main")
-                .and_then(|w| w.theme().ok())
-                .unwrap_or(Theme::Light);
-            let icon = tray_icon_for(start_theme)?;
-
-            TrayIconBuilder::with_id(TRAY_ID)
-                .icon(icon)
-                .tooltip("write")
-                .menu(&menu)
-                .show_menu_on_left_click(false)
-                .on_menu_event(|app, event| match event.id.as_ref() {
-                    "quit" => app.exit(0),
-                    "show" => {
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.set_focus();
-                        }
-                    }
-                    _ => {}
-                })
-                .on_tray_icon_event(|tray, event| {
-                    // left-click (not the menu, which is right-click on Windows)
-                    // brings the window back the same way clicking the taskbar
-                    // entry would -- the ordinary, expected gesture.
-                    if let TrayIconEvent::Click {
-                        button: MouseButton::Left,
-                        button_state: MouseButtonState::Up,
-                        ..
-                    } = event
-                    {
-                        let app = tray.app_handle();
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.set_focus();
-                        }
-                    }
-                })
-                .build(app)?;
-
-            Ok(())
-        })
         .on_window_event(|window, event| {
             /* Dropping a file on the window is the user handing it over just
                as deliberately as the Open dialog is — but the paths are also
@@ -172,16 +103,9 @@ pub fn run() {
                     let _ = scope.allow_file(path);
                 }
             }
-            // Windows fires this the moment the user flips Settings ->
-            // Personalization -> Colors, no restart needed -- the tray badge
-            // switches live to match.
-            if let WindowEvent::ThemeChanged(theme) = event {
-                if let Some(tray) = window.app_handle().tray_by_id(TRAY_ID) {
-                    if let Ok(icon) = tray_icon_for(*theme) {
-                        let _ = tray.set_icon(Some(icon));
-                    }
-                }
-            }
+            /* ThemeChanged was handled here only to repaint the tray badge.
+               The app's own light/dark is chosen by the room, not the OS, so
+               with the tray gone there is nothing left to react to. */
         })
         .run(tauri::generate_context!())
         .expect("error while running write");

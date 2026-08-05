@@ -1967,6 +1967,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
 <!-- the Bar: summoned by Ctrl+/ (pinned) or by hovering the very top edge (peek) -->
 <div class="bar-zone" class:pinned={barOpen} class:scroll-ducked={barScrollHidden} class:menu-open={fontMenuOpen}>
   <div class="bar" role="toolbar" aria-label="Formatting">
+   <div class="bar-row">
     <!-- typeface: a listbox, not a <select> — names set in their own face,
          and ↑/↓ previews each one live in the document (see onFontKey) -->
     <span class="font-picker">
@@ -2030,15 +2031,19 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
         <button class="swatch swatch-hl" class:on={barState.highlight.toUpperCase() === c} data-color={c} style="--sw:{c}" onclick={() => barRun('highlight', c)} title={c}></button>
       {/each}
     </span>
-    <!-- Forced row break. The Bar used to wrap wherever the window width
-         happened to run out, so which controls shared a row changed as you
-         resized. This splits it the way Word splits its own ribbon — the top
-         row is CHARACTER formatting (typeface, size, ink, highlight: what the
-         letters look like), the bottom row is PARAGRAPH formatting (alignment,
-         spacing, indent: where the block sits) — and Reset, which clears both.
-         `flex-basis: 100%` on a zero-height item is the flexbox idiom for
-         "break the line here" in a wrap container. -->
-    <span class="bar-row-break"></span>
+   </div>
+    <!-- Two real rows, split the way Word splits its own ribbon: the top row
+         is CHARACTER formatting (typeface, size, ink, highlight — what the
+         letters look like), the bottom is PARAGRAPH formatting (alignment,
+         spacing, indent — where the block sits), plus Reset, which clears
+         both. This used to be one wrapping row with a `flex-basis: 100%`
+         spacer forcing the break. That worked visually but left the Bar
+         sized as though every control sat on ONE line, so the panel grew
+         with the window and stranded its controls in the middle of a much
+         wider card (Brett's screenshot: 793px of Bar around 451px of
+         content). Two explicit rows let the Bar be as wide as its widest
+         row and no wider. -->
+   <div class="bar-row">
     <span class="seg bar-seg" title="Alignment">
       <button class:on={barState.align === 'left'} onclick={() => barRun('align', 'left')} title="Align left">⯈</button>
       <button class:on={barState.align === 'center'} onclick={() => barRun('align', 'center')} title="Center">⯀</button>
@@ -2063,6 +2068,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     <button class="bar-reset" class:live={barDirty} disabled={!barDirty}
             onclick={() => barRun('clear')}
             title="Reset type styling to the room's defaults">Reset</button>
+   </div>
   </div>
 </div>
 

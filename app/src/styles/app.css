@@ -432,24 +432,54 @@ body.typing .whisper { opacity: 0.05; }
    Format toggle). Unlike the old click-only version, the state underneath
    must always stay current (see refreshBar) since it can appear without
    ever having been explicitly opened. */
+/* Spans the full width and centres its child, rather than sitting at
+   `left: 50%` with a translate. A fixed element with `left: 50%` and no
+   `right` gets only the RIGHT HALF of the viewport as its available width,
+   and the Bar's shrink-to-fit then filled all of it — so the panel was
+   ~half the window wide no matter how little was in it, growing as the
+   window grew. Centring by layout instead of by offset gives the Bar the
+   whole width to size honestly against. */
 .bar-zone {
   position: fixed;
-  top: 0; left: 50%;
-  transform: translateX(-50%);
+  top: 0; left: 0; right: 0;
   z-index: 60;
   display: flex;
   justify-content: center;
   padding-top: 14px;
-  max-width: 94vw;
+  /* The strip is now the full width, so it must not swallow clicks: at
+     z-index 60 it sits above the wordmark's own corner zone, and an
+     opaque-to-pointers band across the top would make the wordmark
+     unclickable. Only the Bar and the hover catcher below take input. */
+  pointer-events: none;
+}
+.bar-zone > * { pointer-events: auto; }
+/* The top-edge hover catcher that peeks the Bar back into view. It used to be
+   the zone itself; now the zone spans the window, so the catcher is a bounded
+   centred strip instead — wide enough to reach for without thinking, and kept
+   clear of both corners so the wordmark (top-left, z-index 50) and the window
+   controls stay reachable. Hovering it still matches `.bar-zone:hover`,
+   because a pointer-events:auto pseudo-element hovers its host. */
+.bar-zone::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 50%;
+  transform: translateX(-50%);
+  width: min(760px, calc(100vw - 380px));
+  height: 100%;
+  pointer-events: auto;
 }
 body[data-focus="on"] .bar-zone { display: none; }
 
+/* A column of two rows (see the markup's .bar-row). Sizing to `max-content`
+   makes the card exactly as wide as its widest row — the old single wrapping
+   row could only be measured as if everything sat on one line, which is what
+   left the controls marooned in a much wider panel. */
 .bar {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
   gap: 6px;
+  width: max-content;
   max-width: 94vw;
   padding: 6px 10px;
   background: var(--card);
@@ -642,7 +672,14 @@ body.typing .bar-zone.menu-open .bar {
    item with flex-basis:100% consumes the rest of the line, so everything
    after it starts a new one. `gap` already supplies the space between rows,
    hence no margin here. */
-.bar-row-break { flex-basis: 100%; height: 0; margin: 0; }
+.bar-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 100%;
+}
 
 .bar-swatches { display: inline-flex; align-items: center; gap: 4px; }
 .swatch {
