@@ -109,6 +109,13 @@ view now breaks pages between lines, the way a word processor is supposed to.
   Sans in Linen, iA Writer Quattro in Cobalt, and so on — read live from the
   room's own `--body-font`, not a second hardcoded map that could drift out
   of sync with rooms.css.
+- **The typeface button in the Bar now carries a dropdown arrow**, matching
+  Size and Spacing next to it. Those two are native `<select>`s, so the
+  browser draws their arrow for free; the typeface control is a `<button>`
+  standing in for a listbox (so names can render in their own face and
+  arrow keys can preview live — see the Session 27 note), which drew nothing
+  at all until now. Same glyph vocabulary as the rest of the Bar's icons,
+  not an SVG asset.
 - **The chrome's own typeface and corners.** The UI font (Bar, Commander,
   whispers) was Geist — Vercel's typeface, and about as close to "made by an
   AI startup in 2023" as a font gets. Tried live against seventeen other

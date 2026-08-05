@@ -509,6 +509,7 @@ body.typing .bar-zone.menu-open .bar {
    face, and arrow keys that preview live in the document. */
 .font-picker { position: relative; display: inline-flex; }
 .bar-font {
+  position: relative;
   width: 132px;
   text-align: left;
   white-space: nowrap;
@@ -516,6 +517,21 @@ body.typing .bar-zone.menu-open .bar {
   text-overflow: ellipsis;
   height: 24px;
   line-height: 1;
+  /* .bar-select (Size, Spacing) is a native <select>, so the browser draws
+     its own arrow for free. This is a <button> standing in for a listbox
+     (see the comment above), which gets nothing unless drawn here -- same
+     glyph vocabulary as the rest of the Bar (⇤⇥⯈⯇☰), not an SVG asset. */
+  padding-right: 20px;
+}
+.bar-font::after {
+  content: "▾";
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 9px;
+  color: var(--soft);
+  pointer-events: none;
 }
 .font-menu {
   position: absolute;
