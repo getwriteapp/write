@@ -94,11 +94,14 @@ view now breaks pages between lines, the way a word processor is supposed to.
   since it's what Word will actually do. Flow view got the same treatment a
   session later, having been missed the first time even though it's the
   app's actual default view — 6vh flattened to 40px, for the same reason.
-  Page view's chrome padding cut a second time after that, 28px -> 12px: the
-  Bar is a `position: fixed` overlay that visually occupies part of that
-  padding only while it's shown, so once it ducks away the full amount reads
-  as bare empty space above the first line — worse than it looks with the
-  Bar visible, which is why the first cut didn't feel like enough.
+  Page view's chrome padding briefly went to 12px on a misread — what looked
+  like too much chrome was actually **Wide** margin (144px) left over in
+  localStorage from earlier testing, not this padding. Reverted to 28px once
+  that came to light. **Normal (96px/1in) is and was already the coded
+  default** — nothing to fix there; Narrow (48px/0.5in) and Wide (144px/1.5in)
+  are both real, pre-existing, user-selectable presets in the Commander, and
+  the margin choice affects all four sides, top and bottom included, not
+  only left/right.
 - **The Bar's font menu now names the room's actual font**, instead of the
   opaque literal string "Room default." The first group is titled "Room
   Default," matching Serif/Slab/Sans/Display/Typewriter, and the one item

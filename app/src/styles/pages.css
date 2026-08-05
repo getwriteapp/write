@@ -70,13 +70,14 @@ body[data-view="page"] .ProseMirror p { margin: 0 0 10.667px; } /* 8pt after */
   /* Chrome breathing room above the sheet, not the page's own margin (that's
      --page-my, on .editor-host below, and is untouched: it has to stay the
      real 1in/etc. so Page view keeps telling the truth about where Word will
-     break). Cut twice in Session 32: 5vh -> 28px, then 28px -> 12px, the
-     second time because the Bar is a position:fixed overlay that visually
-     occupies part of this padding only while it's shown -- once it ducks
-     away, the full amount reads as bare empty space above the first line,
-     which is worse than it looks while the Bar is visible. Neither the Bar
-     nor the wordmark need any of it reserved. */
-  padding: 12px 24px 22vh;
+     break). Cut once in Session 32, 5vh -> 28px -> a flat value that doesn't
+     grow on a taller monitor. A second cut to 12px landed here briefly on a
+     misread: what looked like too much chrome was actually Wide margin
+     (144px) left over in localStorage from earlier testing, not this
+     padding -- reverted once that came to light. Neither the Bar nor the
+     wordmark need any of it reserved, but 28px reads right once the real
+     culprit (the margin, not the chrome) is the thing actually addressed. */
+  padding: 28px 24px 22vh;
   transition: background-color 0.45s ease;
 }
 [data-view="page"] body::before { opacity: 0; } /* hide the room wash on the desk */
