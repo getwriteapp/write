@@ -27,6 +27,8 @@ import Link from '@tiptap/extension-link'
 
 import { exportDocx } from '../src/lib/docx/export.js'
 import { importDocx } from '../src/lib/docx/import.js'
+import { WORD_TO_CSS, cssToWordFont, wordToCssFont } from '../src/lib/docx/fonts.js'
+import { TEMPLATES } from '../src/lib/templates.js'
 import { WELCOME, OfflineImage, FORMATTING_EXTENSIONS, WAVE3_EXTENSIONS, TABLE_EXTENSIONS, WAVE6_EXTENSIONS } from '../src/lib/editor.js'
 
 const EXT = [
@@ -228,9 +230,21 @@ const fixtures = [
     html: `<div data-type="tableOfContents" data-entries='[]'></div><p>No headings yet.</p>`,
   },
   {
+    /* The two most recently added faces (Sessions 34 and 35). A new entry in
+       WORD_TO_CSS is exactly where a typo lands, and the failure is quiet:
+       the font reverts on reopen, in a document already saved to disk. */
+    name: 'fmt-newest-typefaces',
+    html: `<p><span style="font-family: 'Petrona Variable', Georgia, serif">petrona</span> and <span style="font-family: 'Reddit Mono', monospace">reddit mono</span>.</p>`,
+  },
+  {
     name: 'welcome-document',
     html: WELCOME,
   },
+  /* Every starter template, through the same round trip the welcome document
+     already gets. They are ordinary HTML handed to setContent(), so nothing
+     here is exotic — but they are the first thing a new user sees, and a
+     template that loses its structure on the first save is a bad greeting. */
+  ...TEMPLATES.map((t) => ({ name: `template-${t.id}`, html: t.html })),
 ]
 
 /* ---------- canonicalization ---------- */
@@ -586,6 +600,33 @@ for (const { name, settings } of headerFooterCases) {
     fail++
     failures.push({ name: 'toc: foreign field', expected: [{ level: 1, text: 'Chapitre Un' }, { level: 2, text: 'Section A' }], actual: entries, importedHtml: back.html })
     console.log('  FAIL  toc: foreign field (non-English alias, page numbers stripped)')
+  }
+}
+
+/* ---------- font registry: every mapped typeface survives the trip ----------
+
+   WORD_TO_CSS is hand-maintained and its two directions are separate
+   functions, so one bad entry — a stray quote, a missing " Variable" — breaks
+   exactly one typeface, silently, on reopen. The fixtures above exercise two
+   mapped fonts out of 28; nothing else in this suite would ever notice the
+   other 26. This walks all of them, in both directions. */
+
+for (const [wordName, cssStack] of Object.entries(WORD_TO_CSS)) {
+  const toWord = cssToWordFont(cssStack)
+  const backToCss = wordToCssFont(toWord)
+  const ok = toWord && toWord.toLowerCase() === wordName && backToCss === cssStack
+  if (ok) {
+    pass++
+    console.log(`  PASS  font-map: ${toWord}`)
+  } else {
+    fail++
+    failures.push({
+      name: `font-map: ${wordName}`,
+      expected: { word: wordName, css: cssStack },
+      actual: { word: toWord && toWord.toLowerCase(), css: backToCss },
+      importedHtml: '',
+    })
+    console.log(`  FAIL  font-map: ${wordName}`)
   }
 }
 

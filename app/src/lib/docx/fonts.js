@@ -9,8 +9,10 @@
    app's own bundled font; unknown names pass through as-is so a doc using
    Georgia still says Georgia. */
 
-/* Word family name → the app's CSS stack (everything here ships bundled). */
-const WORD_TO_CSS = {
+/* Word family name → the app's CSS stack (everything here ships bundled).
+   Exported so the test suite can walk every entry rather than trusting the
+   one or two that happen to appear in a fixture. */
+export const WORD_TO_CSS = {
   'ia writer quattro s': "'iA Writer Quattro S', monospace",
   'reddit mono': "'Reddit Mono', monospace",
   'literata': "'Literata Variable', serif",

@@ -12,6 +12,11 @@ app/src-tauri/gen/schemas/
 # generated test artifacts (the .docx fixtures are rebuilt on every run)
 app/tests/out/
 
+# Playwright's own run artifacts (traces, screenshots, HTML report) — rebuilt
+# by every `npm run test:e2e`, never something to diff or commit
+app/test-results/
+app/playwright-report/
+
 # local tooling & logs
 .claude/
 *.log
