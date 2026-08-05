@@ -1,7 +1,7 @@
 {
   "name": "write",
   "private": true,
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "A quiet, beautiful word processor. Start from silence; go up into rich text.",
   "license": "GPL-3.0-or-later",
   "type": "module",

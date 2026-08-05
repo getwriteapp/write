@@ -4,6 +4,31 @@ All notable changes to `write` are recorded here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is
 [SemVer](https://semver.org/), pre-1.0.
 
+## [0.2.2] — 2026-08-05
+
+Session 33: per-room highlighter palettes.
+
+### Changed
+
+- **Highlight colors are now tuned per room instead of one universal set.**
+  The five highlighter colors are still one canonical, .docx-portable value
+  each — unchanged by which room you're in, and still what a Word user sees.
+  What changed is on-screen presentation: each room now repaints the band
+  with its own hand-picked palette instead of a single "dim it if dark"
+  rule. Paper corrects orange, which read as too close to its own cream page
+  to look highlighted; Slate and Noir replace the old flat 62%-black overlay
+  (which flattened all five colors into near-neighbors of each other) with
+  five individually tuned deep tints, so highlights stay distinct from one
+  another, not just from the page.
+- **Canonical pink is no longer washed out.** Replaced `#FBCFE8`
+  (Tailwind pink-200) with `#F9A8D4` (pink-300) — the old value was the
+  weakest-reading highlight in every room, including the best case (white
+  paper). Still a paper pastel, not a hot pink; it just finally registers
+  as a highlight instead of a blush.
+- **The Bar's highlight swatches now preview the room's actual color**,
+  not the canonical stored one — what you click in the toolbar is what
+  you'll see on the page.
+
 ## [0.2.1] — 2026-08-05
 
 Four passes driven by using the app: Session 29's typography and navigation

@@ -628,6 +628,14 @@ body.typing .bar-zone.menu-open .bar {
 .swatch:hover { transform: scale(1.18); }
 .swatch.on { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 65%, transparent); }
 .swatch-hl { border-radius: 4px; }
+/* Toolbar preview matches the page: same --hl-* variables, same five rules,
+   as the mark[data-color] block above — so picking a color in the Bar shows
+   exactly what that room will paint it as, not the canonical stored hex. */
+.swatch-hl[data-color="#FEF08A"] { background: var(--hl-yellow); }
+.swatch-hl[data-color="#BBF7D0"] { background: var(--hl-green); }
+.swatch-hl[data-color="#BFDBFE"] { background: var(--hl-blue); }
+.swatch-hl[data-color="#F9A8D4"] { background: var(--hl-pink); }
+.swatch-hl[data-color="#FED7AA"] { background: var(--hl-orange); }
 .swatch-none {
   background: transparent;
   color: var(--soft);
@@ -914,20 +922,40 @@ body[data-flow-width="wide"] { --flow-scale: 1.35; }
   border-radius: 3px;
   padding: 0.04em 0.12em;
 }
-/* Highlight in the dark rooms.
-   A highlighter pen is a PAPER instrument: every highlight color that exists —
-   ours, Word's, or whatever arrives in an imported .docx — is a pale pastel
-   meant to sit under dark ink. Drop one onto a dark sheet with the room's own
-   light ink on top and it blows out: a glaring block with near-invisible text.
-   The fix darkens the BAND, not the text. `background-image` composites over
-   `background-color`, and Tiptap writes the highlight as an inline
-   `background-color` — so this dims any highlight to a deep tint of its own
-   hue without the stylesheet ever needing to know which color it is. The
-   stored/exported value is untouched: the .docx still carries real yellow. */
+/* Per-room highlight presentation (Session 33).
+   The .docx always stores one canonical, white-paper-perfected hex per
+   highlighter — Tiptap writes it as both `data-color` and an inline
+   `background-color`, and that's what round-trips through Word. Screen
+   presentation is a separate layer: these five rules key off `data-color`
+   (case-insensitive — imported docs lowercase their hex, ours don't) and
+   repaint the band from a room-scoped `--hl-*` variable, `!important`
+   because it has to beat the inline style Tiptap writes. Each room defines
+   its own `--hl-*` set in rooms.css — identical to the canonical color where
+   that color already reads well on the room's page, replaced where it
+   doesn't (Paper's orange, every color in Slate/Noir). The swatch buttons in
+   the Bar read the exact same variables (see `.swatch-hl` below), so the
+   toolbar always previews the color you'll actually see on the page. */
+.ProseMirror mark[data-color="#fef08a" i] { background-color: var(--hl-yellow) !important; }
+.ProseMirror mark[data-color="#bbf7d0" i] { background-color: var(--hl-green)  !important; }
+.ProseMirror mark[data-color="#bfdbfe" i] { background-color: var(--hl-blue)   !important; }
+.ProseMirror mark[data-color="#f9a8d4" i] { background-color: var(--hl-pink)   !important; }
+.ProseMirror mark[data-color="#fed7aa" i] { background-color: var(--hl-orange) !important; }
+/* A dark room's page is near-black; even a deep-tinted band needs a hairline
+   ring to keep its edge legible against it. */
 [data-room="slate"] .ProseMirror mark,
 [data-room="noir"] .ProseMirror mark {
-  background-image: linear-gradient(rgba(0, 0, 0, 0.62), rgba(0, 0, 0, 0.62));
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 10%, transparent);
+}
+/* Fallback for anything outside our five: a foreign highlight color from an
+   imported .docx (Word's cyan, red, gray...) has no --hl-* entry and no
+   hand-tuned dark-room value. Dim it the old, color-blind way — composite
+   62% black over whatever background-color it carries — same safety net
+   the app used for every highlight before this palette existed. Excluded
+   from the five canonical colors so they don't get darkened twice (once by
+   their own --hl-* value, again by this multiply). */
+[data-room="slate"] .ProseMirror mark:not([data-color="#fef08a" i]):not([data-color="#bbf7d0" i]):not([data-color="#bfdbfe" i]):not([data-color="#f9a8d4" i]):not([data-color="#fed7aa" i]),
+[data-room="noir"] .ProseMirror mark:not([data-color="#fef08a" i]):not([data-color="#bbf7d0" i]):not([data-color="#bfdbfe" i]):not([data-color="#f9a8d4" i]):not([data-color="#fed7aa" i]) {
+  background-image: linear-gradient(rgba(0, 0, 0, 0.62), rgba(0, 0, 0, 0.62));
 }
 .ProseMirror img {
   display: block;

@@ -53,6 +53,18 @@
   --measure: 35em;
   --h1-size: 2.0em; --h1-weight: 650; --h1-track: -0.02em;
   --wash: none;
+
+  /* Highlighter palette (Session 33) — the canonical five. This is what's
+     actually stored in the .docx; every room falls back to these unless
+     overridden below. Pink was FBCFE8 (Tailwind pink-200) through v0.2.1 —
+     too close to white to register as a highlight even in the best case
+     (Linen). Replaced with pink-300: still a paper pastel, not a "hot
+     pink," but it finally reads as a marker instead of a blush. */
+  --hl-yellow: #FEF08A;
+  --hl-green:  #BBF7D0;
+  --hl-blue:   #BFDBFE;
+  --hl-pink:   #F9A8D4;
+  --hl-orange: #FED7AA;
 }
 
 /* ---------- Cobalt — was Quattro. Same duospace voice, a blue that isn't
@@ -119,6 +131,14 @@
   --measure: 34em;
   --h1-size: 1.9em; --h1-weight: 650; --h1-track: -0.015em;
   --wash: none;
+
+  /* Orange is the one canonical color that struggles here: Paper's cream
+     (hue ~41°) sits right next to orange (hue ~32°) — page and highlight
+     read as close cousins instead of marker-on-paper. Pushed toward
+     Tailwind's orange-300, redder and a shade deeper, so it separates from
+     the page instead of blending into it. The other four already read
+     clearly on cream and are left at the canonical value. */
+  --hl-orange: #FDBA74;
 }
 
 /* ---------- Slate — cool dark, sea-glass caret, engineer's evening. ---------- */
@@ -141,6 +161,19 @@
   --wash:
     radial-gradient(820px 440px at 45% -8%, rgba(123, 196, 180, 0.05), transparent 60%),
     radial-gradient(640px 400px at 92% 6%, rgba(111, 178, 216, 0.05), transparent 56%);
+
+  /* Through v0.2.1 every dark room used one flat trick: composite 62% black
+     over whichever canonical pastel was stored, uniformly. It kept text
+     legible but flattened all five into near-neighbors of each other —
+     pink and green in particular lost enough chroma to become hard to tell
+     apart at a glance. These are hand-picked deep tints instead, one per
+     hue, tuned so each stays legible (>=5:1 against --ink) AND stays
+     distinct from the other four, not just from the page. */
+  --hl-yellow: #756115;
+  --hl-green:  #1A704B;
+  --hl-blue:   #274E82;
+  --hl-pink:   #83365C;
+  --hl-orange: #924818;
 }
 
 /* ---------- Noir — midnight serif, amber caret, writing at 1 a.m. ---------- */
@@ -163,4 +196,15 @@
   --wash:
     radial-gradient(800px 420px at 50% -10%, rgba(255, 180, 84, 0.05), transparent 62%),
     radial-gradient(640px 400px at 92% 8%, rgba(124, 140, 255, 0.05), transparent 58%);
+
+  /* Same per-hue approach as Slate, tuned a shade warmer to sit next to
+     Noir's own amber caret rather than Slate's sea-glass one: yellow and
+     orange lean slightly brighter/warmer here, blue stays cool and a
+     little receded so it still reads as an outside color against the
+     room's warmth instead of competing with it. */
+  --hl-yellow: #7B6015;
+  --hl-green:  #1D6442;
+  --hl-blue:   #253C6D;
+  --hl-pink:   #762B56;
+  --hl-orange: #954E16;
 }

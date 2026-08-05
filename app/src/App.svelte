@@ -1050,9 +1050,12 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
      the .docx contains — so the palette itself has to be the honest one.) */
   const BAR_COLORS = ['#D64545', '#BE7016', '#2E8B57', '#3B7DE0', '#8E5FD3', '#7C818B']
   /* Highlights stay true pastels: a highlighter is a paper instrument and the
-     .docx must carry real marker colors. The dark rooms dim the BAND on screen
-     instead — see `[data-room="noir"] .ProseMirror mark` in app.css. */
-  const BAR_HIGHLIGHTS = ['#FEF08A', '#BBF7D0', '#BFDBFE', '#FBCFE8', '#FED7AA']
+     .docx must carry real marker colors — these five are the canonical,
+     stored values, perfected for a white page. Every room repaints the BAND
+     on screen from its own palette instead (`--hl-*` in rooms.css, applied
+     via `mark[data-color]` in app.css); the toolbar swatches below read the
+     same variables, so the picker always matches what lands on the page. */
+  const BAR_HIGHLIGHTS = ['#FEF08A', '#BBF7D0', '#BFDBFE', '#F9A8D4', '#FED7AA']
   const BAR_LINE_HEIGHTS = [['1', '1.0'], ['1.15', '1.15'], ['1.5', '1.5'], ['2', '2.0']]
 
   function toggleBar(force) {
@@ -1857,7 +1860,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     <span class="bar-swatches" title="Highlight">
       <button class="swatch swatch-none" class:on={!barState.highlight} onclick={() => barRun('highlight', '')} title="No highlight">×</button>
       {#each BAR_HIGHLIGHTS as c}
-        <button class="swatch swatch-hl" class:on={barState.highlight.toUpperCase() === c} style="--sw:{c}" onclick={() => barRun('highlight', c)} title={c}></button>
+        <button class="swatch swatch-hl" class:on={barState.highlight.toUpperCase() === c} data-color={c} style="--sw:{c}" onclick={() => barRun('highlight', c)} title={c}></button>
       {/each}
     </span>
     <!-- Forced row break. The Bar used to wrap wherever the window width
