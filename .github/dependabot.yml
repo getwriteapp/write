@@ -19,6 +19,17 @@ updates:
         patterns: ["@fontsource*/*"]
       tauri-js:
         patterns: ["@tauri-apps/*"]
+    ignore:
+      # Tiptap 3 is a deliberate non-upgrade (see PROJECT.md/HANDOFF.md): its
+      # extension packages dropped default exports, which breaks the build
+      # outright -- and the real risk isn't the build, it's that a *green*
+      # build there proves nothing, because the failure mode on genuine
+      # incompatibility is silent document corruption, not a build error.
+      # Every weekly PR the grouped update above files is this same major
+      # bump restated; ignoring it here stops the noise at the source rather
+      # than closing the same PR by hand each week.
+      - dependency-name: "@tiptap/*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: cargo
     directory: /app/src-tauri

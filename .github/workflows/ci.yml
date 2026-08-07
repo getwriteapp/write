@@ -25,7 +25,10 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: 20
+          # jsdom 30 (the new component-test tier) hard-requires Node
+          # ^22.22.2 || ^24.15.0 || >=26 -- it throws on 20 at import time
+          # (undici's markAsUncloneable isn't there yet), not just untested.
+          node-version: 24
           cache: npm
           cache-dependency-path: app/package-lock.json
       - run: npm ci
