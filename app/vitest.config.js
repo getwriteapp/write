@@ -7,6 +7,10 @@ import { svelte } from '@sveltejs/vite-plugin-svelte'
    than shared because a single shared config would need to special-case
    `mode === 'test'` throughout — more indirection than two small files. */
 export default defineConfig({
+  // App.svelte reads this at build time (vite.config.js defines it from
+  // package.json). Without it here the component tier fails to compile on an
+  // undefined global rather than on anything it is testing.
+  define: { __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? '0.0.0-test') },
   plugins: [svelte()],
   test: {
     environment: 'jsdom',

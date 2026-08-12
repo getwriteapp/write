@@ -835,6 +835,17 @@ body.typing .bar-zone.menu-open .bar {
   border-color: color-mix(in srgb, #c0392b 45%, transparent) !important;
 }
 
+/* Quiet enough to ignore while writing, findable when someone is filing a
+   bug report and the template asks for a version. */
+.cmd-version {
+  margin-top: 14px;
+  font-family: var(--mono);
+  font-size: 10px; letter-spacing: 0.08em;
+  color: var(--faint);
+  padding: 0 4px;
+  user-select: text;
+}
+
 .recents { margin-top: 16px; }
 .recents-label {
   display: block;

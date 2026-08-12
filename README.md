@@ -192,6 +192,8 @@ Found a way around one? Report it privately — see
 
 ## License
 
+Copyright © 2026 Brett Cherry and contributors.
+
 [GPL-3.0-or-later](LICENSE). Free to use, study, share and improve. A
 distributed modification must stay open under the same license.
 

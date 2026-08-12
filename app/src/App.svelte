@@ -2396,6 +2396,10 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
         {#if view === 'page'}<button onclick={() => window.print()}>⎙ Print…</button>{/if}
       </div>
 
+      <!-- A bug report is close to useless without a version, and until now
+           there was nowhere in the app to read one. -->
+      <div class="cmd-version">write {__APP_VERSION__}</div>
+
       {#if recents.length}
         <div class="recents">
           <span class="recents-label">Recent</span>
