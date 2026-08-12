@@ -9,7 +9,7 @@ import { createRequire } from 'node:module'
 const REPO = new URL('../../', import.meta.url).pathname.replace(/^\/(\w:)/, '$1').replace(/\/$/, '')
 const { chromium } = createRequire(`${REPO}/app/`)('playwright')
 const OUT_HTML = new URL('./.card-b.html', import.meta.url) // scratch, gitignored
-const OUT_PNG = process.argv[2] || `${REPO}/docs/media/social-preview-b.png`
+const OUT_PNG = process.argv[2] || `${REPO}/docs/media/social-preview-alt-b.png`
 
 const b64 = (p) => readFileSync(p).toString('base64')
 const figtree = `data:font/woff2;base64,${b64(`${REPO}/app/node_modules/@fontsource-variable/figtree/files/figtree-latin-wght-normal.woff2`)}`

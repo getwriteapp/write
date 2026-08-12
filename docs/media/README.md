@@ -13,12 +13,12 @@ Referenced from the root README as `docs/media/<file>`.
 Slack, Twitter, Discord, a search result. It is uploaded in **Settings →
 General → Social preview**, not read from here; this is the source of record.
 
-Two versions, both 1280×640 (GitHub's recommended size, 1 MB ceiling):
+Both 1280×640 (GitHub's recommended size, 1 MB ceiling):
 
 | File | Direction |
 |---|---|
-| `social-preview.png` | the app icon carries it, name and facts alongside |
-| `social-preview-b.png` | the card is the app — Linen's palette and typeface, a rust caret in a half-written line |
+| `social-preview.png` | **in use.** The app icon carries it, name and facts alongside. Chosen because it survives being 400px wide in a Slack unfurl. |
+| `social-preview-alt-b.png` | Held. The card is the app — Linen's palette and typeface, a rust caret in a half-written line. Its charm is restraint, and restraint is the first thing a thumbnail destroys; revisit once the name carries recognition of its own. |
 
 Regenerate either after a palette or wordmark change:
 
