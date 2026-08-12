@@ -5,6 +5,13 @@
 # an unnoticed advisory in a transitive dep is the realistic way this app gets
 # a vulnerability. Weekly is often enough for a project this size; grouping
 # keeps it to a couple of PRs rather than a drip.
+#
+# `cooldown` holds each new release for a few days before it is offered. When
+# a package account is compromised, the bad version is usually caught and
+# yanked inside a day or two, and the people it reaches are the ones who
+# upgraded within hours of publication. Nothing here needs a dependency the
+# day it ships, so the wait is free. This delays *version* updates only — a
+# real advisory arrives via security updates and is not held back.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -12,6 +19,9 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
+      semver-patch-days: 3
     groups:
       tiptap:
         patterns: ["@tiptap/*"]
@@ -36,6 +46,9 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
+      semver-patch-days: 3
     groups:
       tauri:
         patterns: ["tauri*"]
@@ -44,3 +57,5 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    cooldown:
+      default-days: 7

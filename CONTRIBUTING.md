@@ -64,7 +64,7 @@ a pagination bug has shipped twice past tests that could not.
 
 1. Open an issue first for anything larger than a fix. It saves you writing
    something that doesn't fit the direction in [ROADMAP.md](ROADMAP.md).
-2. Branch from `master`.
+2. Branch from `main`.
 3. Keep the change focused. Match the surrounding style; the codebase comments
    *why*, not *what*.
 4. Make sure `npm run test:all` passes.

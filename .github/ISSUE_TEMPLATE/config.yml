@@ -4,5 +4,5 @@ contact_links:
     url: https://github.com/getwriteapp/write/security/advisories/new
     about: Report privately instead of opening an issue. See SECURITY.md.
   - name: What's planned
-    url: https://github.com/getwriteapp/write/blob/master/ROADMAP.md
+    url: https://github.com/getwriteapp/write/blob/main/ROADMAP.md
     about: Check the roadmap before requesting a feature — some things are deliberately not planned.
