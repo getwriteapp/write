@@ -1052,8 +1052,16 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   // than after most of a wheel notch. The threshold exists only so a caret
   // nudge or a follow-scroll doesn't count as "the reader is moving".
   const DUCK_AFTER_PX = 8
+  /* The bottom row ducks on SCROLL only, deliberately not on the whole
+     duckChrome signal the top answers to. Typing is the moment the save
+     state and the word count are worth having — hiding them on the first
+     keystroke would delete the feedback the status line exists to give.
+     Scrolling is reading, and reading wants the page and nothing else.
+     Focus mode ducks it outright, in CSS. */
+  let footDucked = $state(false)
   function onDocScroll() {
     const y = window.scrollY
+    footDucked = y > DUCK_AFTER_PX
     if (y <= 4) {
       if (barScrollHidden) { barScrollHidden = false; refreshBar() }
       barShownAtY = y
@@ -2227,6 +2235,10 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
 {/if}
 
 <div class="bottom-fade"></div>
+<!-- The bottom row ducks on the same signal the top chrome does, and always
+     in focus mode. Reaching into either bottom corner brings it back — the
+     mirror of the wordmark's corner and the Bar's top edge. -->
+<div class="foot-zone" class:ducked={footDucked}>
 <span class="whisper stats">
   <span class="dot" class:unsaved={!saved}></span>{words.toLocaleString()} words · {readMin} min
 </span>
@@ -2250,6 +2262,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   <span class="save-state" data-state={saveState}>{saveLabel}</span>
   · <b>Ctrl K</b> rooms &amp; recents · <b>Ctrl \</b> cycle rooms · <b>Ctrl↵</b> focus
 </span>
+</div>
 
 <!-- ============ The Commander: summonable rooms + recents ============ -->
 {#if commanderOpen}
