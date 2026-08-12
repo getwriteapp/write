@@ -754,7 +754,7 @@ export const TABLE_EXTENSIONS = [
 /* The Wave-6 set: shared with the test harness too. */
 export const WAVE6_EXTENSIONS = [TableOfContents]
 
-export function createEditor(element, { onUpdate, onSelection, onRemoteImagesBlocked, content = WELCOME, spellcheck = true, formattingMarks = false } = {}) {
+export function createEditor(element, { onUpdate, onSelection, onRemoteImagesBlocked, onOpenLink, content = WELCOME, spellcheck = true, formattingMarks = false } = {}) {
   let instance // assigned below; editorProps handlers only run after construction
   instance = new Editor({
     element,
@@ -831,6 +831,25 @@ export function createEditor(element, { onUpdate, onSelection, onRemoteImagesBlo
         const handled = insertImageFiles(instance, files, coords?.pos ?? null) > 0
         if (handled) event.preventDefault()
         return handled
+      },
+      /* Link's own openOnClick is off (see extension config above) so a
+         stray click mid-edit can't launch a browser out from under a writer.
+         That silenced the deliberate case along with the accidental one —
+         there was no way, at all, to check where a link actually led. This
+         puts it back behind the modifier native apps use for exactly this:
+         VS Code, Word, and most browsers all treat Ctrl/Cmd+Click on a link
+         as "open it", plain click as "put my caret here". The href comes off
+         the rendered <a> — Tiptap draws that regardless of openOnClick — and
+         goes to onOpenLink, which is the only thing that decides whether it
+         is actually safe to open (src-tauri/src/lib.rs revalidates the
+         scheme independently rather than trusting this call). */
+      handleClick: (_view, _pos, event) => {
+        if (!(event.ctrlKey || event.metaKey)) return false
+        const anchor = event.target.closest?.('a[href]')
+        if (!anchor) return false
+        event.preventDefault()
+        onOpenLink?.(anchor.getAttribute('href'))
+        return true
       },
     },
   })

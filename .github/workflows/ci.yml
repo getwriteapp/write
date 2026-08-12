@@ -84,11 +84,24 @@ jobs:
           command: check licenses
 
   rust:
-    name: cargo audit
+    name: cargo test + audit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
+      # Linux needs the WebKitGTK backend present just to compile the crate.
+      - name: Build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev \
+            librsvg2-dev build-essential curl wget file
+      - name: Rust tests
+        working-directory: app/src-tauri
+        # allowed_link's scheme check is the second of the two locks on
+        # opening a link out of someone else's document, and the only one
+        # written in Rust. It is unit-tested precisely so it can be checked
+        # without a running app — which is worth nothing if nothing runs it.
+        run: cargo test
       - name: Install cargo-audit
         run: cargo install cargo-audit --locked
       - name: Audit Rust dependencies

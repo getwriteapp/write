@@ -18,8 +18,13 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
+# Used ONLY to hand the releases URL to the OS — see open_releases_page in
+# src/lib.rs. Its own open_url command is not granted to the webview.
+tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Scheme validation for open_external_link — see its doc comment in lib.rs.
+url = "2"
 
 [profile.release]
 panic = "abort"

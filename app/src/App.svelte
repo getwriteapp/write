@@ -1811,6 +1811,48 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   }
   const extOf = (p) => (p.match(/\.([a-z0-9]+)$/i)?.[1] || '').toLowerCase()
 
+  /* The whole update story. write makes no request of its own — this asks the
+     OS to open the releases page, and whatever happens next belongs to the
+     browser. The Rust command takes no arguments, so this cannot be pointed
+     anywhere else; see open_releases_page in src-tauri/src/lib.rs. */
+  const RELEASES_URL = 'https://github.com/getwriteapp/write/releases'
+
+  /* A document's own links, opened only on a deliberate Ctrl/Cmd+Click (see
+     editor.js's handleClick) and always in the user's real browser rather
+     than inside write. That second part matters as much as the modifier: the
+     browser's own address bar is what actually answers "does this go where
+     it claims to" — a lookalike domain in the link text is exposed the
+     moment it opens, not hidden inside a chromeless webview. Unlike
+     openReleases, the URL here comes from the document, so it gets the same
+     scrutiny as everything else foreign here: src-tauri's open_external_link
+     revalidates the scheme itself rather than trusting what this sends. */
+  async function openLink(href) {
+    if (!isTauri) { window.open(href, '_blank', 'noopener,noreferrer'); return }
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      await invoke('open_external_link', { url: href })
+    } catch (err) {
+      console.error('[write] could not open link:', err)
+      showToast('Could not open that link')
+    }
+  }
+
+  async function openReleases() {
+    // Dev preview runs in a real browser, which can just open a tab. The URL
+    // is repeated here rather than fetched from Rust because asking Rust for
+    // a URL, then opening whatever came back, is the shape this design exists
+    // to avoid — even when both ends are ours.
+    if (!isTauri) { window.open(RELEASES_URL, '_blank', 'noopener') ; return }
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      await invoke('open_releases_page')
+      commanderOpen = false
+    } catch (err) {
+      console.error('[write] could not open releases page:', err)
+      showToast('Could not open your browser')
+    }
+  }
+
   async function setupNativeDragDrop() {
     const { getCurrentWebview } = await import('@tauri-apps/api/webview')
     unlistenDragDrop = await getCurrentWebview().onDragDropEvent((event) => {
@@ -1904,6 +1946,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
       spellcheck,
       formattingMarks,
       onUpdate: () => { saved = false; touched = true; recount(); markTyping(); scheduleAutosave(); queueMeasureSoon(); refreshTableState() },
+      onOpenLink: openLink,
       onSelection: () => { updateBubble(); litParagraph(); updateCaret() },
       onRemoteImagesBlocked: noteRemoteImages,
     })
@@ -2426,8 +2469,17 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
       </div>
 
       <!-- A bug report is close to useless without a version, and until now
-           there was nowhere in the app to read one. -->
-      <div class="cmd-version">write {__APP_VERSION__}</div>
+           there was nowhere in the app to read one.
+
+           The Releases link is how write tells you a new version exists:
+           by not telling you. It never checks — it opens the page in your
+           browser and the request is the browser's. See open_releases_page
+           in src-tauri/src/lib.rs for why an in-app check was refused. -->
+      <div class="cmd-version">
+        write {__APP_VERSION__}
+        <button class="cmd-releases" onclick={openReleases}
+                title="Open the releases page in your browser — write never checks by itself">Releases ↗</button>
+      </div>
 
       {#if recents.length}
         <div class="recents">

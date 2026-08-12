@@ -41,6 +41,24 @@ document**, and the properties we intend to hold are:
   `app/src-tauri/src/lib.rs` only after a native dialog or a real drag-drop.
 - **Opening a document cannot hang or exhaust the machine.** Archive
   decompression is capped before it is inflated.
+- **`write` itself never makes a network request.** There is no update check,
+  no telemetry, and no phone-home of any kind. The Commander's **Releases**
+  link hands one hard-coded URL to the operating system, which opens your
+  browser — the request belongs to the browser, and the command behind that
+  link takes no arguments, so nothing in the web view can point it elsewhere.
+  A general "open any URL" capability is deliberately not granted, because a
+  document opening `https://…/?leaked=` in a tab would still be a document
+  reporting home.
+- **A link inside a document can be opened, but never by the document.**
+  Ctrl/Cmd+Click on a link opens it in the user's own browser; a plain click
+  moves the caret, same as clicking anywhere else in the text. The URL comes
+  from the document, so it gets two independent checks rather than one: the
+  editor's Link extension restricts what can become an `href` in the first
+  place, and the Rust command that opens it revalidates the scheme itself
+  (`http`, `https`, `mailto` only) without trusting what the schema already
+  allowed. Opening in the real browser rather than navigating write's own
+  window there is deliberate too — the browser's address bar is what actually
+  exposes a lookalike domain, which nothing inside write's own chrome could.
 
 Breaking any of those is a vulnerability. So is anything that lets a document
 read another document's contents, or that writes outside the file the user
@@ -79,3 +97,17 @@ side is covered by:
 ```bash
 cd app/src-tauri && cargo audit
 ```
+
+and a licence gate, which answers a different question — not "is anything
+known-broken?" but "may we actually ship this?":
+
+```bash
+cd app/src-tauri && cargo deny check licenses
+```
+
+`write` is GPL-3.0-or-later, which absorbs permissive dependencies but
+genuinely cannot combine with GPL-2.0-only or proprietary terms. The policy and
+the reasoning are in `app/src-tauri/deny.toml`. Both run in CI on every push and
+pull request; `npm ci --ignore-scripts` is used there too, since a compromised
+package's payload almost always runs from an install hook before any of our own
+code does.

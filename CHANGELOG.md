@@ -4,6 +4,63 @@ All notable changes to `write` are recorded here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is
 [SemVer](https://semver.org/), pre-1.0.
 
+## [Unreleased]
+
+### Added
+
+- **A Releases link in the Commander**, beside the version — and deliberately
+  nothing more. `write` does not check for updates and now says so in
+  [DESIGN.md](DESIGN.md) as a deliberate omission rather than a gap.
+
+  A signed in-app updater was built and then rejected. It worked, but three
+  documents promise no network request at runtime, and DESIGN.md is specific
+  that the promise is *enforced twice in code and guarded by a test suite, not
+  stated as a policy*. A check gated behind a button would still have
+  converted that enforced property into a policy — which is the exact trade
+  those words rule out. (It survives on the `updater` branch if the calculus
+  ever changes.)
+
+  So the link hands one hard-coded URL to the operating system and your
+  browser makes the request. The Rust command behind it takes no arguments,
+  and `tauri-plugin-opener`'s general `open_url` is deliberately not granted to
+  the web view: a document that could open `https://…/?leaked=` in a tab would
+  still be a document reporting home, which is what the remote-image rules
+  exist to prevent.
+
+  The cost is honest and accepted — nobody is told a fix exists; they have to
+  go and look. Watching the repository's releases on GitHub is the way to be
+  notified without `write` being the thing that notifies you.
+- **Ctrl/Cmd+Click opens a link in a document.** `Link.configure({
+  openOnClick: false })` had turned off click-to-navigate entirely — a stray
+  click while editing shouldn't launch a browser mid-sentence, but that also
+  meant there was no way at all to check where a link actually led, deliberate
+  or not. Now the modifier native apps use for exactly this (VS Code, Word,
+  most browsers) opens it, in the user's own browser rather than inside
+  write's own window — the browser's address bar is what actually answers
+  "does this go where it claims to". The URL comes from the document, so it
+  is checked twice: the editor schema restricts what can become an `href`,
+  and the Rust command that opens it revalidates the scheme independently
+  (`http`/`https`/`mailto` only) rather than trusting the schema already did.
+  8 new Rust tests cover the scheme check on its own, and `cargo test` now
+  runs in CI — the check is the entire security argument, and a test nothing
+  runs is a comment.
+
+### Security
+
+- **Licence gate in CI** (`cargo deny check licenses`, policy in
+  `app/src-tauri/deny.toml`). `write` is GPL-3.0-or-later, which absorbs
+  permissive dependencies but genuinely cannot combine with GPL-2.0-only or
+  proprietary terms — so the risk isn't "did something copyleft get in", it's the
+  narrower set GPLv3 can't take. THIRD-PARTY-NOTICES.md is the human-readable
+  half; this is the half that runs without being remembered.
+- **`npm ci --ignore-scripts` in CI.** A compromised package's payload almost
+  always runs from an install lifecycle hook, before any of our own code does.
+  Verified that no package in this tree declares one, so nothing is suppressed —
+  this only removes the path.
+- **Dependabot cooldown.** New versions wait a few days before being offered.
+  Compromised packages are usually caught and pulled within a day or two, and the
+  people they reach are the ones who upgraded within hours of publication.
+
 ## [0.3.0] — 2026-08-12
 
 The first public release. Versions 0.2.2 through 0.2.4 exist in the repository

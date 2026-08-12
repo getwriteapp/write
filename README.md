@@ -135,6 +135,12 @@ in. Cycle them with `Ctrl/⌘ + \`.
   cannot report your IP address or the moment you read it. The editor schema
   refuses the reference and the Content Security Policy refuses the request; a
   [test suite](app/tests/sanitize-probe.mjs) fails if either lock loosens.
+  There is no update check either — the Commander's **Releases** link asks your
+  operating system to open the page in your browser, so even that request is
+  the browser's rather than `write`'s. A link inside a document opens the same
+  way: **Ctrl/Cmd+Click** it (a plain click puts your caret there, same as any
+  other text) and it opens in your actual browser, address bar and all — the
+  one place that can honestly answer "does this really go where it says".
 
 ### Differences from Word
 

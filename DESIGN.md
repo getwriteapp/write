@@ -41,6 +41,15 @@ typefaces, which is the price of never fetching one.
 
 ## Deliberate omissions
 
+- **No update check.** Not even a manual one. `write` could ask GitHub whether
+  a newer version exists, and gating it behind a button would be defensible —
+  but the promise above is that offline-ness is *enforced*, not *policed*, and
+  an in-app check would make it a policy no matter how carefully it were
+  gated. The Commander links to the releases page instead: the operating
+  system opens your browser, and the request that follows is the browser's.
+  The cost is real and accepted — nobody is told a fix exists, they have to go
+  and look. The alternative was a weaker guarantee, and this one is load-
+  bearing for what the app is.
 - **No collaboration.** Local files, one writer. Real-time editing is a
   different product with a server in it.
 - **No `.doc`.** The pre-2007 binary format shares nothing structurally with
