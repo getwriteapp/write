@@ -1,8 +1,8 @@
 # Contributor License Agreement
 
 Everyone sending code to `write` signs this once. A bot comments on your first
-pull request with a link; signing is a single click and applies to every later
-contribution.
+pull request with a link; signing takes a click and covers every later
+contribution you make here.
 
 ## Why this exists
 

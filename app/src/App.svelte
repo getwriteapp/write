@@ -276,6 +276,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
 
   function setFocus(on) {
     focus = on
+    footSummoned = false
     document.body.setAttribute('data-focus', on ? 'on' : 'off')
     if (on) { commanderOpen = false; litParagraph() } else clearLit()
   }
@@ -1052,15 +1053,33 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   // than after most of a wheel notch. The threshold exists only so a caret
   // nudge or a follow-scroll doesn't count as "the reader is moving".
   const DUCK_AFTER_PX = 8
-  /* The bottom row ducks on SCROLL only, deliberately not on the whole
-     duckChrome signal the top answers to. Typing is the moment the save
-     state and the word count are worth having — hiding them on the first
-     keystroke would delete the feedback the status line exists to give.
-     Scrolling is reading, and reading wants the page and nothing else.
-     Focus mode ducks it outright, in CSS. */
+  /* ---- the bottom row's own duck ----
+     It answers to SCROLL, not to the whole duckChrome signal the top uses.
+     Typing is the moment the save state and word count are worth having;
+     hiding them on the first keystroke would delete the feedback the status
+     line exists to give. Scrolling is reading, and reading wants the page.
+     Focus mode clears it outright.
+
+     Summoning it back is sticky, unlike the top's hover-peek: reach into the
+     bottom of the window and it stays lit until you go back to work —
+     the next scroll, the next keystroke, or a focus-mode toggle. Brett's
+     call, and the right one: you look at a word count for longer than you
+     can hold a mouse still. */
   let footDucked = $state(false)
+  let footSummoned = $state(false)
+  let footAway = $derived((footDucked || focus) && !footSummoned)
+  // The band that summons it. Hover is detected here rather than with CSS
+  // :hover because the zone must never take pointer input — a live band
+  // across the full width would swallow clicks and drag-selection meant for
+  // the page, and an element with pointer-events:none can't be a hover
+  // target at all. Reading clientY costs nothing and covers the whole row.
+  const FOOT_BAND_PX = 72
+  function onPointerMove(e) {
+    if (!footSummoned && e.clientY >= window.innerHeight - FOOT_BAND_PX) footSummoned = true
+  }
   function onDocScroll() {
     const y = window.scrollY
+    footSummoned = false
     footDucked = y > DUCK_AFTER_PX
     if (y <= 4) {
       if (barScrollHidden) { barScrollHidden = false; refreshBar() }
@@ -1520,6 +1539,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   function markTyping() {
     typing = true
     duckChrome() // writing is not formatting: get the chrome out of the way
+    footSummoned = false // back to work ends the loan on the bottom row
     document.body.classList.add('typing')
     clearTimeout(typingTimer)
     typingTimer = setTimeout(() => { typing = false; document.body.classList.remove('typing') }, 2200)
@@ -1543,6 +1563,11 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   // quiet surface, not a system dialog. Autosave keeps the text in Recents,
   // but a same-named autosave can overwrite that slot, so the guard is real.
   function guardThen(action) {
+    // The Commander's job ends the moment you pick something out of it. It
+    // used to stay open behind the guard's veil, so New/Open/a template on a
+    // page with unsaved edits left two stacked surfaces; the action's own
+    // `commanderOpen = false` only ran on the far side of the confirm.
+    commanderOpen = false
     if (touched && words > 0) confirmState = { action }
     else action()
   }
@@ -1926,6 +1951,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     window.addEventListener('resize', onResize)
     document.addEventListener('selectionchange', onSelectionChange)
     document.addEventListener('mousemove', clearTyping)
+    document.addEventListener('mousemove', onPointerMove, { passive: true })
     window.addEventListener('keyup', onCtrlUp)
     window.addEventListener('blur', disarmCtrlZoom) // Ctrl can be released outside the window (alt-tab)
     if (isTauri) {
@@ -1956,6 +1982,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     window.removeEventListener('resize', onResize)
     document.removeEventListener('selectionchange', onSelectionChange)
     document.removeEventListener('mousemove', clearTyping)
+    document.removeEventListener('mousemove', onPointerMove)
     window.removeEventListener('dragover', onDragOver)
     window.removeEventListener('dragleave', onDragLeave)
     window.removeEventListener('drop', onDrop)
@@ -2235,10 +2262,10 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
 {/if}
 
 <div class="bottom-fade"></div>
-<!-- The bottom row ducks on the same signal the top chrome does, and always
-     in focus mode. Reaching into either bottom corner brings it back — the
-     mirror of the wordmark's corner and the Bar's top edge. -->
-<div class="foot-zone" class:ducked={footDucked}>
+<!-- The bottom row clears on scroll and in focus mode. Moving the pointer
+     into the bottom of the window brings it back and it stays until the next
+     scroll, keystroke or focus toggle. -->
+<div class="foot-zone" class:away={footAway}>
 <span class="whisper stats">
   <span class="dot" class:unsaved={!saved}></span>{words.toLocaleString()} words · {readMin} min
 </span>

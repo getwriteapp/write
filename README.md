@@ -20,6 +20,33 @@ look right and have to open in Word.
 [`DESIGN.md`](DESIGN.md) covers the design intent. [`ROADMAP.md`](ROADMAP.md)
 covers what's next and how to help.
 
+<!-- ============================ MEDIA ============================
+     Screenshots and the demo clip go here — top of the page, above the
+     fold, before anyone has to read a word.
+
+     Drop the files in docs/media/ and swap the placeholders below. Keep
+     them under ~10 MB each so the repo stays quick to clone; GitHub renders
+     .mp4/.mov/.gif inline and animates .gif in the README.
+
+     Worth capturing, in rough order of persuasiveness:
+       1. Rooms cycling with Ctrl+\ — six seconds, the best thing the app does
+       2. Focus mode engaging, chrome clearing from all four corners
+       3. Page view beside the same document open in Word
+       4. A still of the default room (Linen) for the social preview card
+     ================================================================ -->
+
+<div align="center">
+
+*Screenshots and a short demo land here.*
+
+<!--
+![Rooms cycling](docs/media/rooms.gif)
+![Focus mode](docs/media/focus.png)
+![Page view](docs/media/page-view.png)
+-->
+
+</div>
+
 ## Getting it
 
 Download the installer from the [latest

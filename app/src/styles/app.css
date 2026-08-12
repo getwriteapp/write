@@ -127,15 +127,15 @@ body[data-focus="on"] .mark-zone:hover .wordmark {
    and peeks back at the top edge; the wordmark does the same from its
    corner) while the word count and the hint sat there through everything,
    focus mode included — the one place the app asks for the least chrome and
-   kept the most. The row now answers to the same signal as the top, and to
-   focus mode outright.
+   kept the most.
 
-   The zone itself never takes pointer input: it spans the window, and an
-   opaque band along the bottom would swallow clicks and drag-selection
-   meant for the page. The two catchers are bounded corners instead, live
-   only while the row is away — the same reason `.mark-zone` is only
-   hoverable once ducked (an element with pointer-events:none can't be a
-   hover target at all, so `:hover` would never match). */
+   Whether the row is away is decided in App.svelte (`footAway`), not here:
+   it depends on scroll, focus mode AND whether the row has been summoned
+   back, and a summon is sticky rather than a live :hover. The zone stays
+   pointer-transparent at all times — a live band across the full width
+   would swallow clicks and drag-selection meant for the page — so the
+   pointer is watched in JS instead, over the whole row rather than a
+   bounded corner. */
 .foot-zone {
   position: fixed;
   left: 0; right: 0; bottom: 0;
@@ -144,31 +144,10 @@ body[data-focus="on"] .mark-zone:hover .wordmark {
   pointer-events: none;
 }
 .foot-zone > * { pointer-events: auto; }
-.foot-zone::before,
-.foot-zone::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  width: min(300px, 34vw); height: 100%;
-  pointer-events: none;
-}
-.foot-zone::before { left: 0; }
-.foot-zone::after { right: 0; }
-.foot-zone.ducked::before, .foot-zone.ducked::after,
-body[data-focus="on"] .foot-zone::before,
-body[data-focus="on"] .foot-zone::after { pointer-events: auto; }
-
-.foot-zone.ducked .whisper,
-body[data-focus="on"] .foot-zone .whisper {
+.foot-zone.away .whisper {
   opacity: 0;
   pointer-events: none;
   transform: translateY(6px);
-}
-.foot-zone.ducked:hover .whisper,
-body[data-focus="on"] .foot-zone:hover .whisper {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateY(0);
 }
 
 .stats { bottom: 20px; right: 26px; }
@@ -215,8 +194,11 @@ body[data-focus="on"] .foot-zone:hover .whisper {
 .save-state[data-state="saving"] { color: var(--accent); }
 .save-state[data-state="draft"] { color: var(--faint); }
 
-/* chrome fades while typing */
-body.typing .whisper { opacity: 0.05; }
+/* Chrome fades while typing — the wordmark only. The bottom row deliberately
+   stays lit: the save state and word count are what you want while writing,
+   and fading them to 0.05 was hiding exactly the feedback they exist to
+   give. The row's own away state (above) is what clears it. */
+body.typing .wordmark { opacity: 0.05; }
 
 /* ---------- toast (whispered room name on cycle) ---------- */
 .toast {
