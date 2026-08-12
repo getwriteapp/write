@@ -54,3 +54,6 @@ fonts-preview.html
 # internal strategy notes — licensing, market, revenue. Not product docs;
 # not meant to be public when the repo flips.
 *.private.md
+
+# the card generators write their intermediate HTML here
+docs/media/.card*.html
