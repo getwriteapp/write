@@ -44,3 +44,7 @@ buildnotes.md
 # not meant to publish. The generated deliverables (icons/, tray/) are
 # tracked normally; only the sources and internal preview pages live here.
 /assets/
+
+# internal strategy notes — licensing, market, revenue. Not product docs;
+# not meant to be public when the repo flips.
+*.private.md

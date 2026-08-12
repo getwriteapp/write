@@ -1,9 +1,10 @@
 # The gates that keep the security properties in SECURITY.md true.
 #
 # These suites only protect anything if they run without being remembered, so
-# they run on every push and pull request. `npm test` chains three of them:
-# the .docx round-trip suite, the sanitizer regression suite (scripts and
-# remote images must not survive an import), and an npm audit gate.
+# they run on every push and pull request. `npm test` chains four of them: the
+# .docx round-trip suite, the sanitizer regression suite (scripts and remote
+# images must not survive an import), the save-model component tests, and an
+# npm audit gate. The pagination tests need a real browser and run separately.
 name: CI
 
 on:
@@ -35,6 +36,28 @@ jobs:
       - run: npm run build
       - name: Round-trip, sanitizer, and audit
         run: npm test
+
+  browser:
+    name: Pagination (real browser)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Pagination tests
+        # The pagination engine reads real layout, so jsdom cannot reach it.
+        # This tier exists because a pagination bug shipped twice for exactly
+        # that reason; running it only locally puts it on the honour system.
+        run: npm run test:e2e
 
   rust:
     name: cargo audit
