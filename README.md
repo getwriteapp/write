@@ -2,7 +2,7 @@
 
 # write
 
-**A quiet, beautiful word processor. Start from silence; go up into rich text.**
+**Rich text, real pagination, and `.docx` in and out.**
 
 *Lightweight · offline · free · GPL-3.0*
 

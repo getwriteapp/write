@@ -123,7 +123,7 @@ const html = `<!doctype html>
   <div class="type">
     <div class="wordmark">write<i class="caret"></i></div>
     <div class="tagline">A quiet, beautiful word processor.</div>
-    <div class="sub">Start from silence; go up into rich text.</div>
+    <div class="sub">From silence, to rich text.</div>
     <div class="rule"></div>
     <div class="facts">Offline<span>·</span>Real .docx<span>·</span>GPL-3.0<span>·</span>Windows</div>
   </div>
