@@ -983,6 +983,63 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   let caretVisible = $state(false) // also drives .custom-caret (hides the native caret)
   let composing = false
   let caretLastX = null, caretLastY = null
+
+  /* ---- the breathe cycle ----
+     Driven by the Web Animations API rather than by a CSS class, for one
+     measured reason: restarting a CSS animation means removing the class,
+     forcing a reflow to flush it, and adding it back — and `void
+     caretEl.offsetWidth` forces a synchronous layout of the WHOLE document.
+     That ran on every caret move, which is every keystroke, every arrow key
+     and every click, purely to restart a fade. In Page view on a long
+     document that is the expensive path, paid once per keypress before the
+     debounced repagination even starts.
+
+     `currentTime = 0` restarts the same animation with no layout flush at
+     all, and a WAAPI opacity animation runs on the compositor, so it keeps
+     breathing at a steady rate while the main thread is busy — which is what
+     Brett was seeing: the breath stuttering in time with whatever else the
+     machine was doing.
+
+     Timings are exactly the tuned ones (3.4s cycle, 0.38 floor, 0.15s delay,
+     ease-in-out). Do not speed them up — see the note in app.css. */
+  let breatheAnim = null
+  function restartBreathe() {
+    if (!caretEl?.animate) return // jsdom and very old webviews
+    if (!breatheAnim) {
+      breatheAnim = caretEl.animate(
+        [{ opacity: 1 }, { opacity: 0.38 }, { opacity: 1 }],
+        { duration: 3400, easing: 'ease-in-out', delay: 150, iterations: Infinity },
+      )
+      return
+    }
+    breatheAnim.currentTime = 0 // back into the delay, so a moving caret is solid
+    if (breatheAnim.playState !== 'running') breatheAnim.play()
+  }
+  /* A WAAPI animation applies to the ELEMENT, not to a selector, and it wins
+     over ordinary author CSS — so a running breathe would keep writing an
+     opacity onto the caret and hold it visible even after `.show` came off.
+     The old CSS animation could not do that: its selector stopped matching
+     and the base `opacity: 0` took back over on its own. Cancelling removes
+     the animation's effect entirely and hands opacity back to the
+     stylesheet, which is what every hide path below relies on. */
+  function hideCaret() {
+    caretVisible = false
+    breatheAnim?.cancel()
+  }
+  // see the focusin/focusout listeners for why this is deferred
+  let caretSoonTimer
+  function updateCaretSoon() {
+    clearTimeout(caretSoonTimer)
+    caretSoonTimer = setTimeout(updateCaret, 0)
+  }
+  /* Those surfaces change state without changing the selection or the focused
+     element, so none of updateCaret's other triggers fire for them. This is
+     the one that does. */
+  $effect(() => {
+    commanderOpen; confirmState; findOpen
+    updateCaret()
+  })
+
   function updateCaret() {
     if (!caretEl || !host) return
     // activeElement (not editor.isFocused): the caret should hide exactly
@@ -991,12 +1048,19 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     // which reads as the caret losing your place
     const pmRoot = host.querySelector('.ProseMirror')
     const engaged = pmRoot && (pmRoot === document.activeElement || pmRoot.contains(document.activeElement))
-    if (!editor || composing || !engaged || !editor.state.selection.empty) {
-      caretVisible = false
+    /* `engaged` alone was never enough. The Commander takes the KEYBOARD --
+       Escape closes it, arrows move through it -- without taking DOM focus:
+       nothing calls .focus() on it, so document.activeElement stays inside
+       ProseMirror and `engaged` stays true. The caret went on breathing
+       underneath it. The surfaces are therefore checked by their own state,
+       not inferred from where focus landed. */
+    if (!editor || composing || !engaged || commanderOpen || confirmState || findOpen
+        || !editor.state.selection.empty) {
+      hideCaret()
       return
     }
     let c
-    try { c = editor.view.coordsAtPos(editor.state.selection.head) } catch { caretVisible = false; return }
+    try { c = editor.view.coordsAtPos(editor.state.selection.head) } catch { hideCaret(); return }
     // viewport coords are zoom-scaled; the caret element lives in the zoomed
     // subtree's own layout space, so divide the difference back out
     const zoom = zoomPct / 100
@@ -1011,8 +1075,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     if (appearing) { void caretEl.offsetWidth; caretEl.style.transition = '' }
     caretVisible = true
     if (x !== caretLastX || y !== caretLastY) {
-      // restart the breathe cycle so a moving caret is always solid
-      caretEl.classList.remove('blinking'); void caretEl.offsetWidth; caretEl.classList.add('blinking')
+      restartBreathe() // a moving caret is always solid
       caretLastX = x; caretLastY = y
     }
   }
@@ -1995,6 +2058,23 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     document.addEventListener('selectionchange', onSelectionChange)
     document.addEventListener('mousemove', clearTyping)
     document.addEventListener('mousemove', onPointerMove, { passive: true })
+    /* updateCaret's `engaged` check has always said the caret should hide the
+       moment another control takes the keyboard — but nothing re-ran it when
+       focus actually moved, so the check never fired and the caret went on
+       breathing underneath the Commander, Find and the Bar. Caught by a real
+       browser test; invisible to every earlier one, because opening a surface
+       changes focus without changing the selection.
+       focusin/focusout rather than focus/blur: those two don't bubble, so a
+       document-level listener never sees them.
+
+       Deferred by a turn of the event loop, and not for tidiness: closing a
+       surface destroys its DOM, and removing a focused element fires
+       focusout *inside* Svelte's own teardown. Calling updateCaret straight
+       from there mutates state mid-destroy, which Svelte warns about and
+       which can drop the update entirely. A later task is well after the
+       flush, and nobody can perceive a caret hiding one tick late. */
+    document.addEventListener('focusin', updateCaretSoon)
+    document.addEventListener('focusout', updateCaretSoon)
     window.addEventListener('keyup', onCtrlUp)
     window.addEventListener('blur', disarmCtrlZoom) // Ctrl can be released outside the window (alt-tab)
     if (isTauri) {
@@ -2026,6 +2106,9 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     document.removeEventListener('selectionchange', onSelectionChange)
     document.removeEventListener('mousemove', clearTyping)
     document.removeEventListener('mousemove', onPointerMove)
+    document.removeEventListener('focusin', updateCaretSoon)
+    document.removeEventListener('focusout', updateCaretSoon)
+    clearTimeout(caretSoonTimer)
     window.removeEventListener('dragover', onDragOver)
     window.removeEventListener('dragleave', onDragLeave)
     window.removeEventListener('drop', onDrop)

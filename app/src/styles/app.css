@@ -930,20 +930,19 @@ main {
   will-change: transform, opacity;
 }
 .caret.show { opacity: 1; }
-/* Breathe almost immediately after the caret stops moving. The CYCLE stays
-   slow and shallow (3.4s, floor 0.38) — that's the "calma" Brett asked for and
-   shouldn't be sped up — but the delay before it begins is now barely there,
-   because a long hold before the first breath reads as the caret hanging
-   rather than resting.
-   Why so short a delay is safe: the animation restarts on every caret move,
-   so continuous typing never breathes at all, and `ease-in-out` over 3.4s
-   means the first ~0.2s of the cycle costs about 1% opacity. A typist pausing
+/* The breathe cycle itself lives in App.svelte (restartBreathe), not here.
+   It is the same animation it always was — 3.4s, floor 0.38, 0.15s delay,
+   ease-in-out — but driven through the Web Animations API, because
+   restarting a CSS animation requires a class toggle plus a forced reflow,
+   and that reflow was running on every keystroke. See the comment there.
+
+   The CYCLE stays slow and shallow — that's the "calma" Brett asked for and
+   shouldn't be sped up. The DELAY before it begins is deliberately tiny: a
+   long hold before the first breath reads as the caret hanging rather than
+   resting. That is safe precisely because the cycle restarts on every caret
+   move, so continuous typing never breathes at all, and `ease-in-out` over
+   3.4s means the first ~0.2s costs about 1% opacity. A typist pausing
    between keystrokes sees nothing; only a real pause shows the breath. */
-.caret.show.blinking { animation: caret-breathe 3.4s ease-in-out 0.15s infinite; }
-@keyframes caret-breathe {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.38; }
-}
 @media print { .caret { display: none !important; } }
 /* Flow view's column width — a scale on the room's own --measure */
 body[data-flow-width="narrow"] { --flow-scale: 0.8; }
