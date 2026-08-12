@@ -4,145 +4,124 @@
 
 **A quiet, beautiful word processor. Start from silence; go up into rich text.**
 
-*Lightweight · offline · free forever · GPL-3.0*
+*Lightweight · offline · free · GPL-3.0*
 
 </div>
 
 ---
 
-`write` is a word processor for people who just want to write — a letter, a résumé, an essay, a short story — without the ceremony of Word or the fossilized UI of AbiWord, Atlantis, and Jarte.
+`write` opens into a single quiet page. No ribbon, no panels. Reach for
+emphasis and a small toolbar appears, then leaves. Underneath is a real
+rich-text document that saves as clean `.docx`.
 
-It opens into a single quiet page. No ribbon, no panels, no chrome asking to be clicked. Reach for emphasis and a small toolbar finds you, then leaves. Underneath is a real rich-text document that leaves the app as clean `.docx`.
+It is for letters, résumés, essays, notes and stories — documents that have to
+look right and have to open in Word.
 
-It borrows its soul from iA Writer — and goes *up* from there into full rich text.
-
-## Why it exists
-
-The "lightweight word processor" category has a genuine gap: nothing in it is beautiful. The best-looking writing apps (iA Writer, Ulysses, Bear, Craft) are Markdown-only and don't produce `.docx`. The apps that *do* real documents (AbiWord, Atlantis, Jarte, LibreOffice) look like they were designed fifteen to twenty years ago. `write` aims squarely at the empty middle: **as light as Jarte, as designed as iA Writer, and it saves `.docx`.**
-
-See [`PROJECT.md`](PROJECT.md) for the full design philosophy, competitive analysis, and decision log.
+[`DESIGN.md`](DESIGN.md) covers the design intent. [`ROADMAP.md`](ROADMAP.md)
+covers what's next and how to help.
 
 ## Getting it
 
 Download the installer from the [latest
 release](https://github.com/getwriteapp/write/releases/latest) — a 5.1 MB
-`.exe`, no account, no telemetry, no bundled anything.
+`.exe`. No account, no telemetry.
 
-**Windows only for now.** The codebase is cross-platform and the build targets
-for macOS and Linux are configured, but no macOS or Linux binary has ever been
-produced or tested, so it would be dishonest to list them. Building from source
-on those platforms should work; nobody has confirmed it.
+**Windows only.** The codebase is cross-platform and the macOS and Linux build
+targets are configured, but no binary for either has been produced or tested.
 
-Release binaries aren't code-signed yet, so Windows SmartScreen will warn on
-first run — check the SHA-256 against the release notes before installing.
+Release binaries are not code-signed yet, so Windows SmartScreen warns on first
+run. Check the SHA-256 against the release notes before installing.
 
 ## Rooms
 
-A *room* is more than a theme — it sets the light (palette), the voice (typeface), and the temperature of the work. Six ship built in:
+A room sets the palette, the typeface and the measure together. Six ship built
+in. Cycle them with `Ctrl/⌘ + \`.
 
 | Room | Feel | Typeface |
 |------|------|----------|
-| **Linen** | White silence, one rust cursor — the default | Nunito Sans |
-| **Cobalt** | White silence, one cobalt cursor | Reddit Mono |
-| **Dawn** | Blush morning light, rose caret | Petrona |
-| **Paper** | Cream and ink, a printed book | Source Serif 4 |
+| **Linen** | White, rust caret — the default | Nunito Sans |
+| **Cobalt** | White, cobalt caret | Reddit Mono |
+| **Dawn** | Blush light, rose caret | Petrona |
+| **Paper** | Cream and ink | Source Serif 4 |
 | **Slate** | Cool dark, sea-glass caret | Geist |
-| **Noir** | Midnight serif, amber caret — writing at 1 a.m. | Newsreader |
-
-Cycle them with `Ctrl/⌘ + \`.
+| **Noir** | Midnight, amber caret | Newsreader |
 
 ## Features
 
 ### The document
 
-- **Real `.docx` open and save** — documents round-trip through Microsoft Word
-  and back with structure intact, on a `.docx` reader and writer built for this
-  app rather than a generic converter. Verified by an automated **65-fixture
-  round-trip suite** that runs on every commit.
+- **Real `.docx` open and save.** Documents round-trip through Microsoft Word
+  with structure intact, on a `.docx` reader and writer built for this app.
+  A 99-fixture round-trip suite runs on every commit.
 - **Rich text that survives the trip** — headings, lists, quotes, code, links,
-  bold/italic/underline/strikethrough, text colour and highlight, alignment,
-  line spacing, indentation, font family and size. Everything the app can set,
-  Word can read; everything Word sets, the app can read back.
-- **Tables** — insert, add and delete rows and columns, merge and split cells,
-  toggle a header row that repeats across pages. Column widths, merged cells
-  and repeating headers all round-trip.
-- **Images** — paste or drag-drop PNG/JPEG/GIF into the page; embedded in the
-  document and in the exported `.docx`, byte for byte.
-- **Table of contents** — a snapshot of your headings, refreshed on demand,
-  exported as a genuine Word TOC field that Word will keep up to date.
-- **Headers, footers and page numbers** — each independently left/centre/right
-  aligned; page numbers are a live Word `PAGE` field, not typed-in text.
-- **Word's real Tab** — three different things depending on where the caret
-  sits, exactly as Word does it: a first-line indent at the start of a block, a
-  block indent across a selection, a real tab character anywhere else. All
-  three are distinct concepts in the `.docx`, and all three round-trip.
-- **Five templates** to start from — Letter, Meeting Notes, Resume, Report, and
-  a Specimen that exercises every feature in the app in one running document.
+  bold/italic/underline/strikethrough, colour and highlight, alignment, line
+  spacing, indentation, font family and size.
+- **Tables** — rows and columns, merged and split cells, a header row that
+  repeats across pages. Widths, merges and headers all round-trip.
+- **Images** — paste or drag in PNG/JPEG/GIF; embedded byte for byte.
+- **Table of contents** — exported as a real Word TOC field.
+- **Headers, footers and page numbers** — independently aligned; page numbers
+  are a live Word `PAGE` field, not typed text.
+- **Word's three-way Tab** — first-line indent at the start of a block, block
+  indent across a selection, a tab character anywhere else. All three are
+  distinct in the `.docx`.
+- **Five templates** — Letter, Meeting Notes, Resume, Report, and a Specimen
+  that exercises every feature in one document.
 
 ### The page
 
-- **Flow and Page views** — an endless quiet column for drafting, or real
-  discrete paper sheets with true margins for seeing what Word will see.
-- **Page view paginates the way Word does.** Pages break *between lines*, not
-  just between paragraphs: a paragraph too long for the space left is split at
-  the right line and continued on the next sheet. **Widow and orphan control**
-  is on by default, so a single line is never stranded alone on either side of
-  a break. Page view also renders the document's real exported typography
-  rather than the room's reading typography — so the breaks it shows you are
-  the breaks Word will produce.
+- **Flow and Page views** — a continuous column for drafting, or discrete
+  sheets with true margins.
+- **Page view breaks between lines, not just between paragraphs**, with widow
+  and orphan control on by default. It renders the document's exported
+  typography, so the breaks shown are the breaks Word will produce.
 - **Page setup** — Letter or A4, portrait or landscape, narrow/normal/wide
-  margins, and insertable manual page breaks (`Ctrl/⌘ Shift Enter`). A
-  document's own page settings drive the view when you open it.
-- **Zoom** that anchors where you point (`Ctrl/⌘ =` / `-` / `0`, or
-  Ctrl+scroll), with a read-out that fades away.
-- **Formatting marks** — Word's ¶ toggle (`Ctrl/⌘ Shift 8`): a dot for every
-  space, an arrow for every tab, a pilcrow at each paragraph, ↵ at a line
-  break. Purely a view overlay — the marks never enter the document, never
-  survive a copy, and never print.
+  margins, manual page breaks. A document's own settings drive the view.
+- **Zoom** that anchors where you point, with a read-out that fades.
+- **Formatting marks** (`Ctrl/⌘ Shift 8`) — a dot per space, an arrow per tab,
+  a pilcrow per paragraph. A view overlay only: never in the document, never
+  in a copy, never printed.
 
 ### The room
 
-- **Six built-in rooms** (palette + typeface + measure) with instant switching;
-  your choice is remembered. Flow view adds narrow/normal/wide column widths.
+- **Six rooms**, remembered between sessions. Flow view adds narrow, normal
+  and wide column widths.
 - **Twenty-eight bundled typefaces** — seven serif, two slab, thirteen sans,
-  two display, four typewriter — in a menu that previews each face live in
-  your own document as you arrow through it, and restores on Escape.
-- **Focus mode** — dims everything except the paragraph you're in (`F11` or
-  `Ctrl/⌘ Enter`).
-- **Chrome that gets out of the way** — the toolbar and wordmark duck the
-  moment you engage with the page and return when you reach for them. A
-  selection toolbar appears on demand and vanishes when you're done.
-- Live word count and reading time, in a whisper at the corner.
+  two display, four typewriter — previewed live in your own document as you
+  arrow through the menu.
+- **Focus mode** (`F11` or `Ctrl/⌘ Enter`) — dims everything but the paragraph
+  you're in, and clears the chrome from all four corners.
+- **Chrome that gets out of the way.** The toolbar, wordmark and status row
+  duck when you engage with the page and return when you reach for them.
 
 ### The everyday
 
-- **Find & replace** (`Ctrl/⌘ F`) in a quiet bar rather than a dialog.
+- **Find & replace** (`Ctrl/⌘ F`).
 - **Native spell check**, toggleable.
-- Auto-save that never asks; ten recent files; a quiet guard before unsaved
-  work is replaced.
-- Drag a `.docx` or an image from your file manager onto the window to open it.
-- **Fully offline, and built so it can't quietly stop being true** — every font
-  ships inside the app, and `write` makes no network requests at runtime. A
-  document that points an image at someone else's server has that image left
-  out rather than fetched, so opening a file can't announce your IP address or
-  the moment you read it. Enforced twice over: the editor's schema refuses to
-  parse the reference, and the app's Content Security Policy refuses to make
-  the request. There's a [test suite](app/tests/sanitize-probe.mjs) that fails
-  if either lock comes loose.
+- Auto-save to an internal draft store; ten recent files; a guard before
+  unsaved work is replaced. Auto-save never writes to your file on disk —
+  opening someone else's document and closing it cannot alter it.
+- Drag a `.docx` or an image onto the window to open it.
+- **Offline, enforced in code.** Every font ships inside the app and `write`
+  makes no network request at runtime. A document pointing an image at a
+  remote server has that image dropped rather than fetched, so opening a file
+  cannot report your IP address or the moment you read it. The editor schema
+  refuses the reference and the Content Security Policy refuses the request; a
+  [test suite](app/tests/sanitize-probe.mjs) fails if either lock loosens.
 
-Known differences from Word, stated plainly rather than buried: a table or an
-image taller than the space left on a page is moved to the next page whole
-rather than split across the break (text paragraphs *do* split); headers and
-footers are in the exported `.docx` but don't yet appear when printing directly
-from the app; and TOC page numbers are computed by Word on open rather than
-cached at export. [`PROJECT.md`](PROJECT.md) documents the full fidelity list.
+### Differences from Word
 
-`write` opens `.docx`, `.html`, and `.txt`. It does **not** open `.doc` — the
-old binary Word 97–2003 format. That isn't an oversight to be fixed by a
-filter: `.docx` is a zip of XML, `.doc` is an OLE compound binary from a
-different era, and reading it means a second parser with nothing in common
-with the first. If you have `.doc` files, Word or LibreOffice will convert
-them to `.docx` in one step, and `write` will open them from there.
+- A table or image taller than the space left on a page moves to the next page
+  whole rather than splitting. Text paragraphs do split.
+- Headers and footers are in the exported `.docx` but do not appear when
+  printing directly from the app.
+- TOC page numbers are computed by Word on open rather than cached at export.
+- Adjacent blockquotes merge on import.
+
+`write` opens `.docx`, `.html` and `.txt`. It does not open `.doc`, the
+pre-2007 binary format: `.docx` is a zip of XML and `.doc` is an OLE compound
+binary, so reading it means a second parser sharing nothing with the first.
+Word and LibreOffice convert `.doc` to `.docx` in one step.
 
 ## Keyboard
 
@@ -152,88 +131,84 @@ them to `.docx` in one step, and `write` will open them from there.
 | `Ctrl/⌘ K` | The Commander — rooms, recents, views, file actions |
 | `Ctrl/⌘ /` | Show or pin the formatting bar |
 | `Ctrl/⌘ \` | Cycle rooms |
-| `F11` or `Ctrl/⌘ Enter` | Toggle focus mode |
-| `Ctrl/⌘ S` | Save (`.docx` by default) |
-| `Ctrl/⌘ O` | Open (`.docx`, `.html`, `.txt`) |
+| `F11` or `Ctrl/⌘ Enter` | Focus mode |
+| `Ctrl/⌘ S` | Save |
+| `Ctrl/⌘ O` | Open |
 | `Ctrl/⌘ F` | Find & replace |
 | `Ctrl/⌘ Shift V` | Paste without formatting |
-| `Ctrl/⌘ Shift Enter` | Insert a page break |
-| `Ctrl/⌘ Shift 8` | Show or hide formatting marks (¶) |
-| `Ctrl/⌘ =` / `-` / `0` | Zoom in / out / reset to 100% |
-| `Tab` / `Shift Tab` | Indent — first-line, block, or a tab character (see above) |
+| `Ctrl/⌘ Shift Enter` | Page break |
+| `Ctrl/⌘ Shift 8` | Formatting marks |
+| `Ctrl/⌘ =` / `-` / `0` | Zoom in / out / reset |
+| `Tab` / `Shift Tab` | Indent — first-line, block, or a tab character |
 | `Esc` | Exit focus / close surfaces |
 
-## Tech
+## Built with
 
-- **[Tauri 2](https://tauri.app)** (Rust) shell — a **7.4 MB** binary (**5.1 MB**
-  installer), using the system webview instead of bundling Chromium. Roughly
-  half of that is the twenty-eight bundled typefaces, which is the price of never
-  making a network request for type.
-- **[Svelte 5](https://svelte.dev)** + **[Vite](https://vite.dev)** frontend
-- **[Tiptap](https://tiptap.dev)** / ProseMirror editor core
+- **[Tauri 2](https://tauri.app)** (Rust) — a 7.4 MB binary, 5.1 MB installer,
+  using the system webview. Roughly half of that is the bundled typefaces.
+- **[Svelte 5](https://svelte.dev)** + **[Vite](https://vite.dev)**
+- **[Tiptap](https://tiptap.dev)** / ProseMirror
 - The `.docx` reader and writer are this project's own, over
   [fflate](https://github.com/101arrowz/fflate) and
   [fast-xml-parser](https://github.com/NaturalIntelligence/fast-xml-parser)
-- Fonts are all SIL Open Font License, safe to bundle with a GPL app
-- No dependency is copyleft — everything upstream is MIT, Apache-2.0, or OFL
+- No dependency is copyleft — everything upstream is MIT, Apache-2.0 or OFL
 
-## Develop
+## Build and run
 
 ```bash
 cd app
 npm install
 npm run dev          # browser dev server at localhost:5173
-npm run tauri dev    # the real desktop app (hot-reloaded)
-npm run tauri build  # produce installers for the current OS
+npm run tauri dev    # the desktop app, hot-reloaded
+npm run tauri build  # installers for the current OS
 ```
 
-On Windows, `.\dev.ps1` from the repo root does the second of those without
-the `cd`.
-
-Requires Node 20+ and a Rust toolchain (`rustup`). On Windows you also need the WebView2 runtime (preinstalled on Windows 11) and the MSVC build tools.
+Requires Node 24+ and a Rust toolchain (`rustup`). On Windows you also need
+the WebView2 runtime (preinstalled on Windows 11) and the MSVC build tools.
+`.\dev.ps1` from the repo root runs the desktop app without the `cd`.
 
 ```bash
-npm test    # .docx round-trip suite + sanitizer regression suite + npm audit
+npm test        # .docx round-trip, sanitizer, save model, npm audit
+npm run test:e2e  # pagination and chrome, in a real browser
 ```
+
+[`CONTRIBUTING.md`](CONTRIBUTING.md) covers reporting a bug and sending a
+change.
 
 ## Security
 
 `write` opens documents made by other people, so hostile input is part of the
-job rather than an edge case. Four properties are meant to hold, and each is
-enforced in code rather than promised:
+job. Four properties are enforced in code:
 
 | A document you open cannot… | How it's stopped |
 |---|---|
-| run code | the editor's schema drops scripts, event handlers, `javascript:` URLs, and frames |
+| run code | the editor schema drops scripts, event handlers, `javascript:` URLs and frames |
 | phone home | remote image sources are refused, and the CSP blocks the request anyway |
-| read or write other files | the webview has no filesystem access; the Rust side grants one file at a time, only after you pick it |
-| exhaust your machine | archive decompression is capped before anything is inflated |
+| read or write other files | the webview has no filesystem access; the Rust side grants one file at a time, after you pick it |
+| exhaust the machine | archive decompression is capped before anything is inflated |
 
-Found a way around one of them? See [SECURITY.md](SECURITY.md) — please report
-it privately rather than opening an issue. It also covers verifying a release
-binary, which isn't code-signed yet.
-
-## Design prototypes
-
-The design was explored in two standalone HTML labs before any code was written — they still open in any browser and are worth a look:
-
-- [`design-lab.html`](design-lab.html) — Lab I, the chrome-forward direction
-- [`design-lab-2.html`](design-lab-2.html) — Lab II, the iA-derived direction that became the app
-- [`fonts-preview.html`](fonts-preview.html) — every candidate typeface, side by side
+Found a way around one? Report it privately — see
+[SECURITY.md](SECURITY.md), which also covers verifying a release binary.
 
 ## License
 
-[GPL-3.0-or-later](LICENSE). `write` is free forever. You may use, study, share, and improve it. If you distribute a modified version, it must stay open under the same license — nobody gets to close the source and sell it.
+[GPL-3.0-or-later](LICENSE). Free to use, study, share and improve. A
+distributed modification must stay open under the same license.
 
-Bundled typefaces and libraries carry their own licenses — all of them SIL
-Open Font License, MIT, or Apache-2.0. Every one is listed in
-[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md), and the notices ship inside
-the installed app as well as living here.
+Contributions are accepted under the [Contributor License
+Agreement](CLA.md) — see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+Bundled typefaces and libraries carry their own licenses, all SIL Open Font
+License, MIT or Apache-2.0, listed in
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). The notices ship inside the
+installed app as well.
 
 The iA Writer typefaces are used under the OFL, unmodified. `write` is an
-independent project, not affiliated with or endorsed by Information
-Architects Inc.
+independent project, not affiliated with or endorsed by Information Architects
+Inc.
 
 ## Support
 
-`write` is free and always will be. If it earns a place in your day, you can support development via GitHub Sponsors *(link to be added at publish)*. No paid tiers, no subscription, no upsell.
+`write` is free and stays free. If it earns a place in your day you can support
+it through [GitHub Sponsors](https://github.com/sponsors/brettkcherry). No paid
+tiers, no subscription.

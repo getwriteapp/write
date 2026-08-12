@@ -11,7 +11,7 @@
    Word/LibreOffice by hand.
 
    Fixtures may set `expect` (HTML) when a KNOWN, documented loss applies —
-   the fidelity matrix in PROJECT.md must list every use of it. */
+   README's "Differences from Word" must list every use of it. */
 
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'

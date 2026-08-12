@@ -2,19 +2,18 @@
 
 `write` is distributed under the [GPL-3.0-or-later](LICENSE). It also ships
 other people's work — typefaces embedded in the binary, and libraries compiled
-into it. Their licences are reproduced or referenced below, which is a
-condition of using them, not a courtesy.
+into it. Their licences are reproduced or referenced below.
 
-Two of these obligations are easy to miss and worth stating plainly:
+Two obligations worth stating plainly:
 
 - **The SIL Open Font License requires the copyright notice and licence to
-  travel with the fonts** — in source *and* in the shipped binary. The full
-  OFL text lives at [`app/public/fonts/OFL.txt`](app/public/fonts/OFL.txt),
-  which Vite copies into the bundle, so every installed copy of `write`
-  carries it.
-- **No dependency here is copyleft.** Everything below is MIT, Apache-2.0, or
-  OFL. `write` is GPL because its author chose that, not because anything
-  upstream forced it — which is what keeps relicensing options open.
+  travel with the fonts**, in source and in the shipped binary. The full OFL
+  text lives at [`app/public/fonts/OFL.txt`](app/public/fonts/OFL.txt), which
+  Vite copies into the bundle, so every installed copy carries it.
+- **No dependency here is copyleft.** Everything below is MIT, Apache-2.0 or
+  OFL. `write` is GPL by its author's choice, not because anything upstream
+  forced it — which is what keeps the licensing options in [CLA.md](CLA.md)
+  real.
 
 ---
 

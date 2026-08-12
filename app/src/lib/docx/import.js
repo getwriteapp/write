@@ -14,7 +14,7 @@
    header1.xml/footer1.xml parts (Wave 4) are read separately, outside the
    body walk — see readHeaderFooterSettings.
 
-   Known, accepted losses (documented in PROJECT.md §fidelity):
+   Known, accepted losses (README, "Differences from Word"):
    - tables (Wave 5): structure, header rows, merged cells, and column
      widths round-trip; per-cell shading/borders from foreign docs are
      dropped (the app styles tables itself)

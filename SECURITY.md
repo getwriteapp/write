@@ -1,22 +1,18 @@
 # Security policy
 
-`write` opens documents that other people made. That is its job, so hostile
-input is a permanent part of its threat model rather than an edge case. If you
-find a way to make it misbehave, please tell us.
+`write` opens documents other people made, so hostile input is part of its
+threat model rather than an edge case.
 
 ## Reporting a vulnerability
 
 Use GitHub's [private vulnerability
-reporting](https://github.com/getwriteapp/write/security/advisories/new) —
-it's the "Report a vulnerability" button on the Security tab. That keeps the
-report private until there's a fix.
+reporting](https://github.com/getwriteapp/write/security/advisories/new) — the
+"Report a vulnerability" button on the Security tab. Please don't open a public
+issue for a security bug.
 
-Please don't open a public issue for a security bug.
-
-**What to expect:** an acknowledgement within 7 days, an assessment within 14,
-and a fix released before public disclosure wherever the severity warrants it.
-`write` is maintained by one person in their own time — if that timeline slips,
-it is capacity, not indifference, and you're welcome to chase.
+Expect an acknowledgement within 7 days and an assessment within 14, with a fix
+released before public disclosure where the severity warrants it. `write` is
+maintained by one person; if that slips, you're welcome to chase.
 
 You'll be credited in the release notes unless you'd rather not be.
 
@@ -76,8 +72,9 @@ sha256sum write_<version>_x64-setup.exe
 cd app && npm test
 ```
 
-That runs the `.docx` round-trip suite, the sanitizer regression suite, and an
-`npm audit` gate at `--audit-level=high`. The Rust side is covered by:
+That runs the `.docx` round-trip suite, the sanitizer regression suite, the
+save-model tests, and an `npm audit` gate at `--audit-level=high`. The Rust
+side is covered by:
 
 ```bash
 cd app/src-tauri && cargo audit

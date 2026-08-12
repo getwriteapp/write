@@ -21,17 +21,23 @@ app/playwright-report/
 .claude/
 *.log
 
-# the build diary — working notes for an audience of one, split out of
-# PROJECT.md at publish. Deliberately never committed; PROJECT.md sections
-# 1-17 carry the reasoning that's worth reading.
+# The internal record: the build diary, the session-to-session orientation
+# file, the running punch list, and the full vision/competitive/decision
+# document. All four are written for an audience of one and none of them are
+# product documentation. The public record is README (what it is), DESIGN
+# (why it is that way), ROADMAP (what's next), CHANGELOG (what changed).
 SESSIONS.md
-
-# session-to-session orientation, and the running punch list. Same reasoning as
-# SESSIONS.md: written for an audience of one, not for someone arriving at the
-# repo. Untracked at launch (Session 32) — CHANGELOG.md is the public record of
-# what changed, PROJECT.md the public record of why.
 HANDOFF.md
 buildnotes.md
+PROJECT.md
+ISSUES.md
+
+# design exploration pages — working material from before the app existed,
+# kept locally because they still show the reasoning, not shipped because
+# they no longer describe the app
+design-lab.html
+design-lab-2.html
+fonts-preview.html
 
 # personal test documents at the repo root
 /*.docx
