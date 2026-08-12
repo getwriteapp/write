@@ -121,6 +121,11 @@ body[data-focus="on"] .mark-zone:hover .wordmark {
   z-index: 45;
   pointer-events: none;
   background: linear-gradient(to bottom, transparent, var(--floor, var(--bg)) 62%);
+  /* It lives inside .foot-zone so it can leave with the row (see .away
+     below). Slower than the labels on purpose: a 76px wash disappearing at
+     their speed reads as a flicker at the bottom of the page, where the same
+     timing on 11px of text reads as a fade. */
+  transition: opacity 0.9s ease;
 }
 /* ---------- the bottom row's own duck ----------
    The top chrome has had two ways out for a while (the Bar ducks on scroll
@@ -144,11 +149,13 @@ body[data-focus="on"] .mark-zone:hover .wordmark {
   pointer-events: none;
 }
 .foot-zone > * { pointer-events: auto; }
+.foot-zone > .bottom-fade { pointer-events: none; }
 .foot-zone.away .whisper {
   opacity: 0;
   pointer-events: none;
   transform: translateY(6px);
 }
+.foot-zone.away .bottom-fade { opacity: 0; }
 
 .stats { bottom: 20px; right: 26px; }
 .stats .dot {

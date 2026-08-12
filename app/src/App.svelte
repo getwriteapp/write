@@ -2261,11 +2261,13 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   </div>
 {/if}
 
-<div class="bottom-fade"></div>
 <!-- The bottom row clears on scroll and in focus mode. Moving the pointer
      into the bottom of the window brings it back and it stays until the next
-     scroll, keystroke or focus toggle. -->
+     scroll, keystroke or focus toggle. The soft floor goes with it — it is
+     there to keep text from colliding with these labels, so with the labels
+     gone it is just a band of grey over the page. -->
 <div class="foot-zone" class:away={footAway}>
+<div class="bottom-fade"></div>
 <span class="whisper stats">
   <span class="dot" class:unsaved={!saved}></span>{words.toLocaleString()} words · {readMin} min
 </span>

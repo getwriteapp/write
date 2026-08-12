@@ -19,6 +19,7 @@ import { gotoApp, setEditorContent, longParagraphHtml } from './helpers.js'
 
 const stats = '.foot-zone .stats'
 const hint = '.foot-zone .hint'
+const floor = '.foot-zone .bottom-fade'
 
 // Anywhere along the bottom of the window summons the row — the activation
 // band is the full width, not a corner. Dead centre is the interesting spot:
@@ -89,9 +90,13 @@ test('scrolling clears the bottom row; scrolling home restores it', async ({ pag
 
   await page.evaluate(() => window.scrollTo(0, 400))
   await expect(page.locator(stats)).toHaveCSS('opacity', '0')
+  // The soft floor under the labels goes with them — it exists to keep text
+  // from colliding with the labels, so alone it is just grey over the page.
+  await expect(page.locator(floor)).toHaveCSS('opacity', '0')
 
   await page.evaluate(() => window.scrollTo(0, 0))
   await expect(page.locator(stats)).toHaveCSS('opacity', '1')
+  await expect(page.locator(floor)).toHaveCSS('opacity', '1')
 })
 
 test('a summoned row goes away again on the next keystroke', async ({ page }) => {
