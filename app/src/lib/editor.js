@@ -2,7 +2,6 @@ import { Editor, Extension, Node } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
-import Placeholder from '@tiptap/extension-placeholder'
 import Image from '@tiptap/extension-image'
 import TextStyle from '@tiptap/extension-text-style'
 import Color from '@tiptap/extension-color'
@@ -754,7 +753,7 @@ export const TABLE_EXTENSIONS = [
 /* The Wave-6 set: shared with the test harness too. */
 export const WAVE6_EXTENSIONS = [TableOfContents]
 
-export function createEditor(element, { onUpdate, onSelection, onRemoteImagesBlocked, onOpenLink, content = WELCOME, spellcheck = true, formattingMarks = false } = {}) {
+export function createEditor(element, { onUpdate, onSelection, onRemoteImagesBlocked, onOpenLink, content = '', spellcheck = true, formattingMarks = false } = {}) {
   let instance // assigned below; editorProps handlers only run after construction
   instance = new Editor({
     element,
@@ -764,7 +763,6 @@ export function createEditor(element, { onUpdate, onSelection, onRemoteImagesBlo
       }),
       Underline,
       Link.configure({ openOnClick: false, autolink: true }),
-      Placeholder.configure({ placeholder: 'Begin…' }),
       OfflineImage,
       FormattingMarks.configure({ initial: formattingMarks }),
       ...FORMATTING_EXTENSIONS,

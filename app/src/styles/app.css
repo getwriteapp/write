@@ -890,8 +890,17 @@ main {
      it to 6vh; Session 32 cut it again and switched to a flat px value, same
      reasoning as Page view's own padding fix — this is Flow's actual
      default view (see `view` state), so it's the first headroom anyone
-     sees, and vh meant it grew on a taller monitor for no reason. */
-  padding: 40px 24px 20vh;
+     sees, and vh meant it grew on a taller monitor for no reason.
+
+     That flat value went too far, though: at 40px the caret on an empty
+     (or short) document sat almost directly under the Bar's own card the
+     moment it was summoned — "independent of this padding" is true for the
+     Bar's positioning, not for whether the two visually collide. 120px
+     roughly matches what Page view's own stack produces (its 28px main
+     padding plus the page's own ~96px top margin lands text about the same
+     distance down), so the two views now open to a comparable resting
+     position instead of Flow starting noticeably higher. */
+  padding: 120px 24px 20vh;
 }
 .editor-host {
   position: relative; /* anchors the custom caret overlay in both views */

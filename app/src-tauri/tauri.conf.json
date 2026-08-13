@@ -43,6 +43,11 @@
     "longDescription": "write is a lightweight, beautiful word processor. Start from silence; go up into rich text. Six built-in rooms, focus mode, and clean .docx export.",
     "category": "Productivity",
     "copyright": "© 2026 write contributors. GPL-3.0-or-later.",
-    "licenseFile": "../../LICENSE"
+    "licenseFile": "../../LICENSE",
+    "windows": {
+      "nsis": {
+        "installMode": "perMachine"
+      }
+    }
   }
 }
