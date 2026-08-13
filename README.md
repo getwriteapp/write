@@ -21,29 +21,19 @@ look right and have to open in Word.
 covers what's next and how to help.
 
 <!-- ============================ MEDIA ============================
-     Screenshots and the demo clip go here — top of the page, above the
-     fold, before anyone has to read a word.
-
-     Drop the files in docs/media/ and swap the placeholders below. Keep
-     them under ~10 MB each so the repo stays quick to clone; GitHub renders
-     .mp4/.mov/.gif inline and animates .gif in the README.
-
-     Worth capturing, in rough order of persuasiveness:
-       1. Rooms cycling with Ctrl+\ — six seconds, the best thing the app does
-       2. Focus mode engaging, chrome clearing from all four corners
-       3. Page view beside the same document open in Word
-       4. A still of the default room (Linen) for the social preview card
+     Two more shots worth adding later, in rough order of persuasiveness:
+       1. Focus mode engaging, chrome clearing from all four corners
+       2. Page view beside the same document open in Word
+     Drop the files in docs/media/ and add them below the same way.
      ================================================================ -->
 
 <div align="center">
 
-*Screenshots and a short demo land here.*
-
-<!--
 ![Rooms cycling](docs/media/rooms.gif)
-![Focus mode](docs/media/focus.png)
-![Page view](docs/media/page-view.png)
--->
+
+<sub>Six rooms, one keystroke — `Ctrl+\`.</sub>
+
+<img src="docs/media/rooms-picker.png" width="49%" alt="The Commander's Rooms picker, all six rooms at a glance" /> <img src="docs/media/blank-page.png" width="49%" alt="A blank page in Linen, the default room" />
 
 </div>
 
