@@ -2,17 +2,22 @@
 #
 # Every pull request from someone not on the allowlist gets a bot comment
 # asking them to sign CLA.md by replying once. Signatures are stored as JSON
-# in a branch of this repo, so there is no third-party service holding them.
+# on this repo's own `cla-signatures` branch, so there is no third-party
+# service holding them.
 #
 # This exists to keep two options open that a single unsigned merge would
 # close permanently: a future dual licence, and an Apache/MIT split of the
 # .docx engine. CLA.md explains the reasoning to contributors.
 #
-# One-time setup before this can pass:
-#   1. Create a classic PAT with `repo` scope on the account that should own
-#      the signature file, and add it to this repo as the secret
-#      PERSONAL_ACCESS_TOKEN.
-#   2. Create an empty orphan branch named `cla-signatures`.
+# Setup: none beyond the `cla-signatures` branch, which exists. The action
+# writes signatures with the built-in GITHUB_TOKEN, which is why `contents`
+# below must be `write` -- committing the signature file IS the storage.
+# PERSONAL_ACCESS_TOKEN is deliberately NOT used: upstream needs it only when
+# signatures live in a DIFFERENT repository or organisation, which is not the
+# case here.
+#
+# If you ever move signatures to another repo, that is when you add the PAT
+# (classic, `repo` scope) and can drop `contents` back to `read`.
 #
 # If you use the hosted cla-assistant.io GitHub App instead of this action,
 # delete this file — otherwise both will comment on every pull request.
@@ -24,9 +29,11 @@ on:
   pull_request_target:
     types: [opened, synchronize, reopened]
 
+# Set explicitly rather than inherited, in case the repository's default
+# workflow permissions are read-only.
 permissions:
   actions: write
-  contents: read
+  contents: write # must be `write`: signatures are committed to this repo
   pull-requests: write
   statuses: write
 
@@ -34,14 +41,9 @@ jobs:
   cla:
     name: Check the CLA
     runs-on: ubuntu-latest
-    # Skips itself cleanly until the secret exists, rather than failing every
-    # pull request in the meantime. `secrets` isn't available to a job-level
-    # `if`, but `env` is available to a step-level one.
-    env:
-      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
     steps:
       - name: CLA assistant
-        if: env.PERSONAL_ACCESS_TOKEN != '' && ((github.event.comment.body == 'recheck' || startsWith(github.event.comment.body, 'I have read the CLA Document and I hereby sign the CLA')) || github.event_name == 'pull_request_target')
+        if: (github.event.comment.body == 'recheck' || startsWith(github.event.comment.body, 'I have read the CLA Document and I hereby sign the CLA')) || github.event_name == 'pull_request_target'
         # SHA-pinned like every other action here, and it matters more in this
         # file than anywhere else: `pull_request_target` runs with write
         # permissions and repo secrets in the BASE repo's context, so a
