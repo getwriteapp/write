@@ -1111,13 +1111,27 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
   function settleCaret() {
     cancelAnimationFrame(caretSettleRaf)
     let stable = 0, lastX = null, lastY = null
-    const deadline = performance.now() + 800
+    const from = performance.now()
+    /* Stillness is not proof of arrival before `watchUntil`, and that is the
+       part this originally got wrong. The motion is not one continuous glide:
+       it comes in bursts with quiet gaps between them — the width transition
+       easing out, then the typeface swapping — and three identical frames
+       inside a gap looks exactly like having stopped. Sampled on a switch
+       into Dawn, the cursor held one x for five straight frames and then
+       moved twice more, at roughly 100ms and 280ms. Exiting on stillness
+       alone fired at ~64ms and left the caret 53px off the cursor, which is
+       the drift Brett reported still happening in 0.4.1.
+       So: keep watching for the whole window the motion is known to live in,
+       and only then let stillness end it. */
+    const watchUntil = from + 450
+    const deadline = from + 900
     const step = () => {
       updateCaret()
       if (caretLastX === lastX && caretLastY === lastY) stable++
       else { stable = 0; lastX = caretLastX; lastY = caretLastY }
       // three identical frames reads as arrived, not merely mid-glide
-      if (stable < 3 && performance.now() < deadline) {
+      const arrived = stable >= 3 && performance.now() >= watchUntil
+      if (!arrived && performance.now() < deadline) {
         caretSettleRaf = requestAnimationFrame(step)
       }
     }
