@@ -98,3 +98,54 @@ test('restarting the breath does not accumulate animations', async ({ page }) =>
   )
   expect(count).toBe(1)
 })
+
+/* Every room carries its own typeface, size, leading and measure, so changing
+   one reflows the text under the cursor. The caret is an absolutely-positioned
+   element driven by coordsAtPos, so it only lands correctly if something
+   re-reads that after the reflow.
+
+   Nothing did, in Flow view. measurePages() ends with an updateCaret() — but
+   it returns early when `view !== 'page'`, straight past it, so the caret kept
+   the x it had under the PREVIOUS room's font. Reported from real use: cycling
+   rooms left it sitting mid-word, worst in Cobalt (monospace, the biggest
+   metric change). It looked self-healing because typing fires a selection
+   change, which calls updateCaret by another route.
+
+   The assertion is drift: where the caret is PAINTED versus where ProseMirror
+   says it is. Comparing against a fixed pixel value would only encode one
+   room's metrics. */
+async function caretDrift(page) {
+  return page.evaluate(() => {
+    const ed = window.__write.editor
+    const c = ed.view.coordsAtPos(ed.state.selection.head)
+    const r = document.querySelector('.caret').getBoundingClientRect()
+    return { x: Math.abs(r.left - c.left), y: Math.abs(r.top - c.top) }
+  })
+}
+
+test('the caret stays on the cursor through a room change (Flow view)', async ({ page }) => {
+  await gotoApp(page)
+  // Flow is the default view and the one that was broken; assert that rather
+  // than assume it, so this cannot quietly start testing Page view instead.
+  await expect(page.locator('body')).toHaveAttribute('data-view', 'flow')
+
+  await setEditorContent(page, '<p>Every story starts with a knowing. Before the words.</p>')
+  await page.locator('.ProseMirror').click()
+  await page.keyboard.press('Control+End') // end of the line, where drift shows most
+  await page.waitForTimeout(300)
+
+  expect((await caretDrift(page)).x).toBeLessThan(2)
+
+  // All six rooms, back round to the start.
+  for (let i = 0; i < 6; i++) {
+    await page.keyboard.press('Control+\\')
+    // Past the room's own settle and any webfont swap. Deliberately does NOT
+    // touch the keyboard otherwise: typing would mask the bug by updating the
+    // caret through the selection path.
+    await page.waitForTimeout(900)
+    const room = await page.locator('body').getAttribute('data-room')
+    const drift = await caretDrift(page)
+    expect(drift.x, `x drift in room "${room}"`).toBeLessThan(2)
+    expect(drift.y, `y drift in room "${room}"`).toBeLessThan(3)
+  }
+})

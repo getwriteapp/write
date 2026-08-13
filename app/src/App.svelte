@@ -263,6 +263,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     syncPageLeading() // the new room's font has its own natural line height
     queueMeasure()
     measureWhenFontReady(getComputedStyle(document.body).getPropertyValue('--body-font'))
+    settleCaret() // the text moves under the cursor for ~370ms; follow it there
   }
 
   /* `ms` is here for the rare message that asks the reader to go and do
@@ -669,9 +670,19 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
       if (pageGapStyleEl) pageGapStyleEl.textContent = ''
       applySpacers([])
     }
-    if (view !== 'page' || !host) { clearPaging(); return }
+    /* Flow has no pages to compute, but it still REFLOWS — a room's typeface,
+       the zoom, the measure all move the text under the cursor. The caret is
+       an absolutely-positioned element, so unless something re-reads
+       coordsAtPos it keeps the coordinates it had under the previous layout.
+       Bailing out straight past the updateCaret() at the end of this function
+       is what left the caret sitting mid-word after cycling rooms: drawn at
+       the old x, up to 118px from where the text had moved (Cobalt, whose
+       monospace metrics differ most). Page view never showed it because there
+       the full pass runs and that final updateCaret() fires. */
+    const bail = () => { clearPaging(); updateCaret() }
+    if (view !== 'page' || !host) { bail(); return }
     const pm = host.querySelector('.ProseMirror')
-    if (!pm) { clearPaging(); return }
+    if (!pm) { bail(); return }
     const g = geom()
     // compact-junction display geometry (see JUNCTION_MY): trimmed vertical
     // margins where sheets meet; capacity (g.contentH) is untouched
@@ -1078,6 +1089,39 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
       restartBreathe() // a moving caret is always solid
       caretLastX = x; caretLastY = y
     }
+  }
+
+  /* A room change moves the text under the caret twice, for two reasons, on
+     two different clocks: the room's own measure/width transition, and the
+     reflow when the new typeface finally paints. One measurement cannot catch
+     both, and `document.fonts.ready` — the obvious hook — is genuinely too
+     early. Measured on a room switch into Cobalt: fonts.ready resolved at
+     22ms, the line had not rewrapped by 26ms, and the true position did not
+     stop moving until ~370ms. Cobalt is the case that makes it obvious, since
+     its monospace metrics rewrap the line and strand the caret on the wrong
+     line entirely, ~490px from the cursor.
+
+     So don't guess a delay — converge. Re-read the real position each frame
+     and stop once it has held still, with a hard deadline so this can never
+     spin. It doesn't need to know WHICH cause is still moving, which is what
+     makes it survive a future room whose transition is a different length.
+     updateCaret is a coordsAtPos read plus a style write, next to a relayout
+     the browser is doing anyway. */
+  let caretSettleRaf = 0
+  function settleCaret() {
+    cancelAnimationFrame(caretSettleRaf)
+    let stable = 0, lastX = null, lastY = null
+    const deadline = performance.now() + 800
+    const step = () => {
+      updateCaret()
+      if (caretLastX === lastX && caretLastY === lastY) stable++
+      else { stable = 0; lastX = caretLastX; lastY = caretLastY }
+      // three identical frames reads as arrived, not merely mid-glide
+      if (stable < 3 && performance.now() < deadline) {
+        caretSettleRaf = requestAnimationFrame(step)
+      }
+    }
+    caretSettleRaf = requestAnimationFrame(step)
   }
 
   // ---- the Bar: summonable formatting strip (Ctrl+/, or via the Commander) ----

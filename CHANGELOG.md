@@ -30,6 +30,18 @@ All notable changes to `write` are recorded here. Format loosely follows
 
 ### Fixed
 
+- **The caret stays on the cursor when you change rooms.** Cycling rooms in
+  Flow view left it behind at the position it held under the previous room's
+  typeface — usually a few characters out, but up to half the width of the
+  page in Cobalt, whose monospace metrics rewrap the line and stranded the
+  caret on the wrong line entirely. It looked like it healed itself, because
+  typing moves the selection and the caret is redrawn on that path. Two
+  separate causes, on two clocks: the room's own measure transition, and the
+  reflow when the new typeface finally paints — which happens *after*
+  `document.fonts.ready` resolves, so the obvious hook fires too early. The
+  caret now follows the text until it has actually stopped moving. Covered by
+  a real-browser test that measures where the caret is painted against where
+  the editor says the cursor is, in every room.
 - **First launch opens to a blank page**, not the "Begin again" essay. That
   essay (`WELCOME` in `editor.js`) still exists and is still used — as rich
   content for the `.docx` round-trip suite, which needs headings, bold and a
