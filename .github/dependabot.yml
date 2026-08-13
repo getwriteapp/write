@@ -59,8 +59,17 @@ updates:
       # of it directly, so Dependabot cannot raise it on its own and fails the
       # update run every week instead. That is unactionable red, and standing
       # red is worse than no signal: it is the thing that teaches you to stop
-      # reading these alerts. Real advisories still arrive through security
-      # updates, which `ignore` does not suppress.
+      # reading these alerts.
+      #
+      # Know what this costs, because it is more than it looks: `ignore`
+      # applies to Dependabot SECURITY updates too, not only version updates.
+      # So a real advisory in these crates will not get an automatic fix PR
+      # either. That is accepted deliberately here -- none of this stack is
+      # compiled into the shipped Windows binary, so an advisory in it is not
+      # reachable by any user of this app -- and it is not blind: Dependabot
+      # ALERTS are unaffected by this file and still appear in the Security
+      # tab, and the `cargo audit` CI job still reports them on every push.
+      # Do not copy this pattern to a crate that actually ships.
       #
       # NOTE: this is the same stack behind the `cargo audit` warnings. Of
       # those 17, eleven really are Linux-only GTK/GLib -- but five `unic-*`
