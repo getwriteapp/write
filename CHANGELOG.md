@@ -4,7 +4,7 @@ All notable changes to `write` are recorded here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is
 [SemVer](https://semver.org/), pre-1.0.
 
-## [Unreleased]
+## [0.4.1] — 2026-08-13
 
 ### Added
 
@@ -61,6 +61,28 @@ All notable changes to `write` are recorded here. Format loosely follows
   The tradeoff is real and accepted: every install now prompts UAC, and —
   until `write` is code-signed — that prompt reads "Unknown publisher"
   rather than a verified name.
+
+### Security
+
+- **The CLA workflow actually works now.** It was deleted by an unrelated
+  chrome-behaviour commit while CLA.md kept promising a bot comment on a
+  first pull request — restored, SHA-pinned (this file runs on
+  `pull_request_target` with write permissions and repo secrets in the base
+  repo's context, so a mutable tag here is a live supply-chain hole, not a
+  theoretical one), and fixed in two ways the restored version still would
+  not have worked: it was gated on a `PERSONAL_ACCESS_TOKEN` secret that
+  doesn't exist, and `contents: read` cannot commit the signature file the
+  action writes to this repo's own `cla-signatures` branch.
+- **Dependabot's GTK/GLib ignore rule, corrected.** The rule (added
+  alongside the CLA fix, to stop a weekly failed run — these crates reach
+  the tree only through Tauri's Linux path and are never compiled on
+  Windows) first shipped with a wrong justification: that Dependabot
+  security updates still get through even when version updates are
+  ignored. They don't — GitHub applies `ignore` to both. The rule is still
+  correct, but for the real reason: nothing here is reachable by a Windows
+  user of this app, and it isn't blind either way — alerts still surface in
+  the Security tab regardless of this file, and `cargo audit` in CI still
+  reports these crates on every push.
 
 ## [0.4.0] — 2026-08-13
 
