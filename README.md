@@ -113,9 +113,9 @@ in. Cycle them with `Ctrl/⌘ + \`.
 
 - **Six rooms**, remembered between sessions. Flow view adds narrow, normal
   and wide column widths.
-- **Twenty-eight bundled typefaces** — seven serif, two slab, thirteen sans,
-  two display, four typewriter — previewed live in your own document as you
-  arrow through the menu.
+- **Thirty-six bundled typefaces** — seven serif, five slab, thirteen sans,
+  seven display, four typewriter — previewed live in your own document as
+  you arrow through the menu.
 - **Focus mode** (`F11` or `Ctrl/⌘ Enter`) — dims everything but the paragraph
   you're in, and clears the chrome from all four corners.
 - **Chrome that gets out of the way.** The toolbar, wordmark and status row

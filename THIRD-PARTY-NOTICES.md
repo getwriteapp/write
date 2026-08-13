@@ -47,18 +47,24 @@ in its `node_modules/<package>/LICENSE`.
 
 | Typeface | Copyright |
 |---|---|
+| Abril Fatface | © 2011 TypeTogether, with Reserved Font Names "Abril" and "Abril Fatface" |
 | Archivo | © 2020 The Archivo Project Authors |
 | Atkinson Hyperlegible | © 2020 Braille Institute of America, Inc. |
 | Bitter | © 2011 The Bitter Project Authors |
+| Bricolage Grotesque | © 2022 The Bricolage Grotesque Project Authors |
 | Crimson Pro | © 2018 The Crimson Pro Project Authors |
 | EB Garamond | © 2017 The EB Garamond Project Authors |
 | Figtree | © 2022 The Figtree Project Authors |
+| Fjalla One | © 2012 The Fjalla Project Authors |
 | Fraunces | © 2020 The Fraunces Project Authors |
 | Geist | © 2024 The Geist Project Authors |
 | Geist Mono | © 2024 The Geist Project Authors |
 | IBM Plex Sans | © 2019 IBM Corp. |
+| Instrument Serif | © 2022 The Instrument Serif Project Authors |
 | Inter | © 2016 The Inter Project Authors |
 | JetBrains Mono | © 2020 The JetBrains Mono Project Authors |
+| Josefin Slab | © 2020 The Josefin Slab Project Authors, with Reserved Font Name "Josefin" |
+| Libre Caslon Display | © 2012 The Libre Caslon Display Authors |
 | Libre Franklin | © 2020 The Libre Franklin Project Authors |
 | Literata | © 2017 The Literata Project Authors |
 | Lora | © 2011 The Lora Project Authors |
@@ -69,14 +75,22 @@ in its `node_modules/<package>/LICENSE`.
 | Playfair Display | © 2017 The Playfair Display Project Authors |
 | Poppins | © 2020 The Poppins Project Authors |
 | Reddit Mono | © 2020-2023 Reddit, Inc. |
+| Rokkitt | © 2016 The Rokkit Project Authors |
 | Source Sans 3 | © Google Inc. |
 | Source Serif 4 | © Google Inc. |
 | Space Grotesk | © 2020 The Space Grotesk Project Authors |
 | Work Sans | © 2019 The Work Sans Project Authors |
+| Young Serif | © 2023 The Young Serif Project Authors |
 
 Full licence for each: `app/node_modules/@fontsource-variable/<slug>/LICENSE`, or
 `app/node_modules/@fontsource/<slug>/LICENSE` for statically-weighted families
-(Atkinson Hyperlegible, IBM Plex Sans, Poppins, Reddit Mono).
+(Abril Fatface, Atkinson Hyperlegible, Fjalla One, IBM Plex Sans, Instrument
+Serif, Libre Caslon Display, Poppins, Reddit Mono, Young Serif).
+
+Abril Fatface and Josefin Slab each carry a Reserved Font Name under the OFL
+("Abril"/"Abril Fatface" and "Josefin" respectively) — the same restriction
+already noted for iA Writer Quattro above: the exact name can't be reused for
+a Modified Version, which doesn't constrain bundling or using the font as-is.
 
 ### The one Apache-2.0 exception
 

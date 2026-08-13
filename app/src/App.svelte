@@ -1,6 +1,6 @@
 <script>
   import { onMount, onDestroy, tick } from 'svelte'
-  import { createEditor, WELCOME, insertImageFiles, bytesToDataUrl, IMAGE_EXT_MIME, findReplaceKey, markPastePlain, countRemoteImages, pageSpacerKey, pageSpacerDOM } from './lib/editor.js'
+  import { createEditor, insertImageFiles, bytesToDataUrl, IMAGE_EXT_MIME, findReplaceKey, markPastePlain, countRemoteImages, pageSpacerKey, pageSpacerDOM } from './lib/editor.js'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
   import { ROOMS, DEFAULT_ROOM } from './lib/rooms.js'
   import { fileBridge, isTauri, DOC_EXT_RE, LEGACY_DOC_RE } from './lib/bridge.js'
@@ -1164,7 +1164,12 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
                 Newsreader (editorial warmth) · Petrona (Session 34 — soft,
                 low-contrast curves, a big x-height; Dawn's room default)
        Slab   — Roboto Slab (sturdy, neutral) · Bitter (contrasty slab that
-                still sets as body text)
+                still sets as body text) · Josefin Slab (thin, art-deco
+                proportions with slab feet — elegant, not sturdy) · Rokkitt
+                (Arvo's geometry, softened and rounded) · Fjalla One
+                (Session 35's deliberate special-purpose pick — condensed,
+                single-weight, built for a heading or a label, not a
+                paragraph)
        Sans   — Geist · Inter (the neutral workhorse) · Work Sans · Libre
                 Franklin (a Franklin Gothic descendant) · Archivo (grotesque,
                 slightly condensed) · Manrope (geometric, soft) · IBM Plex Sans
@@ -1177,7 +1182,14 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
                 geometric here — circular bowls, single-story a) · Space
                 Grotesk (monospace-derived proportions, no italic exists)
        Display— Playfair Display (high-contrast) · Fraunces (soft, wonky
-                old-style). Title faces, not body faces.
+                old-style) · Abril Fatface (ultra-bold Didone poster weight,
+                one word at a time) · Instrument Serif (quirky, contemporary,
+                a real italic) · Libre Caslon Display (bold English
+                old-style, sturdier and more permanent) · Young Serif
+                (rounded, approachable, warmer than Fraunces without the
+                wobble) · Bricolage Grotesque (Session 35's only display
+                SANS — a genuine change of register, no italic exists).
+                Title faces, not body faces.
        Type-  — Reddit Mono (Cobalt's own voice) · iA Writer Quattro
        writer   (the original app voice) · JetBrains Mono (warmer, rounder
                 mono) · Geist Mono (tight and neutral) */
@@ -1195,6 +1207,9 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     { name: 'Slab', items: [
       { label: 'Roboto Slab', value: "'Roboto Slab Variable', Rockwell, serif" },
       { label: 'Bitter', value: "'Bitter Variable', Rockwell, serif" },
+      { label: 'Josefin Slab', value: "'Josefin Slab Variable', Rockwell, serif" },
+      { label: 'Rokkitt', value: "'Rokkitt Variable', Rockwell, serif" },
+      { label: 'Fjalla One', value: "'Fjalla One', Rockwell, serif" },
     ] },
     { name: 'Sans', items: [
       { label: 'Geist', value: "'Geist Variable', sans-serif" },
@@ -1214,6 +1229,11 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     { name: 'Display', items: [
       { label: 'Playfair Display', value: "'Playfair Display Variable', Georgia, serif" },
       { label: 'Fraunces', value: "'Fraunces Variable', Georgia, serif" },
+      { label: 'Abril Fatface', value: "'Abril Fatface', Georgia, serif" },
+      { label: 'Instrument Serif', value: "'Instrument Serif', Georgia, serif" },
+      { label: 'Libre Caslon Display', value: "'Libre Caslon Display', Georgia, serif" },
+      { label: 'Young Serif', value: "'Young Serif', Georgia, serif" },
+      { label: 'Bricolage Grotesque', value: "'Bricolage Grotesque Variable', -apple-system, sans-serif" },
     ] },
     { name: 'Typewriter', items: [
       { label: 'Reddit Mono', value: "'Reddit Mono', monospace" },
@@ -2004,8 +2024,12 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     if (mainEl && zoomPct !== 100) mainEl.style.zoom = String(zoomPct / 100)
     recents = store.loadRecents()
     const last = store.loadDoc()
+    // First launch — no saved draft yet — opens to a blank page, same as
+    // pressing New. WELCOME (the "Begin again" essay) still exists as rich
+    // content for the .docx round-trip test; it's just no longer what a
+    // fresh install shows.
     editor = createEditor(host, {
-      content: last?.html || WELCOME,
+      content: last?.html || '',
       spellcheck,
       formattingMarks,
       onUpdate: () => { saved = false; touched = true; recount(); markTyping(); scheduleAutosave(); queueMeasureSoon(); refreshTableState() },

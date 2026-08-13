@@ -41,6 +41,14 @@ export const WORD_TO_CSS = {
   'poppins': "'Poppins', -apple-system, sans-serif",
   'space grotesk': "'Space Grotesk Variable', -apple-system, sans-serif",
   'petrona': "'Petrona Variable', Georgia, serif",
+  'abril fatface': "'Abril Fatface', Georgia, serif",
+  'instrument serif': "'Instrument Serif', Georgia, serif",
+  'libre caslon display': "'Libre Caslon Display', Georgia, serif",
+  'young serif': "'Young Serif', Georgia, serif",
+  'bricolage grotesque': "'Bricolage Grotesque Variable', -apple-system, sans-serif",
+  'josefin slab': "'Josefin Slab Variable', Rockwell, serif",
+  'rokkitt': "'Rokkitt Variable', Rockwell, serif",
+  'fjalla one': "'Fjalla One', Rockwell, serif",
 }
 
 /* CSS stack → Word family name: first family, quotes stripped, and the
