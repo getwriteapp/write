@@ -90,24 +90,33 @@ sha256sum write_<version>_x64-setup.exe
 cd app && npm test
 ```
 
-That runs the `.docx` round-trip suite, the sanitizer regression suite, the
-save-model tests, and an `npm audit` gate at `--audit-level=high`. The Rust
-side is covered by:
+That runs the `.docx` round-trip suite, the sanitizer regression suite, an
+`npm test:licenses` gate (below), the save-model tests, and an `npm audit`
+gate at `--audit-level=high`. The Rust side is covered by:
 
 ```bash
 cd app/src-tauri && cargo audit
 ```
 
-and a licence gate, which answers a different question — not "is anything
-known-broken?" but "may we actually ship this?":
+Both suites also carry a licence gate, which answers a different question —
+not "is anything known-broken?" but "may we actually ship this?". `write` is
+GPL-3.0-or-later, which absorbs permissive dependencies but genuinely cannot
+combine with GPL-2.0-only or proprietary terms. Two gates, because npm and
+Cargo are two separate dependency trees with no overlap:
 
 ```bash
-cd app/src-tauri && cargo deny check licenses
+cd app/src-tauri && cargo deny check licenses   # Rust tree — policy in deny.toml
+cd app && npm run test:licenses                 # npm tree — policy in tests/license-check.mjs
 ```
 
-`write` is GPL-3.0-or-later, which absorbs permissive dependencies but
-genuinely cannot combine with GPL-2.0-only or proprietary terms. The policy and
-the reasoning are in `app/src-tauri/deny.toml`. Both run in CI on every push and
-pull request; `npm ci --ignore-scripts` is used there too, since a compromised
-package's payload almost always runs from an install hook before any of our own
-code does.
+The npm gate reads the full resolved tree from `package-lock.json` — every
+transitive dependency, not just what `package.json` names directly — and
+checks each one's real installed licence field against an allow-list. It
+exists because the Rust gate only ever covered `app/src-tauri`; every
+`@fontsource` typeface and everything `docx`/`fast-xml-parser` pull in lives
+on the npm side and, until this gate existed, had no automated check at all.
+A font added under a non-redistributable licence would have passed silently.
+
+Both run in CI on every push and pull request; `npm ci --ignore-scripts` is
+used there too, since a compromised package's payload almost always runs from
+an install hook before any of our own code does.

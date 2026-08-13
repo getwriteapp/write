@@ -13,9 +13,10 @@
     "tauri": "tauri",
     "test:docx": "node tests/roundtrip.mjs",
     "test:security": "node tests/sanitize-probe.mjs",
+    "test:licenses": "node tests/license-check.mjs",
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
-    "test": "npm run test:docx && npm run test:security && npm run test:unit && npm audit --audit-level=high",
+    "test": "npm run test:docx && npm run test:security && npm run test:licenses && npm run test:unit && npm audit --audit-level=high",
     "test:all": "npm run test && npm run test:e2e"
   },
   "devDependencies": {

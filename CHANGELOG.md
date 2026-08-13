@@ -4,6 +4,52 @@ All notable changes to `write` are recorded here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is
 [SemVer](https://semver.org/), pre-1.0.
 
+## [Unreleased]
+
+### Added
+
+- **Ten new document typefaces: five Display, five Slab** (Display 2 → 7:
+  Abril Fatface, Instrument Serif, Libre Caslon Display, Young Serif,
+  Bricolage Grotesque; Slab 2 → 5: Josefin Slab, Rokkitt, Fjalla One). Picked
+  from live comparison artifacts rather than by name — real font files, the
+  same title-line set in every face, Slab's shown as running text too since
+  unlike Display it has to work as body copy. Fjalla One is condensed and
+  single-weight, kept anyway as a deliberate special-purpose exception inside
+  an otherwise body-safe category. 36 typefaces total, up from 26.
+- **A licence gate for the npm dependency tree** (`npm run test:licenses`,
+  policy in `app/tests/license-check.mjs`, now part of `npm test`). The
+  existing `cargo deny check licenses` only ever covered `app/src-tauri`;
+  every `@fontsource` typeface and everything `docx`/`fast-xml-parser` pull
+  in lives on the npm side and had no automated check at all — a font added
+  under a non-redistributable licence would have passed silently. Reads the
+  full resolved tree from `package-lock.json`, not just `package.json`'s
+  direct dependencies, and reads each package's real installed licence field
+  rather than trusting the lockfile alone. Verified it actually fails: ran it
+  against a deliberately corrupted lockfile entry before trusting the clean
+  result. All 137 production packages currently pass.
+
+### Fixed
+
+- **First launch opens to a blank page**, not the "Begin again" essay. That
+  essay (`WELCOME` in `editor.js`) still exists and is still used — as rich
+  content for the `.docx` round-trip suite, which needs headings, bold and a
+  blockquote to actually exercise the format — it's just no longer what a
+  fresh install shows. Also removed the `Placeholder` extension entirely
+  (and its now-unused dependency): an empty document was still showing
+  "Begin…" ghost text in the first paragraph.
+- **Flow view's opening headroom matched Page view's.** At 40px top padding,
+  the caret on an empty or short document sat almost directly under the
+  Bar's own card the instant it was summoned. Page view's stack (28px chrome
+  padding plus the page's own ~96px top margin) puts text about 124px down;
+  Flow's is now 120px, so the two views open to a comparable resting position
+  instead of Flow starting noticeably higher.
+- **The Windows installer now installs per-machine** (Program Files),
+  instead of Tauri's default per-user install under `%LocalAppData%`, which
+  left `write.exe` writable by any other process running as the same user.
+  The tradeoff is real and accepted: every install now prompts UAC, and —
+  until `write` is code-signed — that prompt reads "Unknown publisher"
+  rather than a verified name.
+
 ## [0.4.0] — 2026-08-13
 
 ### Added
