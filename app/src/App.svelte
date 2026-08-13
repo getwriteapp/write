@@ -1164,12 +1164,12 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
                 Newsreader (editorial warmth) · Petrona (Session 34 — soft,
                 low-contrast curves, a big x-height; Dawn's room default)
        Slab   — Roboto Slab (sturdy, neutral) · Bitter (contrasty slab that
-                still sets as body text) · Josefin Slab (thin, art-deco
-                proportions with slab feet — elegant, not sturdy) · Rokkitt
-                (Arvo's geometry, softened and rounded) · Fjalla One
-                (Session 35's deliberate special-purpose pick — condensed,
-                single-weight, built for a heading or a label, not a
-                paragraph)
+                still sets as body text) · Fjalla One (Session 35's
+                deliberate special-purpose pick — condensed, single-weight,
+                built for a heading or a label, not a paragraph) · Josefin
+                Slab (thin, art-deco proportions with slab feet — elegant,
+                not sturdy) · Rokkitt (Arvo's geometry, softened and
+                rounded)
        Sans   — Geist · Inter (the neutral workhorse) · Work Sans · Libre
                 Franklin (a Franklin Gothic descendant) · Archivo (grotesque,
                 slightly condensed) · Manrope (geometric, soft) · IBM Plex Sans
@@ -1207,9 +1207,9 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     { name: 'Slab', items: [
       { label: 'Roboto Slab', value: "'Roboto Slab Variable', Rockwell, serif" },
       { label: 'Bitter', value: "'Bitter Variable', Rockwell, serif" },
+      { label: 'Fjalla One', value: "'Fjalla One', Rockwell, serif" },
       { label: 'Josefin Slab', value: "'Josefin Slab Variable', Rockwell, serif" },
       { label: 'Rokkitt', value: "'Rokkitt Variable', Rockwell, serif" },
-      { label: 'Fjalla One', value: "'Fjalla One', Rockwell, serif" },
     ] },
     { name: 'Sans', items: [
       { label: 'Geist', value: "'Geist Variable', sans-serif" },
