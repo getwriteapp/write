@@ -4,7 +4,7 @@ All notable changes to `write` are recorded here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is
 [SemVer](https://semver.org/), pre-1.0.
 
-## [Unreleased]
+## [0.4.0] — 2026-08-13
 
 ### Added
 
@@ -60,6 +60,13 @@ All notable changes to `write` are recorded here. Format loosely follows
 - **Dependabot cooldown.** New versions wait a few days before being offered.
   Compromised packages are usually caught and pulled within a day or two, and the
   people they reach are the ones who upgraded within hours of publication.
+- **Every CI action pinned to a full commit SHA.** The licence-check job already
+  was; `checkout`, `setup-node` (both jobs) and `dtolnay/rust-toolchain` weren't.
+  A tag is mutable — whoever controls an action's repository can repoint `v7` at
+  new code, and every workflow using it picks that up silently. This workflow
+  holds no secrets today, so the exposure was tampered test output rather than
+  anything worse — pinned now rather than retrofitted the day a release workflow
+  lands beside it.
 
 ## [0.3.0] — 2026-08-12
 

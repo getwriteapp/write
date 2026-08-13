@@ -5,6 +5,15 @@
 # .docx round-trip suite, the sanitizer regression suite (scripts and remote
 # images must not survive an import), the save-model component tests, and an
 # npm audit gate. The pagination tests need a real browser and run separately.
+#
+# Actions are pinned to full commit SHAs, not tags. A tag is mutable — whoever
+# controls an action's repository can repoint `v7` at new code, and every
+# workflow using it picks that up silently on the next run. This job holds no
+# secrets today (write has no release workflow on main; the signed-updater one
+# lives only on archive/signed-updater), so a compromised action could only
+# tamper with test output — but pin now rather than retrofit it the day that
+# stops being true. The trailing comment records which tag each SHA came from;
+# Dependabot reads that format and keeps the two in sync.
 name: CI
 
 on:
@@ -23,8 +32,8 @@ jobs:
       run:
         working-directory: app
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           # jsdom 30 (the new component-test tier) hard-requires Node
           # ^22.22.2 || ^24.15.0 || >=26 -- it throws on 20 at import time
@@ -50,8 +59,8 @@ jobs:
       run:
         working-directory: app
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           cache: npm
@@ -87,8 +96,11 @@ jobs:
     name: cargo test + audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # `stable` here is a branch, not even a tag — it moves under us on every
+      # toolchain release. Pinned to the same commit as PwrMon's and Mini
+      # Chat's release workflows use for the same action.
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
       # Linux needs the WebKitGTK backend present just to compile the crate.
       - name: Build dependencies
         run: |
