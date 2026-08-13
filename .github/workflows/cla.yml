@@ -1,0 +1,65 @@
+# Contributor License Agreement check.
+#
+# Every pull request from someone not on the allowlist gets a bot comment
+# asking them to sign CLA.md by replying once. Signatures are stored as JSON
+# in a branch of this repo, so there is no third-party service holding them.
+#
+# This exists to keep two options open that a single unsigned merge would
+# close permanently: a future dual licence, and an Apache/MIT split of the
+# .docx engine. CLA.md explains the reasoning to contributors.
+#
+# One-time setup before this can pass:
+#   1. Create a classic PAT with `repo` scope on the account that should own
+#      the signature file, and add it to this repo as the secret
+#      PERSONAL_ACCESS_TOKEN.
+#   2. Create an empty orphan branch named `cla-signatures`.
+#
+# If you use the hosted cla-assistant.io GitHub App instead of this action,
+# delete this file — otherwise both will comment on every pull request.
+name: CLA
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  actions: write
+  contents: read
+  pull-requests: write
+  statuses: write
+
+jobs:
+  cla:
+    name: Check the CLA
+    runs-on: ubuntu-latest
+    # Skips itself cleanly until the secret exists, rather than failing every
+    # pull request in the meantime. `secrets` isn't available to a job-level
+    # `if`, but `env` is available to a step-level one.
+    env:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+    steps:
+      - name: CLA assistant
+        if: env.PERSONAL_ACCESS_TOKEN != '' && ((github.event.comment.body == 'recheck' || startsWith(github.event.comment.body, 'I have read the CLA Document and I hereby sign the CLA')) || github.event_name == 'pull_request_target')
+        # SHA-pinned like every other action here, and it matters more in this
+        # file than anywhere else: `pull_request_target` runs with write
+        # permissions and repo secrets in the BASE repo's context, so a
+        # mutable tag on a third-party action would be a live supply-chain
+        # hole rather than a theoretical one.
+        uses: contributor-assistant/github-action@ca4a40a7d1004f18d9960b404b97e5f30a505a08 # v2.6.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          path-to-signatures: signatures/version1/cla.json
+          path-to-document: https://github.com/getwriteapp/write/blob/main/CLA.md
+          branch: cla-signatures
+          allowlist: brettkcherry,dependabot[bot],dependabot-preview[bot]
+          custom-notsigned-prcomment: >
+            Thank you for the pull request. Before it can be merged, please
+            read the [Contributor License Agreement](https://github.com/getwriteapp/write/blob/main/CLA.md)
+            and sign it by posting the comment below. It applies to all your
+            future contributions here, so you only do this once. You keep the
+            copyright in your work.
+          custom-pr-sign-comment: 'I have read the CLA Document and I hereby sign the CLA'
+          custom-allsigned-prcomment: 'CLA signed. Thank you.'

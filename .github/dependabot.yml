@@ -52,6 +52,25 @@ updates:
     groups:
       tauri:
         patterns: ["tauri*"]
+    ignore:
+      # The GTK/GLib stack reaches this tree only through Tauri's Linux path
+      # and is never compiled on Windows -- `cargo tree -i glib` on the
+      # default target prints "nothing to print". Nothing here depends on any
+      # of it directly, so Dependabot cannot raise it on its own and fails the
+      # update run every week instead. That is unactionable red, and standing
+      # red is worse than no signal: it is the thing that teaches you to stop
+      # reading these alerts. Real advisories still arrive through security
+      # updates, which `ignore` does not suppress.
+      #
+      # NOTE: this is the same stack behind the `cargo audit` warnings. Of
+      # those 17, eleven really are Linux-only GTK/GLib -- but five `unic-*`
+      # crates are NOT: they ship on Windows via urlpattern -> tauri-utils.
+      # Do not widen this ignore list on the assumption that everything
+      # Tauri-transitive is inert on Windows.
+      - dependency-name: "glib*"
+      - dependency-name: "gtk*"
+      - dependency-name: "gdk*"
+      - dependency-name: "atk*"
 
   - package-ecosystem: github-actions
     directory: /
