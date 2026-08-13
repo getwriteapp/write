@@ -54,18 +54,31 @@ test('the caret stays on the cursor through a full cycle of rooms', async ({ pag
   const seen = []
   for (let i = 0; i < 6; i++) {
     await page.keyboard.press('Control+\\')
-    // Past the room's own fades and the caret's 75ms glide, and long enough
-    // for a typeface that has to be fetched on first use to land and reflow.
-    await page.waitForTimeout(1200)
 
+    /* Poll, don't sleep-then-check. A fixed 1200ms wait was tuned against an
+       unloaded machine: settleCaret's own convergence has a 900ms ceiling,
+       and when the suite's other workers starve this browser of frames, that
+       ceiling can arrive before the layout has stopped moving — so the caret
+       is still mid-settle when a fixed wait samples it (observed: 49px out in
+       "slate"). Polling still FAILS on the bug this test exists for, because
+       a caret that never converges never satisfies it; it only stops failing
+       when the sole problem was the sampling instant. See TESTALL-FLAKE.md. */
     const room = await page.evaluate(() => document.body.getAttribute('data-room'))
+    await expect
+      .poll(async () => Math.round((await caretError(page)).x), {
+        timeout: 5000,
+        message: `caret never landed on the cursor horizontally in room "${room}"`,
+      })
+      .toBeLessThanOrEqual(2)
+    await expect
+      .poll(async () => Math.round((await caretError(page)).y), {
+        timeout: 5000,
+        message: `caret never landed on the cursor vertically in room "${room}"`,
+      })
+      .toBeLessThanOrEqual(2)
+
     const err = await caretError(page)
     seen.push({ room, x: Math.round(err.x), y: Math.round(err.y) })
-
-    // A couple of px is sub-glyph rounding between two ways of asking the
-    // same question. Anything more is the caret pointing at the wrong text.
-    expect(err.x, `caret drifted ${Math.round(err.x)}px horizontally in room "${room}"`).toBeLessThanOrEqual(2)
-    expect(err.y, `caret drifted ${Math.round(err.y)}px vertically in room "${room}"`).toBeLessThanOrEqual(2)
   }
 
   // Every room actually got visited — a cycle that silently stopped moving

@@ -679,7 +679,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
        the old x, up to 118px from where the text had moved (Cobalt, whose
        monospace metrics differ most). Page view never showed it because there
        the full pass runs and that final updateCaret() fires. */
-    const bail = () => { clearPaging(); updateCaret() }
+    const bail = () => { clearPaging(); updateCaret({ quiet: true }) }
     if (view !== 'page' || !host) { bail(); return }
     const pm = host.querySelector('.ProseMirror')
     if (!pm) { bail(); return }
@@ -929,8 +929,11 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     // follow the cursor down so the writer lands at the top of the new sheet
     if (lastMeasuredPages !== null && pages > lastMeasuredPages) followCaretToNewPage()
     lastMeasuredPages = pages
-    // the injected padding just moved blocks; the caret must move with them
-    updateCaret()
+    /* The injected padding just moved blocks; the caret must move with them —
+       but quietly. Layout shifting the caret is never the writer moving it,
+       so it must not restart the breath. The real moves (typing, arrows,
+       clicks) all arrive through onSelection, which is not quiet. */
+    updateCaret({ quiet: true })
   }
 
   // ---- focus dimming: light only the block the cursor is in ----
@@ -1051,7 +1054,16 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     updateCaret()
   })
 
-  function updateCaret() {
+  /* `quiet` positions the caret WITHOUT treating the move as the user moving
+     it — no breathe restart. Only settleCaret's convergence loop passes it:
+     that loop repositions the caret every frame while a room's reflow lands,
+     and each of those frames would otherwise read as "the caret moved" and
+     reset the breath, holding it solid for the whole settle. Everything else
+     — typing, arrows, clicks — is a real move and must still restart it.
+     Safe to pass as a bare event handler (editor.on('focus', updateCaret),
+     setTimeout(updateCaret, 0)): destructuring an Event or undefined just
+     leaves `quiet` false. */
+  function updateCaret({ quiet = false } = {}) {
     if (!caretEl || !host) return
     // activeElement (not editor.isFocused): the caret should hide exactly
     // when another control (Commander, Find, the Bar) takes the keyboard —
@@ -1086,7 +1098,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     if (appearing) { void caretEl.offsetWidth; caretEl.style.transition = '' }
     caretVisible = true
     if (x !== caretLastX || y !== caretLastY) {
-      restartBreathe() // a moving caret is always solid
+      if (!quiet) restartBreathe() // a moving caret is always solid
       caretLastX = x; caretLastY = y
     }
   }
@@ -1126,13 +1138,26 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     const watchUntil = from + 450
     const deadline = from + 900
     const step = () => {
-      updateCaret()
+      /* Quiet: the caret is being dragged along by the room's reflow, not
+         moved by the writer. Restarting the breath on each of these frames
+         held it solid for the entire settle — measured 1-2 restarts per
+         switch and the breath never reaching its 0.38 floor, where before
+         this loop existed a room change did not disturb it at all. */
+      updateCaret({ quiet: true })
       if (caretLastX === lastX && caretLastY === lastY) stable++
       else { stable = 0; lastX = caretLastX; lastY = caretLastY }
       // three identical frames reads as arrived, not merely mid-glide
       const arrived = stable >= 3 && performance.now() >= watchUntil
       if (!arrived && performance.now() < deadline) {
         caretSettleRaf = requestAnimationFrame(step)
+      } else if (caretVisible) {
+        /* Landed. One restart here, deliberately: it marks the arrival —
+           solid through the 150ms delay, then breathing again from the top of
+           a clean cycle. Guarded on caretVisible so a caret hidden mid-settle
+           (the Commander opening over it) is not handed a running animation
+           that would keep writing an opacity onto it — the whole reason
+           hideCaret cancels the breath. */
+        restartBreathe()
       }
     }
     caretSettleRaf = requestAnimationFrame(step)

@@ -37,10 +37,18 @@ test('the caret breathes once it is left alone, and restarts solid when it moves
   // An animation exists and is running — the breath is real, not a static caret.
   await expect.poll(() => breatheState(page)).toContain('running')
 
-  // Let it get well into the dim half of the cycle...
-  await page.waitForTimeout(1900)
-  const dimmed = parseFloat(await caretOpacity(page))
-  expect(dimmed).toBeLessThan(0.95)
+  /* Poll rather than sleep-then-check. The breath is a 3.4s WAAPI cycle and
+     its WALL-CLOCK progress depends on how much CPU this browser is actually
+     getting; with the suite's other workers running, 1900ms of wall clock can
+     be a small fraction of that in animation time. Sleeping a fixed 1900ms
+     and sampling once made this the flakiest test in the suite — it failed
+     reading 0.99 and 0.97, i.e. the breath had barely started, not that it
+     was broken. What the test means is "left alone, it dims"; so wait for
+     that, with a ceiling generous enough that only a genuinely stuck breath
+     fails. See TESTALL-FLAKE.md. */
+  await expect
+    .poll(async () => parseFloat(await caretOpacity(page)), { timeout: 8000 })
+    .toBeLessThan(0.95)
 
   // ...then move it. A moving caret must be solid again immediately, which is
   // what restarting into the animation's 150ms delay buys.
