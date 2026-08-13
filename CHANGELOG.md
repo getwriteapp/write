@@ -4,6 +4,32 @@ All notable changes to `write` are recorded here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is
 [SemVer](https://semver.org/), pre-1.0.
 
+## [0.4.3] — 2026-08-13
+
+### Fixed
+
+- **The caret stopped breathing on a room change.** A side effect of 0.4.2's
+  own fix: `settleCaret()` repositions the caret every frame for up to
+  900ms after a room switch, and the breathing animation restarts on *any*
+  position change — correct for typing, arrows and clicks, where a moving
+  caret should stay solid, wrong here, where the reflow dragging the caret
+  along isn't the writer moving it. The measured effect: a room switch used
+  to leave the breath alone entirely (0 restarts, settling to its tuned
+  0.38 floor); after 0.4.2 it restarted 1–2 times per switch and never got
+  near the floor. `updateCaret()` now takes a `quiet` flag — position
+  without counting as a move — used by both `settleCaret()`'s loop and
+  `measurePages()` (which also moves the caret, driven by the same room
+  change). The breath now restarts exactly once, at arrival, while a real
+  `ArrowLeft` still snaps it solid.
+
+  Two of the tests behind an intermittently failing `test:all` run were
+  fixed alongside it: both slept a fixed time and sampled once, so they
+  measured how much CPU the browser happened to get that run rather than
+  the app. Now they poll instead. Verified the polls still fail on the
+  real bug — reverting the fix makes `caret-rooms.spec.js` fail at 131px
+  of drift in Dawn — rather than having become unfailable along with the
+  flakiness.
+
 ## [0.4.2] — 2026-08-13
 
 ### Fixed
