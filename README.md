@@ -40,7 +40,7 @@ covers what's next and how to help.
 ## Getting it
 
 Download the installer from the [latest
-release](https://github.com/getwriteapp/write/releases/latest) — a 5.1 MB
+release](https://github.com/getwriteapp/write/releases/latest) — a 5.7 MB
 `.exe`. No account, no telemetry.
 
 **Windows only.** The codebase is cross-platform and the macOS and Linux build
@@ -167,7 +167,7 @@ Word and LibreOffice convert `.doc` to `.docx` in one step.
 
 ## Built with
 
-- **[Tauri 2](https://tauri.app)** (Rust) — a 7.4 MB binary, 5.1 MB installer,
+- **[Tauri 2](https://tauri.app)** (Rust) — a 7.9 MB binary, 5.7 MB installer,
   using the system webview. Roughly half of that is the bundled typefaces.
 - **[Svelte 5](https://svelte.dev)** + **[Vite](https://vite.dev)**
 - **[Tiptap](https://tiptap.dev)** / ProseMirror
