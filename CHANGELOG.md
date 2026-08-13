@@ -4,6 +4,29 @@ All notable changes to `write` are recorded here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is
 [SemVer](https://semver.org/), pre-1.0.
 
+## [0.4.2] — 2026-08-13
+
+### Fixed
+
+- **Cycling rooms left the caret behind — sometimes far behind.** A room
+  swaps both the measure and the typeface, and the text reflows on two
+  different clocks: `.editor-host`'s own 300ms width transition, and
+  whenever the new font finishes painting. `settleCaret()` (added in 0.4.1
+  to fix this once already) re-read the cursor position each frame and
+  stopped once it held still for three frames — but the motion isn't one
+  glide, it arrives in bursts with quiet gaps between them, and three still
+  frames inside a gap looks exactly like arrival. Sampled switching into
+  Dawn, the cursor held one x for five straight frames and then moved twice
+  more, at roughly 100ms and 280ms; the old exit condition quit at ~64ms and
+  left the caret up to 53px from the real cursor — worse on Cobalt, whose
+  monospace metrics rewrap the line entirely. Fixed by not letting
+  stillness end the watch until the window the motion is known to live in
+  (450ms) has passed. Caught by a real-browser regression test using
+  multi-line text and the actual painted position — both matter: one line
+  barely shows the drift, and the caret's own 75ms glide means its inline
+  transform is a target, not where it's drawn, so checking that number
+  alone would have passed while the caret sat visibly in the wrong place.
+
 ## [0.4.1] — 2026-08-13
 
 ### Added
