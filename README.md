@@ -69,7 +69,7 @@ in. Cycle them with `Ctrl/⌘ + \`.
 
 - **Real `.docx` open and save.** Documents round-trip through Microsoft Word
   with structure intact, on a `.docx` reader and writer built for this app.
-  A 99-fixture round-trip suite runs on every commit.
+  A 107-fixture round-trip suite runs on every commit.
 - **Rich text that survives the trip** — headings, lists, quotes, code, links,
   bold/italic/underline/strikethrough, colour and highlight, alignment, line
   spacing, indentation, font family and size.
