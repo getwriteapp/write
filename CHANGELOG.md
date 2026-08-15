@@ -4,6 +4,32 @@ All notable changes to `write` are recorded here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is
 [SemVer](https://semver.org/), pre-1.0.
 
+## [0.4.4] — 2026-08-15
+
+### Added
+
+- **`.md` joins `.docx`, `.html` and `.txt` as an openable format**, with
+  real formatting — headings, bold, links, lists, blockquotes — not literal
+  markdown syntax. Uses `markdown-it` (already in the tree transitively via
+  `@tiptap/pm`), lazy-loaded as its own chunk so it costs nothing in the
+  main bundle until a `.md` is actually opened. Raw HTML embedded in a `.md`
+  file is deliberately never rendered as markup — it shows as inert,
+  visible, escaped text instead — on top of whatever the editor's own
+  sanitizing schema would have caught anyway.
+
+### Fixed
+
+- **The Find & Replace popup's close button could end up anywhere** once
+  the bar wrapped to a second line — a long query, a narrow window. Pinned
+  to the popup's own top-right corner instead of sitting in the flex flow.
+- Clarified a README line that read as if Page view lacked Flow's
+  narrow/normal/wide control. Both views have their own — Flow's sets
+  reading width, Page's sets physical margins.
+- Two more instances of the sleep-then-check pattern behind an
+  intermittently failing `test:all` (see 0.4.3), found while verifying the
+  `.md` work under the suite's own parallel load. One measured 371px of
+  caret drift under contention — the largest of the whole investigation.
+
 ## [0.4.3] — 2026-08-13
 
 ### Fixed
