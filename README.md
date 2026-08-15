@@ -12,10 +12,10 @@
 
 `write` opens into a single quiet page. No ribbon, no panels. Reach for
 emphasis and a small toolbar appears, then leaves. Underneath is a real
-rich-text document that saves as clean `.docx`.
+rich-text document creator and editor that saves clean `.docx`.
 
 It is for letters, résumés, essays, notes and stories — documents that have to
-look right and have to open in Word.
+look right and open correctly in Word.
 
 [`DESIGN.md`](DESIGN.md) covers the design intent. [`ROADMAP.md`](ROADMAP.md)
 covers what's next and how to help.
@@ -101,8 +101,10 @@ in. Cycle them with `Ctrl/⌘ + \`.
 
 ### The room
 
-- **Six rooms**, remembered between sessions. Flow view adds narrow, normal
-  and wide column widths.
+- **Six rooms**, remembered between sessions. Both views get their own
+  narrow/normal/wide control — Flow's sets the column's reading width, Page's
+  sets the sheet's physical margins, since a continuous column and a printed
+  page don't share a notion of "width" to begin with.
 - **Thirty-six bundled typefaces** — seven serif, five slab, thirteen sans,
   seven display, four typewriter — previewed live in your own document as
   you arrow through the menu.
