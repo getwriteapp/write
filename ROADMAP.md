@@ -1,9 +1,6 @@
 # Roadmap
 
-What's being worked on, what's likely next, and what isn't planned. Dates are
-intentions, not commitments — `write` is built by one person.
-
-Open issues and pull requests are the live view; this file is the direction.
+What's being worked on, what's likely next, and what isn't planned.
 
 ## Now
 
@@ -25,13 +22,11 @@ Open issues and pull requests are the live view; this file is the direction.
 
 - A frameless window, with the app supplying its own titlebar and snap
   behaviour.
-- More typefaces in the serif, slab and display categories.
 - Cached TOC page numbers at export, so Word does not have to update the field
   on open.
 
 ## Not planned
 
-- Real-time collaboration, cloud sync, or accounts of any kind.
 - `.doc` (pre-2007 binary Word). See [DESIGN.md](DESIGN.md).
 - Telemetry or analytics, in any form, opt-in or otherwise.
 - Paid tiers. `write` is GPL and stays free.
