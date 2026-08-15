@@ -143,7 +143,7 @@ in. Cycle them with `Ctrl/⌘ + \`.
 - TOC page numbers are computed by Word on open rather than cached at export.
 - Adjacent blockquotes merge on import.
 
-`write` opens `.docx`, `.html` and `.txt`. It does not open `.doc`, the
+`write` opens `.docx`, `.html`, `.txt` and `.md`. It does not open `.doc`, the
 pre-2007 binary format: `.docx` is a zip of XML and `.doc` is an OLE compound
 binary, so reading it means a second parser sharing nothing with the first.
 Word and LibreOffice convert `.doc` to `.docx` in one step.

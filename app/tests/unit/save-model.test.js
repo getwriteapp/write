@@ -33,7 +33,7 @@ vi.mock('../../src/lib/bridge.js', () => ({
     openFile: vi.fn(),
   },
   isTauri: false,
-  DOC_EXT_RE: /\.(docx|html?|txt)$/i,
+  DOC_EXT_RE: /\.(docx|html?|txt|md)$/i,
   /* Mirrors the real module. App.svelte's drop handlers call .test() on this,
      so a mock that omits it fails as a confusing "cannot read properties of
      undefined" the moment someone adds the first drop test — not here. */

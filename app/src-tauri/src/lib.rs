@@ -30,7 +30,7 @@ use tauri_plugin_opener::OpenerExt;
 /// The formats write can actually open. A drop of anything else is ignored
 /// rather than scoped — dropping a file on a word processor says "open this",
 /// and nothing write can open lives outside this list.
-const OPENABLE: &[&str] = &["docx", "html", "htm", "txt", "png", "jpg", "jpeg", "gif"];
+const OPENABLE: &[&str] = &["docx", "html", "htm", "txt", "md", "png", "jpg", "jpeg", "gif"];
 
 fn is_openable(path: &Path) -> bool {
     path.extension()
@@ -57,7 +57,7 @@ async fn pick_document_to_open(app: tauri::AppHandle) -> Option<String> {
     let picked = app
         .dialog()
         .file()
-        .add_filter("Documents", &["docx", "html", "htm", "txt"])
+        .add_filter("Documents", &["docx", "html", "htm", "txt", "md"])
         .add_filter("Word document", &["docx"])
         .blocking_pick_file()?;
     grant(&app, picked)

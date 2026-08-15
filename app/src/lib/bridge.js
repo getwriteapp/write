@@ -46,6 +46,32 @@ const textToHtml = (text) =>
     .map((line) => (line ? `<p>${escapeHtml(line)}</p>` : '<p></p>'))
     .join('')
 
+/* markdown-it is already in the tree (a transitive dep of @tiptap/pm, via
+   prosemirror-markdown) — dynamically imported, same as the docx modules
+   below, so it costs nothing in the main bundle unless a .md is actually
+   opened. `html: false` is deliberate, not the default paranoia: CommonMark
+   lets raw HTML sit inside a .md file verbatim, and rendering that would mean
+   trusting markup an attacker could hand someone as a "note", not a document.
+   Declining it here means a stray `<script>` in the source shows up as
+   literal escaped text instead of ever becoming markup — the sanitizing
+   schema every other HTML-shaped import already goes through would catch it
+   regardless, but this is one fewer thing asking it to. */
+async function mdToHtml(text) {
+  const { default: MarkdownIt } = await import('markdown-it')
+  return new MarkdownIt({ html: false, linkify: true }).render(String(text))
+}
+
+/* The one place a file's extension decides how its text becomes the editor's
+   HTML. .html/.htm pass through as-is (already markup); .txt and .md both
+   need a real conversion, or a bold word in someone's notes renders as the
+   literal string `**bold**` instead of bold. */
+async function textFileToHtml(path, raw) {
+  const e = ext(path)
+  if (e === 'txt') return textToHtml(raw)
+  if (e === 'md') return mdToHtml(raw)
+  return raw
+}
+
 async function toDocxBytes(json, pageSettings) {
   const { exportDocx } = await import('./docx/export.js')
   return exportDocx(json, pageSettings)
@@ -104,7 +130,7 @@ async function tauriOpenPath(path) {
   }
   const { readTextFile } = await import('@tauri-apps/plugin-fs')
   const raw = await readTextFile(path)
-  return { name: baseName(path), path, html: ext(path) === 'txt' ? textToHtml(raw) : raw }
+  return { name: baseName(path), path, html: await textFileToHtml(path, raw) }
 }
 
 /* ---- browser fallback (dev preview) ---- */
@@ -132,7 +158,7 @@ function webOpen() {
   return new Promise((resolve) => {
     const input = document.createElement('input')
     input.type = 'file'
-    input.accept = '.docx,.html,.htm,.txt'
+    input.accept = '.docx,.html,.htm,.txt,.md'
     input.onchange = () => {
       const file = input.files?.[0]
       if (!file) return resolve(null)
@@ -164,9 +190,13 @@ function webOpenFile(file) {
       }
       reader.readAsArrayBuffer(file)
     } else {
-      reader.onload = () => {
-        const raw = String(reader.result)
-        resolve({ name, html: ext(file.name) === 'txt' ? textToHtml(raw) : raw })
+      reader.onload = async () => {
+        try {
+          const raw = String(reader.result)
+          resolve({ name, html: await textFileToHtml(file.name, raw) })
+        } catch (err) {
+          reject(err)
+        }
       }
       reader.readAsText(file)
     }
@@ -175,7 +205,7 @@ function webOpenFile(file) {
 
 export const isTauri = inTauri
 
-export const DOC_EXT_RE = /\.(docx|html?|txt)$/i
+export const DOC_EXT_RE = /\.(docx|html?|txt|md)$/i
 
 /* The pre-2007 binary Word format, matched only so it can be refused out loud.
    `.docx` is a zip of XML; `.doc` is an OLE compound binary with nothing in
