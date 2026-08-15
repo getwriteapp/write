@@ -50,11 +50,20 @@ test('the caret breathes once it is left alone, and restarts solid when it moves
     .poll(async () => parseFloat(await caretOpacity(page)), { timeout: 8000 })
     .toBeLessThan(0.95)
 
-  // ...then move it. A moving caret must be solid again immediately, which is
-  // what restarting into the animation's 150ms delay buys.
+  /* ...then move it. A moving caret must be solid again, which is what
+     restarting into the animation's 150ms delay buys — the delay holds the
+     first keyframe (opacity: 1) before the dim ever starts.
+
+     Poll here too, for a different reason than the dim check above: this
+     isn't animation progress being slow, it's the KEYDOWN -> updateCaret ->
+     restartBreathe call chain itself running on a main thread this suite's
+     other workers are also competing for. A fixed 60ms sleep assumed that
+     chain always beats 60ms of wall clock; under contention it measured
+     0.6416 once — not un-restarted, just not there yet. */
   await page.keyboard.press('ArrowLeft')
-  await page.waitForTimeout(60)
-  expect(parseFloat(await caretOpacity(page))).toBeGreaterThan(0.95)
+  await expect
+    .poll(async () => parseFloat(await caretOpacity(page)), { timeout: 8000 })
+    .toBeGreaterThan(0.95)
 })
 
 test('a running breath cannot hold the caret visible once it should be gone', async ({ page }) => {
@@ -147,13 +156,23 @@ test('the caret stays on the cursor through a room change (Flow view)', async ({
   // All six rooms, back round to the start.
   for (let i = 0; i < 6; i++) {
     await page.keyboard.press('Control+\\')
-    // Past the room's own settle and any webfont swap. Deliberately does NOT
-    // touch the keyboard otherwise: typing would mask the bug by updating the
-    // caret through the selection path.
-    await page.waitForTimeout(900)
+    /* Poll rather than a fixed sleep. settleCaret()'s own convergence has an
+       up-to-900ms ceiling (see App.svelte), and under this suite's own
+       parallelism that ceiling can be reached before the room's reflow has
+       actually finished — a fixed 900ms sleep then samples mid-settle.
+       Observed here: 371px drift in "cobalt", not a broken caret, just an
+       early sample. See TESTALL-FLAKE.md and caret-rooms.spec.js, which hit
+       the identical shape of bug with multi-line text. Deliberately does NOT
+       touch the keyboard otherwise while polling: typing would mask the bug
+       by updating the caret through the selection path. */
     const room = await page.locator('body').getAttribute('data-room')
+    await expect
+      .poll(async () => (await caretDrift(page)).x, {
+        timeout: 5000,
+        message: `x drift in room "${room}" never settled`,
+      })
+      .toBeLessThan(2)
     const drift = await caretDrift(page)
-    expect(drift.x, `x drift in room "${room}"`).toBeLessThan(2)
     expect(drift.y, `y drift in room "${room}"`).toBeLessThan(3)
   }
 })
