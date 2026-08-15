@@ -2426,7 +2426,6 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
     <input class="replace-input" type="text" placeholder="Replace" bind:value={replaceQuery} />
     <button class="find-wide" onclick={replaceCurrent} disabled={!findCount} title="Replace this match">Replace</button>
     <button class="find-wide" onclick={replaceAll} disabled={!findQuery} title="Replace all matches">Replace All</button>
-    <span class="bar-sep"></span>
     <button class="find-close" onclick={closeFind} title="Close (Esc)">×</button>
   </div>
 {/if}

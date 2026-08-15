@@ -1299,7 +1299,9 @@ body[data-focus="on"] .table-bar { display: none; }
   flex-wrap: wrap;
   gap: 6px;
   max-width: 94vw;
-  padding: 6px 10px;
+  /* extra right padding clears the pinned close button below, so a wrapped
+     second line of controls never runs underneath it */
+  padding: 6px 40px 6px 10px;
   background: var(--card);
   border: 1px solid var(--hairline);
   border-radius: 12px;
@@ -1337,7 +1339,17 @@ body[data-focus="on"] .table-bar { display: none; }
 .find-bar button:hover { color: var(--ink); }
 .find-bar button:disabled { opacity: 0.35; cursor: default; }
 .find-bar .find-wide { width: auto; padding: 0 10px; }
-.find-bar .find-close { color: var(--faint); }
+/* Pinned to the bar's own top-right corner rather than sitting in the flex
+   flow — .find-bar wraps to two lines once Replace's controls don't fit
+   (long queries, a narrow window), and a close button that flows with the
+   rest ends up wherever the wrap happens to leave it instead of staying
+   somewhere predictable to reach for. .find-bar's own `position: fixed`
+   already gives it a positioning context, so no extra wrapper is needed. */
+.find-bar .find-close {
+  position: absolute;
+  top: 6px; right: 6px;
+  color: var(--faint);
+}
 
 /* placeholder on the empty page */
 .ProseMirror p.is-editor-empty:first-child::before {
