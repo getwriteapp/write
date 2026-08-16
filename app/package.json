@@ -87,6 +87,6 @@
     "docx": "^9.7.1",
     "fast-xml-parser": "^5.9.3",
     "fflate": "^0.8.3",
-    "markdown-it": "^14.3.0"
+    "markdown-it": "^15.0.0"
   }
 }
