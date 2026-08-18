@@ -37,19 +37,9 @@ covers what's next and how to help.
 
 </div>
 
-## Getting it
+## Features
 
-Download the installer from the [latest
-release](https://github.com/getwriteapp/write/releases/latest) — a 5.7 MB
-`.exe`. No account, no telemetry.
-
-**Windows only.** The codebase is cross-platform and the macOS and Linux build
-targets are configured, but no binary for either has been produced or tested.
-
-Release binaries are not code-signed yet, so Windows SmartScreen warns on first
-run. Check the SHA-256 against the release notes before installing.
-
-## Rooms
+### Rooms
 
 A room sets the palette, the typeface and the measure together. Six ship built
 in. Cycle them with `Ctrl/⌘ + \`.
@@ -62,8 +52,6 @@ in. Cycle them with `Ctrl/⌘ + \`.
 | **Paper** | Cream and ink | Source Serif 4 |
 | **Slate** | Cool dark, sea-glass caret | Geist |
 | **Noir** | Midnight, amber caret | Newsreader |
-
-## Features
 
 ### The document
 
@@ -177,6 +165,18 @@ Word and LibreOffice convert `.doc` to `.docx` in one step.
   [fflate](https://github.com/101arrowz/fflate) and
   [fast-xml-parser](https://github.com/NaturalIntelligence/fast-xml-parser)
 - No dependency is copyleft — everything upstream is MIT, Apache-2.0 or OFL
+
+## Getting it
+
+Download the installer from the [latest
+release](https://github.com/getwriteapp/write/releases/latest) — a 5.7 MB
+`.exe`. No account, no telemetry.
+
+**Windows only.** The codebase is cross-platform and the macOS and Linux build
+targets are configured, but no binary for either has been produced or tested.
+
+Release binaries are not code-signed yet, so Windows SmartScreen warns on first
+run. Check the SHA-256 against the release notes before installing.
 
 ## Build and run
 
