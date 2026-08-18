@@ -39,20 +39,6 @@ covers what's next and how to help.
 
 ## Features
 
-### Rooms
-
-A room sets the palette, the typeface and the measure together. Six ship built
-in. Cycle them with `Ctrl/⌘ + \`.
-
-| Room | Feel | Typeface |
-|------|------|----------|
-| **Linen** | White, rust caret — the default | Nunito Sans |
-| **Cobalt** | White, cobalt caret | Reddit Mono |
-| **Dawn** | Blush light, rose caret | Petrona |
-| **Paper** | Cream and ink | Source Serif 4 |
-| **Slate** | Cool dark, sea-glass caret | Geist |
-| **Noir** | Midnight, amber caret | Newsreader |
-
 ### The document
 
 - **Real `.docx` open and save.** Documents round-trip through Microsoft Word
@@ -89,10 +75,22 @@ in. Cycle them with `Ctrl/⌘ + \`.
 
 ### The room
 
-- **Six rooms**, remembered between sessions. Both views get their own
-  narrow/normal/wide control — Flow's sets the column's reading width, Page's
-  sets the sheet's physical margins, since a continuous column and a printed
-  page don't share a notion of "width" to begin with.
+A room sets the palette, the typeface and the measure together. Six ship built
+in and the choice is remembered between sessions. Cycle them with `Ctrl/⌘ + \`.
+
+| Room | Feel | Typeface |
+|------|------|----------|
+| **Linen** | White, rust caret — the default | Nunito Sans |
+| **Cobalt** | White, cobalt caret | Reddit Mono |
+| **Dawn** | Blush light, rose caret | Petrona |
+| **Paper** | Cream and ink | Source Serif 4 |
+| **Slate** | Cool dark, sea-glass caret | Geist |
+| **Noir** | Midnight, amber caret | Newsreader |
+
+- **Narrow, normal and wide measures**, set per view. Flow's control sets the
+  column's reading width, Page's sets the sheet's physical margins, since a
+  continuous column and a printed page don't share a notion of "width" to
+  begin with.
 - **Thirty-six bundled typefaces** — seven serif, five slab, thirteen sans,
   seven display, four typewriter — previewed live in your own document as
   you arrow through the menu.
