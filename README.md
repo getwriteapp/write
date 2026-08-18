@@ -78,15 +78,6 @@ covers what's next and how to help.
 A room sets the palette, the typeface and the measure together. Six ship built
 in and the choice is remembered between sessions. Cycle them with `Ctrl/⌘ + \`.
 
-| Room | Feel | Typeface |
-|------|------|----------|
-| **Linen** | White, rust caret — the default | Nunito Sans |
-| **Cobalt** | White, cobalt caret | Reddit Mono |
-| **Dawn** | Blush light, rose caret | Petrona |
-| **Paper** | Cream and ink | Source Serif 4 |
-| **Slate** | Cool dark, sea-glass caret | Geist |
-| **Noir** | Midnight, amber caret | Newsreader |
-
 - **Narrow, normal and wide measures**, set per view. Flow's control sets the
   column's reading width, Page's sets the sheet's physical margins, since a
   continuous column and a printed page don't share a notion of "width" to
@@ -98,6 +89,15 @@ in and the choice is remembered between sessions. Cycle them with `Ctrl/⌘ + \`
   you're in, and clears the chrome from all four corners.
 - **Chrome that gets out of the way.** The toolbar, wordmark and status row
   duck when you engage with the page and return when you reach for them.
+
+| Room | Feel | Typeface |
+|------|------|----------|
+| **Linen** | White, rust caret — the default | Nunito Sans |
+| **Cobalt** | White, cobalt caret | Reddit Mono |
+| **Dawn** | Blush light, rose caret | Petrona |
+| **Paper** | Cream and ink | Source Serif 4 |
+| **Slate** | Cool dark, sea-glass caret | Geist |
+| **Noir** | Midnight, amber caret | Newsreader |
 
 ### The everyday
 
